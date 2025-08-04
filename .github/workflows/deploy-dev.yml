@@ -46,19 +46,9 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            echo "[✔] Stop old app"
-            pkill -f 'java -jar' || true
-
-            echo "[✔] Start new app"
-            cd /home/ubuntu/app
-
-            echo "[✔] Load env variables"
-            source /home/ubuntu/env.sh
-
-            echo "[✔] Launching app..."
-            nohup java -jar app.jar --spring.profiles.active=dev > app.log 2>&1 &
-            sleep 5
-            echo "[✔] Process check:"
-            ps aux | grep java
-            echo "[✔] Tail log:"
-            tail -n 20 app.log || tail -n 20 nohup.out || echo "No log found"
+            bash -c '
+              source /home/ubuntu/env.sh
+              echo "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE"
+              cd /home/ubuntu/app
+              nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
+            '
