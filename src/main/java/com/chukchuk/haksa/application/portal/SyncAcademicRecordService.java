@@ -70,12 +70,18 @@ public class SyncAcademicRecordService {
 
             Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
 
-            List<StudentCourse> studentCourses = enrollments.stream()
+            List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
+            Set<Long> existingOfferingIds = existingEnrollments.stream()
+                    .map(sc -> sc.getOffering().getId())
+                    .collect(Collectors.toSet());
+
+            List<StudentCourse> newStudentCourses = enrollments.stream()
+                    .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId())) // 중복 제거
                     .map(e -> StudentCourseMapper.toEntity(e, student, offerings.get((long) e.getOfferingId())))
                     .toList();
 
-            studentCourses.forEach(student::addStudentCourse);
-            studentCourseRepository.saveAll(studentCourses);
+            newStudentCourses.forEach(student::addStudentCourse);
+            studentCourseRepository.saveAll(newStudentCourses);
 
             removeDeletedEnrollments(student, enrollments);
 
