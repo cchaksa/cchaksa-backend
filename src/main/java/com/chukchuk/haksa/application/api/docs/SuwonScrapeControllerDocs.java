@@ -43,12 +43,26 @@ public interface SuwonScrapeControllerDocs {
             summary = "포털 데이터 크롤링 및 동기화",
             description = "Redis에 저장된 포털 로그인 정보를 사용하여 데이터를 크롤링하고 초기화 및 학업 이력을 동기화합니다.",
             responses = {
-                    @ApiResponse(responseCode = "202", description = "동기화 성공",
-                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScrapingApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "로그인 필요 (ErrorCode: C01, 세션 만료)",
-                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "500", description = "서버 내부 오류 (ErrorCode: C02, 포털 크롤링 실패)",
-                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class)))
+                    @ApiResponse(
+                            responseCode = "202",
+                            description = "동기화 성공",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScrapingApiResponse.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "401",
+                            description = "아이디 또는 비밀번호 불일치 (ErrorCode: P01)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "423",
+                            description = "계정 잠김 (ErrorCode: P03)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "포털 크롤링 실패 (ErrorCode: P02)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    )
             }
     )
     @SecurityRequirement(name = "bearerAuth")

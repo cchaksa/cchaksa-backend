@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.student.wrapper;
 
+import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,7 +17,7 @@ public class StudentProfileApiResponse extends SuccessResponse<StudentProfileRes
                 "컴퓨터SW학과",           // majorName
                 3,                        // gradeLevel
                 6,                        // currentSemester
-                "ENROLLED",               // status
+                StudentStatus.재학,               // status
                 "2024-04-25T10:00:00Z",    // lastUpdatedAt
                 "2024-04-25T08:00:00Z"     // lastSyncedAt
         ), "요청 성공");

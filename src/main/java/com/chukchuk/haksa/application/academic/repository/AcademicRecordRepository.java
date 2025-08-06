@@ -62,14 +62,21 @@ public class AcademicRecordRepository {
         UUID studentId = student.getId();
 
         // 1. 요약 정보 변경 시에만 업데이트
-        studentAcademicRecordRepository.findByStudentId(studentId)
-                .ifPresent(existing -> {
+        StudentAcademicRecord summary = studentAcademicRecordRepository.findByStudentId(studentId)
+                .map(existing -> {
                     if (!existing.isSameAs(academicRecord.getSummary())) {
                         existing.updateWith(academicRecord.getSummary());
                         studentAcademicRecordRepository.save(existing);
                     }
-                    student.setAcademicRecord(existing);
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    StudentAcademicRecord newRecord = AcademicRecordMapper.toEntity(student, academicRecord.getSummary());
+                    studentAcademicRecordRepository.save(newRecord);
+                    return newRecord;
                 });
+
+        student.setAcademicRecord(summary);
 
         // 2. 학기별 성적 비교 후 변경된 것만 저장
         List<SemesterAcademicRecord> newSemesters = academicRecord.getSemesters().stream()

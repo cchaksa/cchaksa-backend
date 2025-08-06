@@ -41,7 +41,7 @@ public class StudentDto {
             @Schema(description = "전공 이름", required = true) String majorName,
             @Schema(description = "학년", required = true) int gradeLevel,
             @Schema(description = "현재 학기", required = true) int currentSemester,
-            @Schema(description = "재학 상태", required = true) String status,
+            @Schema(description = "재학 상태", required = true, implementation = StudentStatus.class) StudentStatus status,
             @Schema(description = "마지막 업데이트 일시", required = true) String lastUpdatedAt,
             @Schema(description = "학사 정보 마지막 연동 일시", required = true) String lastSyncedAt
     ) {
@@ -53,7 +53,7 @@ public class StudentDto {
                     Objects.requireNonNullElse(studentInfoDto.majorName(), ""),
                     studentInfoDto.gradeLevel() != null ? studentInfoDto.gradeLevel() : 0,
                     currentSemester,
-                    Objects.requireNonNullElse(studentInfoDto.status().toString(), ""),
+                    studentInfoDto.status(),
                     studentInfoDto.updatedAt().toString(),
                     lastSyncedAt
             );

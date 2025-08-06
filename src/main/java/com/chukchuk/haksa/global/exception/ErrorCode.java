@@ -34,8 +34,9 @@ public enum ErrorCode {
     INVALID_GRADE_TYPE("A06", "존재하지 않는 성적 등급입니다.", HttpStatus.BAD_REQUEST),
 
     // 포털 관련
-    PORTAL_LOGIN_FAILED("P01", "포털 로그인 실패", HttpStatus.UNAUTHORIZED),
+    PORTAL_LOGIN_FAILED("P01", "아이디나 비밀번호가 일치하지 않습니다.\n학교 홈페이지에서 확인해주세요.", HttpStatus.UNAUTHORIZED),
     PORTAL_SCRAPE_FAILED("P02", "포털 크롤링 실패", HttpStatus.INTERNAL_SERVER_ERROR),
+    PORTAL_ACCOUNT_LOCKED("P03", "계정이 잠겼습니다. 포털사이트로 돌아가서 학번/사번 찾기 및 비밀번호 재발급을 진행해주세요", HttpStatus.LOCKED),
 
     // 공통(Common)
     INVALID_ARGUMENT("C01", "잘못된 요청입니다.", HttpStatus.BAD_REQUEST),

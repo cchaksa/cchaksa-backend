@@ -65,19 +65,43 @@ public class Student extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @OneToOne(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
+    @OneToOne(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private StudentAcademicRecord studentAcademicRecord;
 
     @OneToOne(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
     private StudentGraduationProgress graduationProgress;
 
-    @OneToMany(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
+    @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SemesterAcademicRecord> semesterAcademicRecords = new ArrayList<>();
 
     @OneToMany(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
     private List<StudentCourse> studentCourses = new ArrayList<>();
 
     /* Using Method */
+
+    // 회원 정보 초기화
+    public void resetAcademicData() {
+        // 학기별 성적 기록 삭제
+        this.semesterAcademicRecords.clear();
+
+        // 수강 과목 기록 삭제
+        this.studentCourses.clear();
+
+        // 누적 성적 기록 삭제
+        this.studentAcademicRecord = null;
+
+//        // 필요한 경우 학업 정보도 초기화
+//        if (this.academicInfo != null) {
+//            this.academicInfo = AcademicInfo.builder()
+//                    .admissionYear(this.academicInfo.getAdmissionYear())
+//                    .semesterEnrolled(this.academicInfo.getSemesterEnrolled())
+//                    .isTransferStudent(this.academicInfo.getIsTransferStudent())
+//                    .status(StudentStatus.ENROLLED) // 예: 기본값
+//                    .gradeLevel(1)
+//                    .completedSemesters(0)
+//                    .build();
+//        }
+    }
 
     @Builder
     public Student(String studentCode, String name, Department department, Department major, Department secondaryMajor,
@@ -172,5 +196,4 @@ public class Student extends BaseEntity {
     private boolean equalsNullable(Object a, Object b) {
         return java.util.Objects.equals(a, b);
     }
-
 }

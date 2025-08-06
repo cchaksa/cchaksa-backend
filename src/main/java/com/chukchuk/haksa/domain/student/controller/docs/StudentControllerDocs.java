@@ -55,4 +55,13 @@ public interface StudentControllerDocs {
     ResponseEntity<SuccessResponse<StudentProfileResponse>> getProfile(
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
+
+    @Operation(
+            summary = "사용자 정보 초기화",
+            description = "로그인된 사용자의 정보를 초기화합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetStudentData(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
 }

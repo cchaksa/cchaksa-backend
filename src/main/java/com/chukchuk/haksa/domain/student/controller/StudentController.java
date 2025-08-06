@@ -39,4 +39,13 @@ public class StudentController implements StudentControllerDocs {
         StudentProfileResponse response = studentService.getStudentProfile(studentId);
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
+
+    @PostMapping("/reset")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetStudentData(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID studentId = userDetails.getStudentId();
+        studentService.resetBy(studentId);
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("학생 정보가 초기화되었습니다.")));
+    }
 }

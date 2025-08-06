@@ -51,6 +51,12 @@ public class StudentService {
     }
 
     @Transactional
+    public void resetBy(UUID studentId) {
+        Student student = getStudentById(studentId);
+        student.resetAcademicData();
+    }
+
+    @Transactional
     public void setStudentTargetGpa(UUID studentId, Double targetGpa) {
         Student student = getStudentById(studentId);
 

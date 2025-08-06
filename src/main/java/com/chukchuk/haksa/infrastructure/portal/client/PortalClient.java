@@ -51,12 +51,14 @@ public class PortalClient {
                     .block();
         } catch (WebClientResponseException e) {
             HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
-            String message = switch (status) {
-                case UNAUTHORIZED -> "아이디나 비밀번호가 일치하지 않습니다.";
-                case LOCKED -> "계정이 잠겼습니다. 포털에서 비밀번호 재발급이 필요합니다.";
-                default -> "크롤링 중 오류가 발생했습니다.";
+
+            ErrorCode errorCode = switch (status) {
+                case UNAUTHORIZED -> ErrorCode.PORTAL_LOGIN_FAILED;
+                case LOCKED -> ErrorCode.PORTAL_ACCOUNT_LOCKED;
+                default -> ErrorCode.PORTAL_SCRAPE_FAILED;
             };
-            throw new PortalScrapeException(ErrorCode.PORTAL_SCRAPE_FAILED, e);
+
+            throw new PortalScrapeException(errorCode, e);
         }
     }
 
