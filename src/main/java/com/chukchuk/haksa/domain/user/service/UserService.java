@@ -23,16 +23,9 @@ import java.util.UUID;
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
     private final KakaoOidcService kakaoOidcService;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
-
-
-    public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
-    }
 
     public User getUserById(UUID userId) {
         return userRepository.findById(userId)
