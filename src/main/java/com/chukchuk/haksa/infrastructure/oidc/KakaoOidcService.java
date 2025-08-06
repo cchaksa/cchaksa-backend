@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.infrastructure.oidc;
 
+import com.chukchuk.haksa.domain.user.service.OidcService;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.exception.TokenException;
 import com.fasterxml.jackson.databind.JsonNode;
