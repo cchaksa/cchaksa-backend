@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.security.service;
+package com.chukchuk.haksa.infrastructure.oidc;
 
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.exception.TokenException;
@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -23,15 +24,15 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class KakaoOidcService {
-    private final KakaoOidcPublicKeyService publicKeyService;
+public class KakaoOidcService implements OidcService {
+    private static final String KAKAO_JWKS_URL = "https://kauth.kakao.com/.well-known/jwks.json";
 
     @Value("${security.appKey}")
     private String appKey;
 
     public Claims verifyIdToken(String idToken, String expectedNonce) {
         try {
-            JsonNode jwks = publicKeyService.getKakaoOidcPublicKey();
+            JsonNode jwks = getPublicKey();
 
             String[] parts = idToken.split("\\.");
             if (parts.length != 3) {
@@ -63,6 +64,11 @@ public class KakaoOidcService {
         } catch (Exception e) {
             throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
         }
+    }
+
+    private JsonNode getPublicKey() {
+        RestTemplate restTemplate = new RestTemplate();
+        return restTemplate.getForObject(KAKAO_JWKS_URL, JsonNode.class);
     }
 
     private PublicKey createPublicKey(JsonNode keyNode) throws Exception{
