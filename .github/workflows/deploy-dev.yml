@@ -22,7 +22,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build jar with Gradle
-        run: ./gradlew clean bootJar
+        run: ./gradlew clean build
 
       - name: Rename jar to app.jar
         run: |
@@ -50,5 +50,14 @@ jobs:
               source /home/ubuntu/env.sh
               echo "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE"
               cd /home/ubuntu/app
+
+              # 기존 프로세스 종료
+              PID=$(pgrep -f "app.jar")
+              if [ -n "$PID" ]; then
+                echo "Killing existing process: $PID"
+                kill -9 $PID
+              fi
+
+              # 새로운 프로세스 실행
               nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
             '
