@@ -2,20 +2,20 @@ package com.chukchuk.haksa.domain.user.service;
 
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
-import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
-import com.chukchuk.haksa.global.security.service.KakaoOidcService;
+import com.chukchuk.haksa.global.security.service.OidcProvider;
 import io.jsonwebtoken.Claims;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -23,16 +23,10 @@ import java.util.UUID;
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
-    private final StudentRepository studentRepository;
-    private final KakaoOidcService kakaoOidcService;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
 
-
-    public User getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
-    }
+    private final Map<OidcProvider, OidcService> oidcServices;
 
     public User getUserById(UUID userId) {
         return userRepository.findById(userId)
@@ -44,9 +38,10 @@ public class UserService {
         userRepository.save(user);
     }
 
+    // TODO OIDC Provider에 대한 API 추후에 추가 필요
     @Transactional
-    public AuthDto.SignInTokenResponse signInWithKakao(UserDto.SignInRequest signInRequest) {
-        Claims claims = verifyKakaoToken(signInRequest);
+    public AuthDto.SignInTokenResponse signIn(UserDto.SignInRequest signInRequest) {
+        Claims claims = verifyToken(OidcProvider.KAKAO, signInRequest);
         String email = extractEmail(claims);
 
         User user = findOrCreateUser(email);
@@ -62,8 +57,8 @@ public class UserService {
     }
 
     /* private method */
-    private Claims verifyKakaoToken(UserDto.SignInRequest request) {
-        return kakaoOidcService.verifyIdToken(request.id_token(), request.nonce());
+    private Claims verifyToken(OidcProvider provider, UserDto.SignInRequest request) {
+        return oidcServices.get(provider).verifyIdToken(request.id_token(), request.nonce());
     }
 
     private String extractEmail(Claims claims) {

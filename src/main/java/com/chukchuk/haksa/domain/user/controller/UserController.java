@@ -36,7 +36,7 @@ public class UserController implements UserControllerDocs {
     public ResponseEntity<SuccessResponse<UserDto.SignInResponse>> signInUser(
             @RequestBody UserDto.SignInRequest signInRequest
     ) {
-        AuthDto.SignInTokenResponse tokens = userService.signInWithKakao(signInRequest);
+        AuthDto.SignInTokenResponse tokens = userService.signIn(signInRequest);
         UserDto.SignInResponse response = new UserDto.SignInResponse(tokens.accessToken(), tokens.refreshToken(), tokens.isPortalLinked());
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
