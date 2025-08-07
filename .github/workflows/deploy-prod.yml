@@ -23,6 +23,20 @@ jobs:
 
       - name: Build jar with Gradle
         run: ./gradlew clean build
+        env:
+          SPRING_PROFILES_ACTIVE: local
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
+          JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
+          APP_KEY: ${{ secrets.APP_KEY }}
+          CRAWLER_BASE_URL: ${{ secrets.CRAWLER_BASE_URL }}
+          REDIS_ENCRYPT_KEY: ${{ secrets.REDIS_ENCRYPT_KEY }}
+
+          LOCAL_DB_URL: ${{ secrets.LOCAL_DB_URL }}
+          LOCAL_DB_USERNAME: ${{ secrets.LOCAL_DB_USERNAME }}
+          LOCAL_DB_PASSWORD: ${{ secrets.LOCAL_DB_PASSWORD }}
+          LOCAL_REDIS_HOST: ${{ secrets.LOCAL_REDIS_HOST }}
+          LOCAL_REDIS_PORT: ${{ secrets.LOCAL_REDIS_PORT }}
 
       - name: Rename jar to app.jar
         run: |
