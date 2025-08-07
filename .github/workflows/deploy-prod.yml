@@ -1,8 +1,8 @@
-name: Deploy to Dev EC2
+name: Deploy to Prod EC2
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -32,9 +32,9 @@ jobs:
       - name: Copy app.jar to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           source: "deploy/app.jar"
           target: "/home/ubuntu/app"
           strip_components: 1
@@ -42,9 +42,9 @@ jobs:
       - name: Restart Spring Boot app on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           script: |
             bash -c '
               source /home/ubuntu/env.sh
