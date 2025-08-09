@@ -67,6 +67,7 @@ public class JwtProvider {
         try {
             return Jwts.parserBuilder()
                     .setSigningKey(key)
+                    .setAllowedClockSkewSeconds(60)
                     .build()
                     .parseClaimsJws(token) // 서명 유효성 검증 + Base64 디코딩, Claims 추출
                     .getBody();

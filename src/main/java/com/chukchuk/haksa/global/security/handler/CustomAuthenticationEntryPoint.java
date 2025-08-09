@@ -45,6 +45,8 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
 
         ErrorResponse error = ErrorResponse.of(errorCode.code(), errorCode.message());
         response.getWriter().write(objectMapper.writeValueAsString(error));
+        response.setHeader("WWW-Authenticate",
+                "Bearer error=\"invalid_token\", error_description=\"" + errorCode.name() + "\"");
         response.getWriter().flush();
     }
 }
