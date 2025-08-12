@@ -20,10 +20,10 @@ public class RedisConfig {
     @Value("${spring.data.redis.port}")
     private int redisPort;
 
-    @Value("${spring.data.redis.password:}")
+    @Value("${spring.data.redis.password:#{null}}")
     private String redisPassword;
 
-    @Value("${spring.data.redis.username:}")
+    @Value("${spring.data.redis.username:#{null}}")
     private String redisUsername;
 
     @Value("${spring.data.redis.ssl.enabled:false}")
