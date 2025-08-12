@@ -12,6 +12,7 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Instant;
 import java.util.UUID;
 
+@LogPart("crawl")
 @RestController
 @RequestMapping("/api/suwon-scrape")
 @RequiredArgsConstructor
