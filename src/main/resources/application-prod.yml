@@ -22,7 +22,8 @@ spring:
       password: ${PROD_REDIS_PASSWORD:}
       client-name: redis-client
       timeout: 1s
-      ssl: false
+      ssl:
+        enabled: false
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
