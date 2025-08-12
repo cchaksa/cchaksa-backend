@@ -20,10 +20,18 @@ public class RedisPortalCredentialStore {
         String prefix = "portal:" + userId + ":";
 
         try {
-            redisTemplate.opsForValue().set(prefix + "username", aesEncryptor.encrypt(username), TTL);
-            redisTemplate.opsForValue().set(prefix + "password", aesEncryptor.encrypt(password), TTL);
+            String encU = aesEncryptor.encrypt(username); // ← AES 키/IV 정합성 필수
+            String encP = aesEncryptor.encrypt(password);
+
+            redisTemplate.opsForValue().set(prefix + "username", encU, TTL);
+            redisTemplate.opsForValue().set(prefix + "password", encP, TTL);
+
+        } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+            // 네트워크/설정 문제를 분리
+            throw new RuntimeException("Redis 저장 실패(연결 확인 필요)", e);
+
         } catch (Exception e) {
-            throw new RuntimeException("암호화 실패", e);
+            throw new RuntimeException("자격증명 저장 처리 실패", e);
         }
     }
 
