@@ -1,6 +1,8 @@
 package com.chukchuk.haksa.global.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -8,9 +10,10 @@ import org.springframework.data.redis.connection.RedisPassword;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
+@Slf4j
 @Configuration
 public class RedisConfig {
 
@@ -23,41 +26,48 @@ public class RedisConfig {
     @Value("${spring.data.redis.password:#{null}}")
     private String redisPassword;
 
-    @Value("${spring.data.redis.username:#{null}}")
-    private String redisUsername;
-
     @Value("${spring.data.redis.ssl.enabled:false}")
     private boolean redisSslEnabled;
 
     @Bean
-    public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, String> template = new RedisTemplate<>();
-        template.setConnectionFactory(connectionFactory);
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new StringRedisSerializer());
-        return template;
+    public StringRedisTemplate redisTemplate(RedisConnectionFactory cf) {
+        StringRedisTemplate t = new StringRedisTemplate();
+        t.setConnectionFactory(cf);
+        t.setKeySerializer(new StringRedisSerializer());
+        t.setValueSerializer(new StringRedisSerializer());
+        return t;
     }
 
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        // 서버 설정 (username/password는 값이 있을 때만 설정)
         RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
         conf.setHostName(redisHost);
         conf.setPort(redisPort);
-        if (redisPassword != null && !redisPassword.isEmpty()) {
+        if (redisPassword != null && !redisPassword.trim().isEmpty()) {
             conf.setPassword(RedisPassword.of(redisPassword));
         }
-        if (redisUsername != null && !redisUsername.isEmpty()) {
-            conf.setUsername(redisUsername);
-        }
 
-        // 클라이언트 설정: SSL 플래그에 따라 선택적으로 사용
         LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
                 LettuceClientConfiguration.builder();
-        if (redisSslEnabled) {
-            builder.useSsl();
-        }
+        if (redisSslEnabled) builder.useSsl(); // prod=false 여야 함
 
-        return new LettuceConnectionFactory(conf, builder.build());
+        var cf = new LettuceConnectionFactory(conf, builder.build());
+        return cf;
+    }
+
+    // 부팅 시 실제 효과값 로그 + 즉시 ping
+    @Bean
+    CommandLineRunner redisBootCheck(StringRedisTemplate rt) {
+        return args -> {
+            log.warn(">>> Redis effective: host={}, port={}, ssl={}",
+                    redisHost, redisPort, redisSslEnabled);
+            try {
+                rt.opsForValue().set("__boot_check__", "ok");
+                String v = rt.opsForValue().get("__boot_check__");
+                log.warn(">>> Redis ping/set/get OK: {}", v);
+            } catch (Exception e) {
+                log.error(">>> Redis check FAILED", e);
+            }
+        };
     }
 }
