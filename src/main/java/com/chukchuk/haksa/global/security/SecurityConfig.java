@@ -6,6 +6,7 @@ import com.chukchuk.haksa.global.security.handler.CustomAuthenticationEntryPoint
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -32,9 +33,9 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -61,24 +62,53 @@ public class SecurityConfig {
             "/webjars/**", "/openapi.yaml"
     };
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+    // ---- CORS (dev) ----
+    @Bean("corsConfigurationSource")
+    @Profile("dev")
+    public CorsConfigurationSource devCors() {
+        CorsConfiguration c = new CorsConfiguration();
+        c.setAllowedOrigins(List.of(
                 "http://localhost:3000",
+                "https://dv.cchaksa.com"
+        ));
+        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        c.setAllowedHeaders(List.of("*"));
+        c.setAllowCredentials(true);
+        c.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
+        s.registerCorsConfiguration("/**", c);
+        return s;
+    }
+
+    // ---- CORS (prod) ----
+    @Bean("corsConfigurationSource")
+    @Profile("prod")
+    public CorsConfigurationSource prodCors() {
+        CorsConfiguration c = new CorsConfiguration();
+        c.setAllowedOrigins(List.of(
                 "https://www.cchaksa.com",
                 "https://cchaksa.com",
-                "https://dev.cchaksa.com:3000",
-                "https://dev.api.cchaksa.com"
+                "https://dv.cchaksa.com"
         ));
-        configuration.setAllowedOriginPatterns(List.of("*")); // TODO: 배포 전 반드시 제한 필요
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setAllowCredentials(true);
+        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        c.setAllowedHeaders(List.of("*"));
+        c.setAllowCredentials(true); // 쿠키 미사용이면 false 권장
+        c.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
+        s.registerCorsConfiguration("/**", c);
+        return s;
+    }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
+    @Bean("corsConfigurationSource")
+    @Profile("local")
+    public CorsConfigurationSource defaultCors() {
+        CorsConfiguration c = new CorsConfiguration();
+        c.setAllowedOrigins(List.of("*"));
+        c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        c.setAllowedHeaders(List.of("*"));
+        UrlBasedCorsConfigurationSource s = new UrlBasedCorsConfigurationSource();
+        s.registerCorsConfiguration("/**", c);
+        return s;
     }
 
     @Bean
