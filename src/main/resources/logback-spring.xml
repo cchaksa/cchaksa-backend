@@ -1,8 +1,11 @@
 <configuration>
+
+    <!-- ========== local ========== -->
     <springProfile name="local">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
                 <providers>
                     <timestamp>
                         <fieldName>timestamp</fieldName>
@@ -11,27 +14,43 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
+                    <loggerName/>
+                    <threadName/>
+
+                    <!-- MDC 필드 -->
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>part</includeMdcKeyName>
+                        <includeMdcKeyName>className</includeMdcKeyName>
+                        <includeMdcKeyName>method</includeMdcKeyName>
+                    </mdc>
+
                     <message>
                         <fieldName>message</fieldName>
                     </message>
                     <arguments/>
+                    <stackTrace/>
                 </providers>
             </encoder>
+
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
                 <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
                 <maxHistory>7</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
             </rollingPolicy>
         </appender>
 
         <root level="INFO">
-            <appender-ref ref="FILE" />
+            <appender-ref ref="FILE"/>
         </root>
     </springProfile>
 
+    <!-- ========== dev ========== -->
     <springProfile name="dev">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
                 <providers>
                     <timestamp>
                         <fieldName>timestamp</fieldName>
@@ -40,27 +59,43 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
+                    <loggerName/>
+                    <threadName/>
+
+                    <!-- MDC 필드 -->
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>part</includeMdcKeyName>
+                        <includeMdcKeyName>className</includeMdcKeyName>
+                        <includeMdcKeyName>method</includeMdcKeyName>
+                    </mdc>
+
                     <message>
                         <fieldName>message</fieldName>
                     </message>
                     <arguments/>
+                    <stackTrace/>
                 </providers>
             </encoder>
+
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
                 <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
                 <maxHistory>7</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
             </rollingPolicy>
         </appender>
 
         <root level="INFO">
-            <appender-ref ref="FILE" />
+            <appender-ref ref="FILE"/>
         </root>
     </springProfile>
 
+    <!-- ========== prod ========== -->
     <springProfile name="prod">
         <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
                 <providers>
                     <timestamp>
                         <fieldName>timestamp</fieldName>
@@ -69,20 +104,34 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
+                    <loggerName/>
+                    <threadName/>
+
+                    <!-- MDC 필드 -->
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>part</includeMdcKeyName>
+                        <includeMdcKeyName>className</includeMdcKeyName>
+                        <includeMdcKeyName>method</includeMdcKeyName>
+                    </mdc>
+
                     <message>
                         <fieldName>message</fieldName>
                     </message>
                     <arguments/>
+                    <stackTrace/>
                 </providers>
             </encoder>
+
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
                 <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
                 <maxHistory>7</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
             </rollingPolicy>
         </appender>
 
         <root level="INFO">
-            <appender-ref ref="FILE" />
+            <appender-ref ref="FILE"/>
         </root>
     </springProfile>
 
