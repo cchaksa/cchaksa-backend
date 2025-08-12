@@ -18,8 +18,6 @@ spring:
     redis:
       host: ${PROD_REDIS_HOST}
       port: ${PROD_REDIS_PORT}
-      username: ${PROD_REDIS_USERNAME:}
-      password: ${PROD_REDIS_PASSWORD:}
       client-name: redis-client
       timeout: 1s
       ssl:
