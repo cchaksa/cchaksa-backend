@@ -1,8 +1,8 @@
-name: Deploy to Dev EC2
+name: Deploy to Prod EC2
 
 on:
   push:
-    branches: [ "dev" ]
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -48,9 +48,9 @@ jobs:
       - name: Copy app.jar to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           source: "deploy/app.jar"
           target: "/home/ubuntu/app"
           strip_components: 1
@@ -58,23 +58,23 @@ jobs:
       - name: Restart Spring Boot app on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           script: |
             bash -c '
               set +e
               source /home/ubuntu/env.sh
               echo "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE"
               cd /home/ubuntu/app
-
+            
               # 정확히 java로 실행된 app.jar만 찾기
               PID=$(ps aux | grep "java -jar app.jar" | grep -v grep | awk "{print \$2}")
               if [ -n "$PID" ]; then
                 echo "Killing app.jar java process: $PID"
                 kill -9 $PID || true
               fi
-
+            
               nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
               sleep 1
               exit 0

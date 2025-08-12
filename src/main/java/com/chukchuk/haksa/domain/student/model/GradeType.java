@@ -4,10 +4,12 @@ import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 
 @Getter
+@Slf4j
 @RequiredArgsConstructor
 public enum GradeType {
     A_PLUS("A+", 4.5),
@@ -21,7 +23,8 @@ public enum GradeType {
     F("F", 0.0),
     P("P", 0.0),
     NP("NP", 0.0),
-    IP("IP", 0.0); // In Progress
+    IP("IP", 0.0), // In Progress
+    R("R", 0.0);
 
     private final String value;
     private final double gradePoint;
@@ -42,6 +45,11 @@ public enum GradeType {
         return Arrays.stream(values())
                 .filter(v -> v.getValue().equals(value))
                 .findFirst()
-                .orElseThrow(() -> new CommonException(ErrorCode.INVALID_GRADE_TYPE));
+                .orElseThrow(() -> {
+                    // 로그 추가
+                    log.warn("[GradeType] Unknown grade: {}", value);
+                    // log.warn("[GradeType] Unknown grade: '{}'", value);
+                    return new CommonException(ErrorCode.INVALID_GRADE_TYPE);
+                });
     }
 }
