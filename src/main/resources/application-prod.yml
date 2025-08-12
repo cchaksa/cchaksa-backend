@@ -21,7 +21,7 @@ spring:
       username: ${PROD_REDIS_USERNAME:}
       password: ${PROD_REDIS_PASSWORD:}
       client-name: redis-client
-      timeout: 5000
+      timeout: 1s
       ssl:
         enabled: false
 
