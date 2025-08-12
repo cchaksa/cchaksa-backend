@@ -14,7 +14,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @Configuration
 public class RedisConfig {
 
-    // application.yml 또는 .env에서 Redis 접속 정보 주입
     @Value("${spring.data.redis.host}")
     private String redisHost;
 
@@ -27,37 +26,38 @@ public class RedisConfig {
     @Value("${spring.data.redis.username:}")
     private String redisUsername;
 
-    /**
-     * RedisTemplate Bean 등록
-     * - key, value 모두 문자열로 직렬화
-     * - Redis 연결 팩토리를 주입받아 동작
-     */
+    @Value("${spring.data.redis.ssl.enabled:false}")
+    private boolean redisSslEnabled;
+
     @Bean
     public RedisTemplate<String, String> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, String> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-        template.setKeySerializer(new StringRedisSerializer());   // key: String
-        template.setValueSerializer(new StringRedisSerializer()); // value: String
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new StringRedisSerializer());
         return template;
     }
 
-    /**
-     * RedisConnectionFactory 수동 구성
-     * - Render Redis는 rediss:// (SSL) + 인증 비밀번호만 지원 (username 사용 불가)
-     * - Spring Boot 3.1+에서는 username 자동 설정되므로 명시적으로 처리 필요
-     */
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
-        config.setHostName(redisHost);
-        config.setPort(redisPort);
-        config.setPassword(RedisPassword.of(redisPassword));
-        config.setUsername(redisUsername);
+        // 서버 설정 (username/password는 값이 있을 때만 설정)
+        RedisStandaloneConfiguration conf = new RedisStandaloneConfiguration();
+        conf.setHostName(redisHost);
+        conf.setPort(redisPort);
+        if (redisPassword != null && !redisPassword.isEmpty()) {
+            conf.setPassword(RedisPassword.of(redisPassword));
+        }
+        if (redisUsername != null && !redisUsername.isEmpty()) {
+            conf.setUsername(redisUsername);
+        }
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .useSsl() // rediss:// URL 대응: SSL 사용 필수
-                .build();
+        // 클라이언트 설정: SSL 플래그에 따라 선택적으로 사용
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
+                LettuceClientConfiguration.builder();
+        if (redisSslEnabled) {
+            builder.useSsl();
+        }
 
-        return new LettuceConnectionFactory(config, clientConfig);
+        return new LettuceConnectionFactory(conf, builder.build());
     }
 }
