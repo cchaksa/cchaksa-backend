@@ -23,7 +23,8 @@ public enum GradeType {
     F("F", 0.0),
     P("P", 0.0),
     NP("NP", 0.0),
-    IP("IP", 0.0); // In Progress
+    IP("IP", 0.0), // In Progress
+    R("R", 0.0);
 
     private final String value;
     private final double gradePoint;

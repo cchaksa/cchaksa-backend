@@ -62,7 +62,7 @@ public class GraduationQueryRepository {
         FROM student_courses sc
         JOIN course_offerings co ON sc.offering_id = co.id
         JOIN courses c ON co.course_id = c.id
-        WHERE sc.grade != 'F'
+        WHERE sc.grade NOT IN ('F', 'R')
           AND sc.student_id = :studentId
         ORDER BY c.course_code, sc.original_score DESC
     ),

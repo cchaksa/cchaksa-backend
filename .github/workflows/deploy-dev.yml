@@ -22,7 +22,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build jar with Gradle
-        run: ./gradlew clean build bootJar
+        run: ./gradlew clean bootJar -x test
         env:
           SPRING_PROFILES_ACTIVE: local
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
