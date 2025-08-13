@@ -11,7 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -26,10 +25,6 @@ public class GraduationQueryRepository {
     private final ObjectMapper ob;
 
     /* 필요 졸업 학점 계산 로직 */
-    @Cacheable(
-            cacheNames = "requiredCredits",
-            key = "#departmentId + '_' + #admissionYear"
-    )
     public Integer getTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) {
         String sql = """
         SELECT COALESCE(SUM(dar.required_credits), 0)

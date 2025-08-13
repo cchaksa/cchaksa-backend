@@ -103,4 +103,16 @@ public class SemesterAcademicRecord extends BaseEntity {
                 compareBigDecimal(this.semesterPercentile, other.semesterPercentile) &&
                 compareBigDecimal(this.attemptedCreditsGpa, other.attemptedCreditsGpa);
     }
+
+    public void updateWith(SemesterAcademicRecord src) {
+        this.year = src.year;
+        this.semester = src.semester;
+        this.totalStudents = src.totalStudents;
+        this.classRank = src.classRank;
+        this.attemptedCreditsGpa = src.attemptedCreditsGpa;
+        this.semesterPercentile = src.semesterPercentile;
+        this.semesterGpa = src.semesterGpa;
+        this.attemptedCredits = src.attemptedCredits;
+        this.earnedCredits = src.earnedCredits;
+    }
 }
