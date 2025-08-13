@@ -70,7 +70,8 @@ public class SecurityConfig {
         CorsConfiguration c = new CorsConfiguration();
         c.setAllowedOrigins(List.of(
                 "http://localhost:3000",
-                "https://dv.cchaksa.com"
+                "https://dv.cchaksa.com",
+                "https://*.cchaksa.com"
         ));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
@@ -89,7 +90,9 @@ public class SecurityConfig {
         c.setAllowedOrigins(List.of(
                 "https://www.cchaksa.com",
                 "https://cchaksa.com",
-                "https://dv.cchaksa.com"
+                "https://dv.cchaksa.com",
+                "https://*.cchaksa.com",
+                "https://api.cchaksa.com"
         ));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
