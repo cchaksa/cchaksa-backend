@@ -10,12 +10,12 @@ public class CourseEnrollment {
     private UUID studentId;
     private Long offeringId;
     private Grade grade;
-    private int points;
+    private Integer points;
     private boolean isRetake;
     private Double originalScore;
 
     // 생성자
-    public CourseEnrollment(UUID studentId, Long offeringId, Grade grade, int points, boolean isRetake, Double originalScore) {
+    public CourseEnrollment(UUID studentId, Long offeringId, Grade grade, Integer points, boolean isRetake, Double originalScore) {
         this.studentId = studentId;
         this.offeringId = offeringId;
         this.grade = grade;
@@ -25,7 +25,7 @@ public class CourseEnrollment {
     }
 
     // factory 메서드
-    public static CourseEnrollment create(UUID studentId, Long offeringId, GradeType gradeType, int points, boolean isRetake, Double originalScore) {
+    public static CourseEnrollment create(UUID studentId, Long offeringId, GradeType gradeType, Integer points, boolean isRetake, Double originalScore) {
         return new CourseEnrollment(studentId, offeringId, new Grade(gradeType), points, isRetake, originalScore);
     }
 
@@ -42,7 +42,7 @@ public class CourseEnrollment {
         return grade.getValue();
     }
 
-    public int getPoints() {
+    public Integer getPoints() {
         return points;
     }
 
