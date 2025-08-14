@@ -71,7 +71,8 @@ public class SecurityConfig {
         c.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "https://dv.cchaksa.com",
-                "https://*.cchaksa.com"
+                "https://*.cchaksa.com",
+                "https://dev.api.cchaksa.com"
         ));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
