@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: local
+    active: dev
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
@@ -36,7 +36,3 @@ redis:
 springdoc:
   api-docs:
     enabled: true
-
-logging:
-  pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss}","level":"%p","thread":"%t","logger":"%c{1}","message":"%m"}'
