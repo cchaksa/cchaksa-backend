@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.domain.course.repository;
 
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
+import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -17,6 +18,6 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
       AND o.facultyDivisionName = :facultyDivisionName
 """)
     Optional<CourseOffering> findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionName(
-            Long courseId, Integer year, Integer semester, String classSection, Long professorId, String facultyDivisionName
+            Long courseId, Integer year, Integer semester, String classSection, Long professorId, FacultyDivision facultyDivisionName
     );
 }
