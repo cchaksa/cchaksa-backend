@@ -71,14 +71,46 @@ public class SyncAcademicRecordService {
             Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
 
             List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
+
             Set<Long> existingOfferingIds = existingEnrollments.stream()
                     .map(sc -> sc.getOffering().getId())
                     .collect(Collectors.toSet());
+
+            // 1) offeringId -> courseId 매핑
+            Map<Long, Long> offeringToCourseId = offerings.values().stream()
+                    .collect(Collectors.toMap(
+                            CourseOffering::getId,
+                            off -> off.getCourse().getId()
+                    ));
+
+            // 2) 재수강 enrollment 모으기
+            List<CourseEnrollment> retakeEnrollments = enrollments.stream()
+                    .filter(CourseEnrollment::isRetake)
+                    .toList();
+
+            // 3) 재수강 과목의 courseId 집합
+            Set<Long> retakeCourseIds = retakeEnrollments.stream()
+                    .map(e -> offeringToCourseId.get((long) e.getOfferingId()))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+
+            // 4) 기존 기록 중 재수강 대상 과목 삭제
+            List<StudentCourse> toRemoveForRetake = existingEnrollments.stream()
+                    .filter(sc -> retakeCourseIds.contains(sc.getOffering().getCourse().getId()))
+                    .toList();
+
+            if (!toRemoveForRetake.isEmpty()) {
+                studentCourseRepository.deleteAllInBatch(toRemoveForRetake);
+                toRemoveForRetake.forEach(sc -> existingOfferingIds.remove(sc.getOffering().getId()));
+            }
+
 
             List<StudentCourse> newStudentCourses = enrollments.stream()
                     .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId())) // 중복 제거
                     .map(e -> StudentCourseMapper.toEntity(e, student, offerings.get((long) e.getOfferingId())))
                     .toList();
+
+            // enrollments의 각 enrollment의 is_retake -> True이면 -> 기존 값 덮어쓰기
 
             newStudentCourses.forEach(student::addStudentCourse);
             studentCourseRepository.saveAll(newStudentCourses);
