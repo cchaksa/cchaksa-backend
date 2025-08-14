@@ -18,7 +18,7 @@ spring:
       host: ${DEV_REDIS_HOST}
       port: ${DEV_REDIS_PORT}
       username: ${DEV_REDIS_USERNAME}
-      password: ${DEV_REDIS_PASSWORD}
+      password: 
       client-name: redis-client
       timeout: 5000
       ssl:
