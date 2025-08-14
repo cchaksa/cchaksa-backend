@@ -32,7 +32,7 @@ public class CourseOfferingService {
     public CourseOffering getOrCreateOffering(CreateOfferingCommand cmd) {
         // 1. 존재하는지 확인
         Optional<CourseOffering> existing = courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionName(
-                cmd.courseId(), cmd.year(), cmd.semester(), cmd.classSection(), cmd.professorId(), cmd.facultyDivisionName()
+                cmd.courseId(), cmd.year(), cmd.semester(), cmd.classSection(), cmd.professorId(), FacultyDivision.valueOf(cmd.facultyDivisionName())
         );
 
         if (existing.isPresent()) return existing.get();
