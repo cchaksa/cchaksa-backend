@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: local
+    active: dev
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
