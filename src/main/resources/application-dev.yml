@@ -5,24 +5,21 @@ spring:
     password: ${DEV_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
+      maximum-pool-size: 1
+      minimum-idle: 0
       idle-timeout: 30000
-      max-lifetime: 1800000
-      keepalive-time: 30000
+      max-lifetime: 0
+      keepalive-time: 0
       connection-timeout: 20000
       validation-timeout: 5000
-      connection-test-query: SELECT 1
   data:
     redis:
       host: ${DEV_REDIS_HOST}
       port: ${DEV_REDIS_PORT}
-      username: ${DEV_REDIS_USERNAME}
-      password: 
       client-name: redis-client
       timeout: 5000
       ssl:
-        enabled: true
+        enabled: false
 
 
   jpa:
