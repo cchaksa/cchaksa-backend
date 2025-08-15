@@ -59,6 +59,7 @@ public class GraduationQueryRepository {
         JOIN courses c ON co.course_id = c.id
         WHERE sc.grade NOT IN ('F', 'R')
           AND sc.student_id = :studentId
+          AND sc.deleted_for_retake = false
         ORDER BY c.course_code, sc.original_score DESC
     ),
     area_requirements AS (
