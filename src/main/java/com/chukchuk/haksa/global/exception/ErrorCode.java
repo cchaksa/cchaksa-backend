@@ -46,8 +46,8 @@ public enum ErrorCode {
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
-    // 인증 및 세션 관련
     AUTHENTICATION_REQUIRED("A05", "인증이 필요한 요청입니다.", HttpStatus.UNAUTHORIZED),
+    RECONNECTION_REQUIRED("A07", "포털 재연동이 필요합니다.", HttpStatus.FORBIDDEN),
 
     // 서버 오류 관련
     SCRAPING_FAILED("C02", "포털 크롤링 중 오류가 발생했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
