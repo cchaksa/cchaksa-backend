@@ -115,8 +115,11 @@ public class SyncAcademicRecordService {
                 .toList();
 
         if (!toRemoveForRetake.isEmpty()) {
-            studentCourseRepository.deleteAllInBatch(toRemoveForRetake);
-            toRemoveForRetake.forEach(sc -> existingOfferingIds.remove(sc.getOffering().getId()));
+            toRemoveForRetake.forEach(sc -> {
+                sc.markDeletedForRetake(); // 플래그만 변경
+                existingOfferingIds.remove(sc.getOffering().getId());
+            });
+            studentCourseRepository.saveAll(toRemoveForRetake);
         }
 
 

@@ -40,6 +40,9 @@ public class StudentCourse {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(nullable = false)
+    private boolean deletedForRetake = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "offering_id", nullable = false)
     private CourseOffering offering;
@@ -66,5 +69,9 @@ public class StudentCourse {
 
     public void setStudent(Student student) {
         this.student = student;
+    }
+
+    public void markDeletedForRetake() {
+        this.deletedForRetake = true;
     }
 }
