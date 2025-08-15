@@ -81,6 +81,9 @@ public class SyncAcademicRecordService {
 
         Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
 
+        // 동일 course_id에 대해 과목당 1건만 남기기 (재수강 우선, 최신 연/학기 우선)
+        List<CourseEnrollment> collapsed = collapseByCoursePreferLatestRetake(enrollments, offerings);
+
         List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
 
         Set<Long> existingOfferingIds = existingEnrollments.stream()
@@ -89,13 +92,14 @@ public class SyncAcademicRecordService {
 
         // 1) offeringId -> courseId 매핑
         Map<Long, Long> offeringToCourseId = offerings.values().stream()
+                .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
                         CourseOffering::getId,
                         off -> off.getCourse().getId()
                 ));
 
-        // 2) 재수강 enrollment 모으기
-        List<CourseEnrollment> retakeEnrollments = enrollments.stream()
+        // 2) 재수강 enrollment 모으기 (collapse 결과 기준)
+        List<CourseEnrollment> retakeEnrollments = collapsed.stream()
                 .filter(CourseEnrollment::isRetake)
                 .toList();
 
@@ -116,15 +120,24 @@ public class SyncAcademicRecordService {
         }
 
 
-        List<StudentCourse> newStudentCourses = enrollments.stream()
-                .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId())) // 중복 제거
-                .map(e -> StudentCourseMapper.toEntity(e, student, offerings.get((long) e.getOfferingId())))
+        // 5) 신규 저장도 collapse 결과만 저장
+        List<StudentCourse> newStudentCourses = collapsed.stream()
+                .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
+                .map(e -> {
+                    CourseOffering off = offerings.get((long) e.getOfferingId());
+                    if (off == null) {
+                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
+                        return null;
+                    }
+                    return StudentCourseMapper.toEntity(e, student, off);
+                })
+                .filter(Objects::nonNull)
                 .toList();
 
         newStudentCourses.forEach(student::addStudentCourse);
         studentCourseRepository.saveAll(newStudentCourses);
 
-        removeDeletedEnrollments(student, enrollments);
+        removeDeletedEnrollments(student, collapsed);
     }
 
     /* offerings(교과)와 academic(학업 성적)을 합쳐서
@@ -331,5 +344,36 @@ public class SyncAcademicRecordService {
         course.setEstablishmentSemester(info.establishmentSemester() != null ? info.establishmentSemester() : 0);
 
         return course;
+    }
+
+    private List<CourseEnrollment> collapseByCoursePreferLatestRetake(
+            List<CourseEnrollment> enrollments, Map<Long, CourseOffering> offerings) {
+
+        // offerings에 없는 id는 스킵 (정상 데이터에서는 아무 것도 걸리지 않음)
+        List<CourseEnrollment> safe = enrollments.stream()
+                .filter(e -> offerings.containsKey((long) e.getOfferingId()))
+                .toList();
+
+        Map<Long, List<CourseEnrollment>> byCourse = safe.stream()
+                .collect(Collectors.groupingBy(e ->
+                        offerings.get((long) e.getOfferingId()).getCourse().getId()
+                ));
+
+        List<CourseEnrollment> result = new ArrayList<>();
+        for (List<CourseEnrollment> list : byCourse.values()) {
+            List<CourseEnrollment> retakes = list.stream().filter(CourseEnrollment::isRetake).toList();
+            List<CourseEnrollment> candidates = retakes.isEmpty() ? list : retakes;
+
+            // 최신(연도→학기)만 선택
+            CourseEnrollment picked = candidates.stream()
+                    .max(Comparator
+                            .comparingInt((CourseEnrollment e) -> offerings.get((long) e.getOfferingId()).getYear())
+                            .thenComparingInt(e -> offerings.get((long) e.getOfferingId()).getSemester())
+                    )
+                    .orElse(null);
+
+            if (picked != null) result.add(picked);
+        }
+        return result;
     }
 }
