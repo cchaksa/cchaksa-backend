@@ -21,6 +21,8 @@ public enum ErrorCode {
     // User 관련
     USER_NOT_FOUND("U01", "해당 사용자를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     STUDENT_ACADEMIC_RECORD_NOT_FOUND("U02", "해당 학생의 학적 정보가 존재하지 않습니다.", HttpStatus.NOT_FOUND),
+    USER_ALREADY_CONNECTED("U03", "이미 포털과 연동된 사용자입니다.", HttpStatus.BAD_REQUEST),
+    USER_NOT_CONNECTED("U04", "아직 포털과 연동되지 않은 사용자입니다.", HttpStatus.BAD_REQUEST),
     STUDENT_NOT_FOUND("S01", "해당 학생이 존재하지 않습니다.", HttpStatus.NOT_FOUND),
     INVALID_TARGET_GPA("S02", "유효하지 않은 목표 학점입니다.", HttpStatus.BAD_REQUEST),
     STUDENT_ID_REQUIRED("S03", "Student ID는 필수입니다.", HttpStatus.BAD_REQUEST),

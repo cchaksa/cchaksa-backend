@@ -49,6 +49,11 @@ public interface SuwonScrapeControllerDocs {
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScrapingApiResponse.class))
                     ),
                     @ApiResponse(
+                            responseCode = "400",
+                            description = "이미 연동된 사용자 (ErrorCode: U03)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
+                    @ApiResponse(
                             responseCode = "401",
                             description = "아이디 또는 비밀번호 불일치 (ErrorCode: P01)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
@@ -76,6 +81,11 @@ public interface SuwonScrapeControllerDocs {
             responses = {
                     @ApiResponse(responseCode = "202", description = "재연동 및 동기화 성공",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ScrapingApiResponse.class))),
+                    @ApiResponse(
+                            responseCode = "400",
+                            description = "아직 포털 연동이 되지 않은 사용자 (ErrorCode: U04)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
                     @ApiResponse(responseCode = "401", description = "로그인 필요 (ErrorCode: C01, 세션 만료)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "500", description = "서버 내부 오류 (ErrorCode: C03, 재연동 실패)",

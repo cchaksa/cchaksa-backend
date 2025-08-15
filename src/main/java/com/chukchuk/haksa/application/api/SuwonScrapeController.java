@@ -4,6 +4,7 @@ import com.chukchuk.haksa.application.api.docs.SuwonScrapeControllerDocs;
 import com.chukchuk.haksa.application.dto.PortalLoginResponse;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
+import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
@@ -38,6 +39,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     private final RedisPortalCredentialStore redisPortalCredentialStore;
     private final RedisCacheStore redisCacheStore;
     private final PortalSyncService portalSyncService;
+    private final UserService userService;
 
     @PostMapping("/login")
     public ResponseEntity<SuccessResponse<PortalLoginResponse>> login(
@@ -58,6 +60,11 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         String userId = userDetails.getUsername();
         log.info("[START] 포털 동기화 시작: userId={}", userId); // 요청 시작
 
+        // 포털 연동 여부 사전 체크
+        if (userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+            throw new CommonException(ErrorCode.USER_ALREADY_CONNECTED);
+        }
+
         PortalData portalData = fetchPortalData(userId);
 
         ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(userId), portalData);
@@ -75,6 +82,11 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     ) {
         String userId = userDetails.getUsername();
         log.info("[START] 포털 동기화 시작: userId={}", userId); // 요청 시작
+
+        // 포털 연동 여부 사전 체크
+        if (!userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+            throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
+        }
 
         PortalData portalData = fetchPortalData(userId);
 
