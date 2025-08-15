@@ -46,6 +46,10 @@ public class Student extends BaseEntity {
     @Column(name = "target_gpa")
     private Double targetGpa;
 
+    // 포털 재연동 여부 확인용 필드
+    @Column(name = "reconnection", nullable = false)
+    private boolean reconnection = false;
+
     @Embedded
     private AcademicInfo academicInfo;
 
@@ -195,5 +199,9 @@ public class Student extends BaseEntity {
 
     private boolean equalsNullable(Object a, Object b) {
         return java.util.Objects.equals(a, b);
+    }
+
+    public void markReconnected() {
+        this.reconnection = true;
     }
 }
