@@ -45,7 +45,7 @@ public class PortalSyncService {
         user.markPortalConnected(Instant.now());
         userService.save(user);
 
-        studentService.markReconnectedByUserId(userId);
+        studentService.markReconnectedByUser(user);
 
         // 4. 응답 생성
         return new ScrapingResponse(UUID.randomUUID().toString(), portalConnectionResult.studentInfo());
@@ -70,7 +70,7 @@ public class PortalSyncService {
         user.updateLastSyncedAt(Instant.now());
         userService.save(user);
 
-        studentService.markReconnectedByUserId(userId);
+        studentService.markReconnectedByUser(user);
 
         // 4. 응답 생성
         return new ScrapingResponse(UUID.randomUUID().toString(), portalConnectionResult.studentInfo());
