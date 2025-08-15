@@ -38,6 +38,7 @@ public class StudentService {
         Student student = studentRepository.findByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.STUDENT_NOT_FOUND));
         student.markReconnected();
+        studentRepository.save(student);
     }
 
     @Transactional
