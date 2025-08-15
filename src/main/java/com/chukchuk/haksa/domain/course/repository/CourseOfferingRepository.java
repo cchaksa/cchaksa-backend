@@ -16,8 +16,9 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
       AND o.classSection = :classSection
       AND o.professor.id = :professorId
       AND o.facultyDivisionName = :facultyDivisionName
+      AND o.hostDepartment = :hostDepartment
 """)
-    Optional<CourseOffering> findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionName(
-            Long courseId, Integer year, Integer semester, String classSection, Long professorId, FacultyDivision facultyDivisionName
+    Optional<CourseOffering> findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
+            Long courseId, Integer year, Integer semester, String classSection, Long professorId, FacultyDivision facultyDivisionName, String hostDepartment
     );
 }
