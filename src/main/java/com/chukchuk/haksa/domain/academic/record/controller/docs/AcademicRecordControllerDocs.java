@@ -51,6 +51,8 @@ public interface AcademicRecordControllerDocs {
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "404", description = "학업 요약 정보 없음 또는 사용자 정보 없음 (U02, S01)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(responseCode = "403", description = "포털 재연동 필요 (A07)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "500", description = "서버 내부 오류",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
