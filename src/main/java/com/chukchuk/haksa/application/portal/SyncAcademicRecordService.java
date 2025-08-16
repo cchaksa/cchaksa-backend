@@ -72,7 +72,7 @@ public class SyncAcademicRecordService {
             academicRecordRepository.updateChangedAcademicRecords(academicRecord, student);
         }
 
-        // 모든 enrollment 수집
+        // 모든 수강 기록 수집
         List<CourseEnrollment> enrollments = processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
 
         List<Long> offeringIds = enrollments.stream()
@@ -82,19 +82,19 @@ public class SyncAcademicRecordService {
 
         Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
 
-        // collapse: courseId 기준으로 최신 재수강 1건만 추출
+        // 최신 재수강 1개만 남기기
         List<CourseEnrollment> collapsed = collapseByCoursePreferLatestRetake(enrollments, offerings);
         Set<Long> collapsedOfferingIds = collapsed.stream()
                 .map(e -> (long) e.getOfferingId())
                 .collect(Collectors.toSet());
 
-        // 기존 수강 기록 조회
+        // 기존 수강 기록
         List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
         Set<Long> existingOfferingIds = existingEnrollments.stream()
                 .map(sc -> sc.getOffering().getId())
                 .collect(Collectors.toSet());
 
-        // 신규 저장할 StudentCourse 생성
+        // 신규 수강 기록 저장
         List<StudentCourse> newStudentCourses = enrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
@@ -104,11 +104,9 @@ public class SyncAcademicRecordService {
                         return null;
                     }
                     StudentCourse sc = StudentCourseMapper.toEntity(e, student, off);
-
                     if (!collapsedOfferingIds.contains(off.getId())) {
-                        sc.markDeletedForRetake(); // 재수강 이전 과목이면 true
+                        sc.markDeletedForRetake(); // 이전 수강 기록이면 마킹
                     }
-
                     return sc;
                 })
                 .filter(Objects::nonNull)
@@ -117,7 +115,13 @@ public class SyncAcademicRecordService {
         newStudentCourses.forEach(student::addStudentCourse);
         studentCourseRepository.saveAll(newStudentCourses);
 
-        // 기존 수강 내역 중 이번 enrollments에 없는 과목 삭제
+        // 기존 수강 기록 중 재수강 이전 과목도 다시 마킹
+        existingEnrollments.stream()
+                .filter(sc -> !collapsedOfferingIds.contains(sc.getOffering().getId()))
+                .filter(sc -> !sc.isDeletedForRetake())
+                .forEach(StudentCourse::markDeletedForRetake);
+
+        // 제외된 과목 삭제 (포털에 존재하지 않는 것들)
         removeDeletedEnrollments(student, enrollments);
     }
 
