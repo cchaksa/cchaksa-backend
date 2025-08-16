@@ -17,7 +17,8 @@ public class StudentDto {
             Integer gradeLevel,
             StudentStatus status,
             Integer completedSemesters,
-            Instant updatedAt
+            Instant updatedAt,
+            boolean reconnectionRequired
     ) {
         public static StudentInfoDto from(Student student) {
             return new StudentInfoDto(
@@ -28,7 +29,8 @@ public class StudentDto {
                     student.getAcademicInfo().getGradeLevel(),
                     student.getAcademicInfo().getStatus(),
                     student.getAcademicInfo().getCompletedSemesters(),
-                    student.getUpdatedAt()
+                    student.getUpdatedAt(),
+                    student.isReconnectionRequired()
             );
         }
     }
@@ -43,7 +45,8 @@ public class StudentDto {
             @Schema(description = "현재 학기", required = true) int currentSemester,
             @Schema(description = "재학 상태", required = true, implementation = StudentStatus.class) StudentStatus status,
             @Schema(description = "마지막 업데이트 일시", required = true) String lastUpdatedAt,
-            @Schema(description = "학사 정보 마지막 연동 일시", required = true) String lastSyncedAt
+            @Schema(description = "학사 정보 마지막 연동 일시", required = true) String lastSyncedAt,
+            @Schema(description = "재연동 필요 여부", required = true) boolean reconnectionRequired
     ) {
         public static StudentProfileResponse from(StudentDto.StudentInfoDto studentInfoDto, int currentSemester, String lastSyncedAt) {
             return new StudentProfileResponse(
@@ -55,7 +58,8 @@ public class StudentDto {
                     currentSemester,
                     studentInfoDto.status(),
                     studentInfoDto.updatedAt().toString(),
-                    lastSyncedAt
+                    lastSyncedAt,
+                    studentInfoDto.reconnectionRequired()
             );
         }
     }

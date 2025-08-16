@@ -46,7 +46,7 @@ public class Student extends BaseEntity {
     @Column(name = "target_gpa")
     private Double targetGpa;
 
-    @Column(nullable = false)
+    @Column(name = "reconnection_required", nullable = false)
     private boolean reconnectionRequired = true; // 기본값 true, 재연동 시 false
 
     @Embedded
@@ -198,5 +198,9 @@ public class Student extends BaseEntity {
 
     private boolean equalsNullable(Object a, Object b) {
         return java.util.Objects.equals(a, b);
+    }
+
+    public void markReconnected() {
+        this.reconnectionRequired = false;
     }
 }

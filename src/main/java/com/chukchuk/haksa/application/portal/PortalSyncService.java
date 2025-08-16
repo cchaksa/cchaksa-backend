@@ -2,6 +2,7 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.ErrorCode;
@@ -23,6 +24,7 @@ public class PortalSyncService {
     private final RefreshPortalConnectionService refreshPortalConnectionService;
     private final SyncAcademicRecordService syncAcademicRecordService;
     private final UserService userService;
+    private final StudentService studentService;
 
     @Transactional
     public ScrapingResponse syncWithPortal(UUID userId, PortalData portalData) {
@@ -42,6 +44,8 @@ public class PortalSyncService {
         User user = userService.getUserById(userId);
         user.markPortalConnected(Instant.now());
         userService.save(user);
+
+        studentService.markReconnectedByUser(user);
 
         // 4. 응답 생성
         return new ScrapingResponse(UUID.randomUUID().toString(), portalConnectionResult.studentInfo());
@@ -65,6 +69,8 @@ public class PortalSyncService {
         User user = userService.getUserById(userId);
         user.updateLastSyncedAt(Instant.now());
         userService.save(user);
+
+        studentService.markReconnectedByUser(user);
 
         // 4. 응답 생성
         return new ScrapingResponse(UUID.randomUUID().toString(), portalConnectionResult.studentInfo());
