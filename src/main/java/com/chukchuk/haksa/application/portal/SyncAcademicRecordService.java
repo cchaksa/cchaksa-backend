@@ -65,7 +65,6 @@ public class SyncAcademicRecordService {
         Student student = studentService.getStudentByUserId(userId);
         UUID studentId = student.getId();
 
-        // 1. 학업 성적 정보 동기화
         AcademicRecord academicRecord = AcademicRecordMapperFromPortal.fromPortalAcademicData(studentId, portalData.academic());
         if (isInitial) {
             academicRecordRepository.insertAllAcademicRecords(academicRecord, student);
@@ -73,77 +72,53 @@ public class SyncAcademicRecordService {
             academicRecordRepository.updateChangedAcademicRecords(academicRecord, student);
         }
 
-        // 2. 수강 정보 구성
+        // 모든 enrollment 수집
         List<CourseEnrollment> enrollments = processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
-        List<Long> offeringIds = enrollments.stream().map(e -> (long) e.getOfferingId()).distinct().toList();
+
+        List<Long> offeringIds = enrollments.stream()
+                .map(e -> (long) e.getOfferingId())
+                .distinct()
+                .toList();
+
         Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
 
-        // 3. Collapse 처리 (재수강 우선 + 최신 순)
+        // collapse: courseId 기준으로 최신 재수강 1건만 추출
         List<CourseEnrollment> collapsed = collapseByCoursePreferLatestRetake(enrollments, offerings);
-
-        // 4. 기존 수강 기록 조회
-        List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
-        Map<Long, StudentCourse> existingMapByOfferingId = existingEnrollments.stream()
-                .collect(Collectors.toMap(sc -> sc.getOffering().getId(), sc -> sc));
-        Set<Long> existingOfferingIds = existingMapByOfferingId.keySet();
-
-        // 5. 재수강 과목의 courseId 집합
-        Map<Long, Long> offeringToCourseId = offerings.values().stream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(CourseOffering::getId, off -> off.getCourse().getId()));
-        Set<Long> retakeCourseIds = collapsed.stream()
-                .filter(CourseEnrollment::isRetake)
-                .map(e -> offeringToCourseId.get((long) e.getOfferingId()))
-                .filter(Objects::nonNull)
+        Set<Long> collapsedOfferingIds = collapsed.stream()
+                .map(e -> (long) e.getOfferingId())
                 .collect(Collectors.toSet());
 
-        // 6. 기존 재수강 이전 과목을 deletedForRetake로 마킹
-        List<StudentCourse> toMarkDeleted = existingEnrollments.stream()
-                .filter(sc -> retakeCourseIds.contains(sc.getOffering().getCourse().getId()))
-                .filter(sc -> !sc.isDeletedForRetake()) // 이미 마킹된 경우 제외
-                .toList();
+        // 기존 수강 기록 조회
+        List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
+        Set<Long> existingOfferingIds = existingEnrollments.stream()
+                .map(sc -> sc.getOffering().getId())
+                .collect(Collectors.toSet());
 
-        toMarkDeleted.forEach(StudentCourse::markDeletedForRetake);
-        studentCourseRepository.saveAll(toMarkDeleted);
-
-        // 7. collapsed 제외한 수강 과목들 중 deletedForRetake = true로 저장할 과목
-        Set<Long> collapsedOfferingIds = collapsed.stream().map(e -> (long) e.getOfferingId()).collect(Collectors.toSet());
-
-        List<CourseEnrollment> deletedForRetakeEnrollments = enrollments.stream()
-                .filter(e -> !collapsedOfferingIds.contains((long) e.getOfferingId()))
-                .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
-                .toList();
-
-        List<StudentCourse> deletedForRetakeCourses = deletedForRetakeEnrollments.stream()
-                .map(e -> {
-                    CourseOffering off = offerings.get((long) e.getOfferingId());
-                    if (off == null) return null;
-                    StudentCourse course = StudentCourseMapper.toEntity(e, student, off);
-                    course.markDeletedForRetake();
-                    return course;
-                })
-                .filter(Objects::nonNull)
-                .toList();
-
-        // 8. collapsed 대상 중, 기존에 없는 과목만 저장 (중복 insert 방지)
-        List<StudentCourse> newStudentCourses = collapsed.stream()
+        // 신규 저장할 StudentCourse 생성
+        List<StudentCourse> newStudentCourses = enrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
-                    if (off == null) return null;
-                    return StudentCourseMapper.toEntity(e, student, off);
+                    if (off == null) {
+                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
+                        return null;
+                    }
+                    StudentCourse sc = StudentCourseMapper.toEntity(e, student, off);
+
+                    if (!collapsedOfferingIds.contains(off.getId())) {
+                        sc.markDeletedForRetake(); // 재수강 이전 과목이면 true
+                    }
+
+                    return sc;
                 })
                 .filter(Objects::nonNull)
                 .toList();
 
         newStudentCourses.forEach(student::addStudentCourse);
-        deletedForRetakeCourses.forEach(student::addStudentCourse);
-
-        studentCourseRepository.saveAll(deletedForRetakeCourses);
         studentCourseRepository.saveAll(newStudentCourses);
 
-        // 9. 연동에서 제외된 과목은 삭제
-        removeDeletedEnrollments(student, collapsed);
+        // 기존 수강 내역 중 이번 enrollments에 없는 과목 삭제
+        removeDeletedEnrollments(student, enrollments);
     }
 
     /* offerings(교과)와 academic(학업 성적)을 합쳐서
