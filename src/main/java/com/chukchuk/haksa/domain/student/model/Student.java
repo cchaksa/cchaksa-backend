@@ -46,6 +46,9 @@ public class Student extends BaseEntity {
     @Column(name = "target_gpa")
     private Double targetGpa;
 
+    @Column(nullable = false)
+    private boolean reconnectionRequired = true; // 기본값 true, 재연동 시 false
+
     @Embedded
     private AcademicInfo academicInfo;
 
