@@ -109,7 +109,7 @@ public class SyncAcademicRecordService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        // 4) 기존 기록 중 재수강 대상 과목 삭제
+        // 4) 기존 기록 중 재수강 대상 과목 삭제 마킹
         List<StudentCourse> toRemoveForRetake = existingEnrollments.stream()
                 .filter(sc -> retakeCourseIds.contains(sc.getOffering().getCourse().getId()))
                 .toList();
@@ -122,22 +122,44 @@ public class SyncAcademicRecordService {
             studentCourseRepository.saveAll(toRemoveForRetake);
         }
 
+        // 5-1) 재수강 아닌 과목도 저장하되 deletedForRetake = true로 설정
+        Set<Long> collapsedOfferingIds = collapsed.stream()
+                .map(e -> (long) e.getOfferingId())
+                .collect(Collectors.toSet());
 
-        // 5) 신규 저장도 collapse 결과만 저장
+        List<CourseEnrollment> deletedForRetakeEnrollments = enrollments.stream()
+                .filter(e -> !collapsedOfferingIds.contains((long) e.getOfferingId()))
+                .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
+                .toList();
+
+        List<StudentCourse> deletedForRetakeCourses = deletedForRetakeEnrollments.stream()
+                .map(e -> {
+                    CourseOffering off = offerings.get((long) e.getOfferingId());
+                    if (off == null) return null;
+
+                    StudentCourse course = StudentCourseMapper.toEntity(e, student, off);
+                    course.markDeletedForRetake(); // 재수강 이전 과목 마킹
+                    return course;
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        // 5-2) 재수강 최종 과목만 deletedForRetake = false로 저장
         List<StudentCourse> newStudentCourses = collapsed.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
-                    if (off == null) {
-                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
-                        return null;
-                    }
-                    return StudentCourseMapper.toEntity(e, student, off);
+                    if (off == null) return null;
+
+                    return StudentCourseMapper.toEntity(e, student, off); // 기본값 false
                 })
                 .filter(Objects::nonNull)
                 .toList();
 
         newStudentCourses.forEach(student::addStudentCourse);
+        deletedForRetakeCourses.forEach(student::addStudentCourse);
+
+        studentCourseRepository.saveAll(deletedForRetakeCourses);
         studentCourseRepository.saveAll(newStudentCourses);
 
         removeDeletedEnrollments(student, collapsed);
