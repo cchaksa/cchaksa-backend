@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
+@Slf4j
 public class GraduationQueryRepository {
     private final EntityManager em;
     private final ObjectMapper ob;
@@ -114,6 +116,7 @@ public class GraduationQueryRepository {
         query.setParameter("admissionYear", admissionYear);
 
         List<Object[]> results = query.getResultList();
+        log.info("GraduationQueryRepository SQL 결과: {}", results);
 
         if (results.isEmpty()) {
             throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_NOT_FOUND);
@@ -123,6 +126,7 @@ public class GraduationQueryRepository {
     }
 
     private AreaProgressDto mapToDto(Object[] row) {
+        log.info("areaType(raw) = '{}'", row[0]);
         FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
 
         Integer requiredCredits = (Integer) row[1];
