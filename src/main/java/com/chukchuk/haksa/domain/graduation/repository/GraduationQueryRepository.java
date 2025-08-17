@@ -45,69 +45,82 @@ public class GraduationQueryRepository {
 
     public List<AreaProgressDto> getStudentAreaProgress(UUID studentId, Long departmentId, Integer admissionYear) {
         String sql = """
-    WITH latest_courses AS (
-        SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
-            sc.offering_id,
-            TRIM(co.faculty_division_name) AS area_type,
-            co.points,
-            sc.grade,
-            c.course_name,
-            co.semester,
-            co.year,
-            c.course_code,
-            sc.original_score
-        FROM student_courses sc
-        JOIN course_offerings co ON sc.offering_id = co.id
-        JOIN courses c ON co.course_id = c.id
-        WHERE sc.grade NOT IN ('F', 'R')
-          AND sc.student_id = :studentId
-        ORDER BY c.course_code, TRIM(co.faculty_division_name), sc.original_score DESC
-    ),
-    area_requirements AS (
-        SELECT 
-            dar.area_type,
-            dar.required_credits,
-            dar.required_elective_courses,
-            dar.total_elective_courses
-        FROM department_area_requirements dar
-        WHERE dar.department_id = :effectiveDepartmentId
-          AND dar.admission_year = :admissionYear
-    ),
-    aggregated_progress AS (
-        SELECT 
-            ar.area_type AS areaType,
-            ar.required_credits AS requiredCredits,
-            CAST(COALESCE(SUM(lc.points), 0) AS INTEGER) AS earnedCredits, -- ✅ 수정
-            ar.required_elective_courses AS requiredElectiveCourses,
-            CAST(COUNT(DISTINCT lc.offering_id) AS INTEGER) AS completedElectiveCourses, -- ✅ 수정
-            ar.total_elective_courses AS totalElectiveCourses
-        FROM area_requirements ar
-        LEFT JOIN latest_courses lc ON lc.area_type = ar.area_type
-        GROUP BY 
-            ar.area_type,
-            ar.required_credits,
-            ar.required_elective_courses,
-            ar.total_elective_courses
-    )
+WITH raw_courses AS (
+    SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
+        sc.offering_id,
+        co.faculty_division_name AS raw_area_type,
+        co.points,
+        sc.grade,
+        c.course_name,
+        co.semester,
+        co.year,
+        c.course_code,
+        sc.original_score
+    FROM student_courses sc
+    JOIN course_offerings co ON sc.offering_id = co.id
+    JOIN courses c ON co.course_id = c.id
+    WHERE sc.grade NOT IN ('F', 'R')
+      AND sc.student_id = :studentId
+    ORDER BY c.course_code, co.faculty_division_name, sc.original_score DESC
+),
+latest_courses AS (
     SELECT 
-        ap.*,
-        CASE 
-            WHEN COUNT(lc.offering_id) = 0 THEN NULL 
-            ELSE CAST(json_agg(
-                json_build_object(
-                    'courseName', lc.course_name,
-                    'credits', lc.points,
-                    'grade', lc.grade,
-                    'semester', lc.semester,
-                    'year', lc.year,
-                    'originalScore', lc.original_score
-                )
-            ) AS TEXT) -- ✅ 수정
-        END AS courses
-    FROM aggregated_progress ap
-    LEFT JOIN latest_courses lc ON lc.area_type = ap.areaType
-    GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits, 
-             ap.requiredElectiveCourses, ap.completedElectiveCourses, ap.totalElectiveCourses;
+        offering_id,
+        TRIM(raw_area_type) AS area_type,
+        points,
+        grade,
+        course_name,
+        semester,
+        year,
+        course_code,
+        original_score
+    FROM raw_courses
+),
+area_requirements AS (
+    SELECT 
+        dar.area_type,
+        dar.required_credits,
+        dar.required_elective_courses,
+        dar.total_elective_courses
+    FROM department_area_requirements dar
+    WHERE dar.department_id = :effectiveDepartmentId
+      AND dar.admission_year = :admissionYear
+),
+aggregated_progress AS (
+    SELECT 
+        ar.area_type AS areaType,
+        ar.required_credits AS requiredCredits,
+        CAST(COALESCE(SUM(lc.points), 0) AS INTEGER) AS earnedCredits,
+        ar.required_elective_courses AS requiredElectiveCourses,
+        CAST(COUNT(DISTINCT lc.offering_id) AS INTEGER) AS completedElectiveCourses,
+        ar.total_elective_courses AS totalElectiveCourses
+    FROM area_requirements ar
+    LEFT JOIN latest_courses lc ON lc.area_type = ar.area_type
+    GROUP BY 
+        ar.area_type,
+        ar.required_credits,
+        ar.required_elective_courses,
+        ar.total_elective_courses
+)
+SELECT 
+    ap.*,
+    CASE 
+        WHEN COUNT(lc.offering_id) = 0 THEN NULL 
+        ELSE CAST(json_agg(
+            json_build_object(
+                'courseName', lc.course_name,
+                'credits', lc.points,
+                'grade', lc.grade,
+                'semester', lc.semester,
+                'year', lc.year,
+                'originalScore', lc.original_score
+            )
+        ) AS TEXT)
+    END AS courses
+FROM aggregated_progress ap
+LEFT JOIN latest_courses lc ON lc.area_type = ap.areaType
+GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits, 
+         ap.requiredElectiveCourses, ap.completedElectiveCourses, ap.totalElectiveCourses;
 """;
 
         Query query = em.createNativeQuery(sql);
