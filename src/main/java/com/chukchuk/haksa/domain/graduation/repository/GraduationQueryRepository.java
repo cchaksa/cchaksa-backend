@@ -123,7 +123,7 @@ public class GraduationQueryRepository {
     }
 
     private AreaProgressDto mapToDto(Object[] row) {
-        FacultyDivision areaType = FacultyDivision.valueOf((String) row[0]);
+        FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
 
         Integer requiredCredits = (Integer) row[1];
         Integer earnedCredits = (Integer) row[2];
