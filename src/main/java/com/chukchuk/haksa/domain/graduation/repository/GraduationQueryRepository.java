@@ -48,7 +48,7 @@ public class GraduationQueryRepository {
     WITH latest_courses AS (
         SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
             sc.offering_id,
-            co.faculty_division_name AS area_type,
+            TRIM(co.faculty_division_name) AS area_type,
             co.points,
             sc.grade,
             c.course_name,
@@ -61,7 +61,7 @@ public class GraduationQueryRepository {
         JOIN courses c ON co.course_id = c.id
         WHERE sc.grade NOT IN ('F', 'R')
           AND sc.student_id = :studentId
-        ORDER BY c.course_code, co.faculty_division_name, sc.original_score DESC
+        ORDER BY c.course_code, TRIM(co.faculty_division_name), sc.original_score DESC
     ),
     area_requirements AS (
         SELECT 
