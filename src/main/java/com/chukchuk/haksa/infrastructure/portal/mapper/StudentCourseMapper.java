@@ -14,7 +14,8 @@ public class StudentCourseMapper {
                 new Grade(enrollment.getGrade()),  // Embedded
                 enrollment.getPoints(),
                 enrollment.isRetake(),
-                enrollment.getOriginalScore().intValue()
+                enrollment.getOriginalScore().intValue(),
+                enrollment.isRetakeDeleted()
         );
     }
 }
