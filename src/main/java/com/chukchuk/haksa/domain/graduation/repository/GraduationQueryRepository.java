@@ -61,7 +61,13 @@ WITH raw_courses AS (
     JOIN courses c ON co.course_id = c.id
     WHERE sc.grade NOT IN ('F', 'R')
       AND sc.student_id = :studentId
-    ORDER BY c.course_code, co.faculty_division_name, sc.original_score DESC
+      AND sc.is_retake_deleted = FALSE
+    ORDER BY 
+        c.course_code, 
+        co.faculty_division_name,
+        co.year DESC,                       
+        co.semester DESC,
+        sc.original_score DESC
 ),
 latest_courses AS (
     SELECT 

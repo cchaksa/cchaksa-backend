@@ -41,7 +41,7 @@ public class StudentCourse {
     private Instant createdAt;
 
     @Column(nullable = false)
-    private boolean deletedForRetake = false;
+    private boolean isRetakeDeleted = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "offering_id", nullable = false)
@@ -57,7 +57,8 @@ public class StudentCourse {
             Grade grade,
             Integer points,
             Boolean isRetake,
-            Integer originalScore
+            Integer originalScore,
+            boolean isRetakeDeleted
     ) {
         this.student = student;
         this.offering = offering;
@@ -65,13 +66,15 @@ public class StudentCourse {
         this.points = points;
         this.isRetake = isRetake;
         this.originalScore = originalScore;
+        this.isRetakeDeleted = isRetakeDeleted;
     }
 
     public void setStudent(Student student) {
         this.student = student;
     }
 
-    public void markDeletedForRetake() {
-        this.deletedForRetake = true;
+
+    public void setRetakeDeleted(Boolean aBoolean) {
+        this.isRetakeDeleted = aBoolean;
     }
 }

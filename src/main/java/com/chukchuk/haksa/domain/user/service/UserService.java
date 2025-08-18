@@ -9,6 +9,7 @@ import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
+import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import io.jsonwebtoken.Claims;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
+    private final RedisCacheStore redisCacheStore;
 
     private final Map<OidcProvider, OidcService> oidcServices;
 
@@ -52,6 +54,8 @@ public class UserService {
     public void deleteUserById(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+        UUID studentId = user.getStudent().getId();
+        redisCacheStore.deleteAllByStudentId(studentId);
 
         userRepository.delete(user);
     }

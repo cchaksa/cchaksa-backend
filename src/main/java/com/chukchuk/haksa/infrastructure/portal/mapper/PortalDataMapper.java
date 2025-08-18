@@ -102,6 +102,9 @@ public class PortalDataMapper {
     }
 
     private static CourseInfo createCourseInfo(RawPortalCourseDTO c) {
+        boolean isRetakeDeleted = c.cretDelNm()
+                .map(val -> val.trim().equals("재수강 삭제") || val.trim().equals("재수강삭제"))
+                .orElse(false);
         return new CourseInfo(
                 c.subjtCd(),
                 c.subjtNm(),
@@ -109,13 +112,14 @@ public class PortalDataMapper {
                 c.estbDpmjNm(),
                 c.point(),
                 c.cretGrdCd(),
-                !"-".equals(c.refacYearSmr()),
+                !"-".equals(c.refacYearSmr()), // pick: 기존 is_Retake 처리
                 c.timtSmryCn(),
                 c.facDvnm(),
                 parseIntOrZero(c.cltTerrNm()),
                 parseIntOrZero(c.cltTerrCd()),
                 parseIntOrZero(c.subjtEstbSmrCd()),
-                parseDoubleOrZero(c.gainPont())
+                parseDoubleOrZero(c.gainPont()),
+                isRetakeDeleted
         );
     }
 

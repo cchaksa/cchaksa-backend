@@ -13,5 +13,6 @@ public record CourseInfo(
         Integer areaCode,
         Integer originalAreaCode,
         Integer establishmentSemester,
-        Double originalScore
+        Double originalScore,
+        boolean isRetakeDeleted
 ) {}
