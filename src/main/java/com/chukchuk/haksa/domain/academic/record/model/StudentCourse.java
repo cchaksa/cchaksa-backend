@@ -73,7 +73,8 @@ public class StudentCourse {
         this.student = student;
     }
 
-    public void markDeletedForRetake() {
-        this.deletedForRetake = true;
+
+    public void setRetakeDeleted(Boolean aBoolean) {
+        this.isRetakeDeleted = aBoolean;
     }
 }
