@@ -28,8 +28,21 @@
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <arguments/>
-                    <stackTrace/>
+                    <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>       <!-- 예외 클래스명 -->
+                        <messageFieldName>error</messageFieldName>                <!-- 예외 메시지 -->
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>     <!-- 스택트레이스 필드명 -->
+                        <!-- (선택) 스택 줄 수/길이 줄이기: ShortenedThrowableConverter 사용 -->
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                            <!-- (선택) 프레임워크 패키지 줄이기
+                            <exclude>org.springframework,java.,jakarta.,sun.,com.fasterxml.</exclude>
+                            -->
+                        </throwableConverter>
+                    </throwable>
                 </providers>
             </encoder>
 
