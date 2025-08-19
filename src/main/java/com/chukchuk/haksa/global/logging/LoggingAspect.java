@@ -2,6 +2,7 @@ package com.chukchuk.haksa.global.logging;
 
 import com.chukchuk.haksa.global.exception.BaseException;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import io.micrometer.tracing.Tracer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -25,6 +26,7 @@ import java.lang.reflect.Method;
 @Component
 @RequiredArgsConstructor
 public class LoggingAspect {
+    private final Tracer tracer;
 
     @Around("@within(com.chukchuk.haksa.global.logging.annotation.LogPart) || @annotation(com.chukchuk.haksa.global.logging.annotation.LogPart)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -54,23 +56,21 @@ public class LoggingAspect {
         MDC.put("userId", userId == null ? "Unknown" : userId);
         MDC.put("className", className);
         MDC.put("method", methodName);
+        MDC.put("traceId", tracer.currentSpan() != null ? tracer.currentSpan().context().traceId() : "Unknown");
 
         try {
             Object result = joinPoint.proceed();
             log.info(msg);
             return result;
         } catch (BaseException be) {
-            log.warn(msg);
+            log.warn(msg, be);
             throw be;
         } catch (Exception e) {
-            log.error(msg);
+            log.error(msg, e);
             throw e;
         } finally {
             // MDC 정리(키 단위)
-            MDC.remove("part");
-            MDC.remove("userId");
-            MDC.remove("className");
-            MDC.remove("method");
+            MDC.clear();
         }
     }
 
