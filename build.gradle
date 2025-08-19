@@ -52,8 +52,14 @@ dependencies {
 	implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 //	implementation 'com.auth0:java-jwt:4.4.0'
 
-	// ELK
+	// Log
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+	implementation 'io.sentry:sentry-spring-boot-starter-jakarta:8.16.0'
+	implementation 'io.sentry:sentry-logback:8.16.0'
+	implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+	implementation 'io.opentelemetry:opentelemetry-sdk'
+	implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
 
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
