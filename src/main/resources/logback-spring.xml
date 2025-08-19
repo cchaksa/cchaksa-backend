@@ -88,7 +88,7 @@
         </appender>
 
         <root level="WARN">
-            <appender-ref ref="CONSOLE_JSON"/>
+            <appender-ref ref="FILE_JSON"/>
             <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
