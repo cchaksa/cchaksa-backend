@@ -52,7 +52,6 @@ public class LoggingAspect {
         String msg = className + "." + methodName + "() called";
 
         // MDC 필드 설정
-        MDC.put("part", part);
         MDC.put("userId", userId == null ? "Unknown" : userId);
         MDC.put("className", className);
         MDC.put("method", methodName);
@@ -70,7 +69,10 @@ public class LoggingAspect {
             throw e;
         } finally {
             // MDC 정리(키 단위)
-            MDC.clear();
+            MDC.remove("userId");
+            MDC.remove("className");
+            MDC.remove("method");
+            MDC.remove("traceId");
         }
     }
 
