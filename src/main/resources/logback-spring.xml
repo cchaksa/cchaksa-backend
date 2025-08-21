@@ -25,6 +25,8 @@
                         <includeMdcKeyName>method</includeMdcKeyName>
                     </mdc>
 
+                    <loggerName/>
+                    
                     <message>
                         <fieldName>message</fieldName>
                     </message>
