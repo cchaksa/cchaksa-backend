@@ -13,6 +13,6 @@ public class PortalCourseInfo {
     private boolean isRetake;
     private Double originalScore;
     private String grade;
-
+    private boolean isRetakeDeleted;
     // 생성자, getter 생략 가능
 }

@@ -36,3 +36,14 @@ redis:
 springdoc:
   api-docs:
     enabled: true
+
+sentry:
+  dsn: ${SENTRY_DSN}
+  traces-sample-rate: 1.0
+  logging:
+    minimum-event-level: error
+    minimum-breadcrumb-level: info
+
+management:
+  tracing:
+    enabled: true

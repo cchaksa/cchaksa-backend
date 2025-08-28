@@ -19,7 +19,8 @@ public class StudentProfileApiResponse extends SuccessResponse<StudentProfileRes
                 6,                        // currentSemester
                 StudentStatus.재학,               // status
                 "2024-04-25T10:00:00Z",    // lastUpdatedAt
-                "2024-04-25T08:00:00Z"     // lastSyncedAt
+                "2024-04-25T08:00:00Z",     // lastSyncedAt
+                true
         ), "요청 성공");
     }
 }

@@ -41,92 +41,103 @@ public class SyncAcademicRecordService {
 
     @Transactional
     public SyncAcademicRecordResult executeWithPortalData(UUID userId, PortalData portalData) {
-        return sync(userId, portalData, true);
+        try {
+            sync(userId, portalData, true);
+            return new SyncAcademicRecordResult(true, null);
+        } catch (Exception e) {
+            log.error("학업 이력 동기화 중 오류 발생", e);
+            return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
+        }
     }
 
     @Transactional
     public SyncAcademicRecordResult executeForRefreshPortalData(UUID userId, PortalData portalData) {
-        return sync(userId, portalData, false);
-    }
-
-    private SyncAcademicRecordResult sync(UUID userId, PortalData portalData, boolean isInitial) {
         try {
-            Student student = studentService.getStudentByUserId(userId);
-            UUID studentId = student.getId();
-
-            AcademicRecord academicRecord = AcademicRecordMapperFromPortal.fromPortalAcademicData(studentId, portalData.academic());
-            if (isInitial) {
-                academicRecordRepository.insertAllAcademicRecords(academicRecord, student);
-            } else {
-                academicRecordRepository.updateChangedAcademicRecords(academicRecord, student);
-            }
-
-            List<CourseEnrollment> enrollments = processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
-
-            List<Long> offeringIds = enrollments.stream()
-                    .map(e -> (long) e.getOfferingId())
-                    .distinct()
-                    .toList();
-
-            Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
-
-            List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
-
-            Set<Long> existingOfferingIds = existingEnrollments.stream()
-                    .map(sc -> sc.getOffering().getId())
-                    .collect(Collectors.toSet());
-
-            // 1) offeringId -> courseId 매핑
-            Map<Long, Long> offeringToCourseId = offerings.values().stream()
-                    .collect(Collectors.toMap(
-                            CourseOffering::getId,
-                            off -> off.getCourse().getId()
-                    ));
-
-            // 2) 재수강 enrollment 모으기
-            List<CourseEnrollment> retakeEnrollments = enrollments.stream()
-                    .filter(CourseEnrollment::isRetake)
-                    .toList();
-
-            // 3) 재수강 과목의 courseId 집합
-            Set<Long> retakeCourseIds = retakeEnrollments.stream()
-                    .map(e -> offeringToCourseId.get((long) e.getOfferingId()))
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
-
-            // 4) 기존 기록 중 재수강 대상 과목 삭제
-            List<StudentCourse> toRemoveForRetake = existingEnrollments.stream()
-                    .filter(sc -> retakeCourseIds.contains(sc.getOffering().getCourse().getId()))
-                    .toList();
-
-            if (!toRemoveForRetake.isEmpty()) {
-                studentCourseRepository.deleteAllInBatch(toRemoveForRetake);
-                toRemoveForRetake.forEach(sc -> existingOfferingIds.remove(sc.getOffering().getId()));
-            }
-
-
-            List<StudentCourse> newStudentCourses = enrollments.stream()
-                    .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId())) // 중복 제거
-                    .map(e -> StudentCourseMapper.toEntity(e, student, offerings.get((long) e.getOfferingId())))
-                    .toList();
-
-            // enrollments의 각 enrollment의 is_retake -> True이면 -> 기존 값 덮어쓰기
-
-            newStudentCourses.forEach(student::addStudentCourse);
-            studentCourseRepository.saveAll(newStudentCourses);
-
-            removeDeletedEnrollments(student, enrollments);
-
+            sync(userId, portalData, false);
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
             log.error("학업 이력 동기화 중 오류 발생", e);
-            return new SyncAcademicRecordResult(false, "동기화 실패");
+            return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
 
+    private void sync(UUID userId, PortalData portalData, boolean isInitial) {
+        Student student = studentService.getStudentByUserId(userId);
+        UUID studentId = student.getId();
+
+        AcademicRecord academicRecord = AcademicRecordMapperFromPortal.fromPortalAcademicData(studentId, portalData.academic());
+        if (isInitial) {
+            academicRecordRepository.insertAllAcademicRecords(academicRecord, student);
+        } else {
+            academicRecordRepository.updateChangedAcademicRecords(academicRecord, student);
+        }
+
+        // 1) 포털 수강 기록 수집
+        List<CourseEnrollment> enrollments =
+                processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
+
+        List<Long> offeringIds = enrollments.stream()
+                .map(e -> (long) e.getOfferingId())
+                .distinct()
+                .toList();
+
+        Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
+
+        // 2) 기존 수강 기록
+        List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
+        Set<Long> existingOfferingIds = existingEnrollments.stream()
+                .map(sc -> sc.getOffering().getId())
+                .collect(Collectors.toSet());
+
+        // 2-1) 포털 스냅샷 맵 (offeringId -> isRetakeDeleted)
+        Map<Long, Boolean> portalRetakeDeletedMap = enrollments.stream()
+                .collect(Collectors.toMap(
+                        e -> (long) e.getOfferingId(),
+                        CourseEnrollment::isRetakeDeleted,
+                        (a, b) -> b // 충돌 시 뒤 값 우선
+                ));
+
+        // 2-2) 기존 DB 레코드 갱신 (false -> true 포함)
+        List<StudentCourse> toUpdate = existingEnrollments.stream()
+                .filter(sc -> portalRetakeDeletedMap.containsKey(sc.getOffering().getId()))
+                .filter(sc -> sc.isRetakeDeleted() != portalRetakeDeletedMap.get(sc.getOffering().getId()))
+                .peek(sc -> sc.setRetakeDeleted(portalRetakeDeletedMap.get(sc.getOffering().getId())))
+                .toList();
+
+        if (!toUpdate.isEmpty()) {
+            studentCourseRepository.saveAll(toUpdate);
+        }
+
+        // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
+        List<StudentCourse> newStudentCourses = enrollments.stream()
+                .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
+                .map(e -> {
+                    CourseOffering off = offerings.get((long) e.getOfferingId());
+                    if (off == null) {
+                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
+                        return null;
+                    }
+                    // Mapper가 isRetakeDeleted/grade/score 등을 세팅해야 함
+                    return StudentCourseMapper.toEntity(e, student, off);
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        newStudentCourses.forEach(student::addStudentCourse);
+        if (!newStudentCourses.isEmpty()) {
+            studentCourseRepository.saveAll(newStudentCourses);
+        }
+
+        // (삭제) 이전 수강기록 마킹 로직: 포털 값이 진실이므로 더 이상 사용 안 함
+        // existingEnrollments.stream() ... markDeletedForRetake()
+
+        // 4) 포털에 없는 offeringId는 제거 (기존 로직 유지)
+        removeDeletedEnrollments(student, enrollments);
+    }
+
     /* offerings(교과)와 academic(학업 성적)을 합쳐서
-    *  최종적으로 CourseEnrollment를 만드는 메서드
-    *  */
+     *  최종적으로 CourseEnrollment를 만드는 메서드
+     *  */
     private List<CourseEnrollment> processCurriculumData(PortalCurriculumData curriculumData, PortalAcademicData academicData, UUID studentId) {
         List<CourseEnrollment> enrollments = new ArrayList<>();
         Map<String, MergedOfferingAcademic> mergedList = mergeOfferingsAndAcademic(curriculumData, academicData);
@@ -171,7 +182,7 @@ public class SyncAcademicRecordService {
             boolean isRetake = academic != null && academic.isRetake();
             double originalScore = Optional.ofNullable(academic.getOriginalScore()).orElse(0.0);
 
-            CourseEnrollment enrollment = new CourseEnrollment(studentId, courseOffering.getId(), grade, offering.getPoints(), isRetake, originalScore);
+            CourseEnrollment enrollment = new CourseEnrollment(studentId, courseOffering.getId(), grade, offering.getPoints(), isRetake, originalScore, academic.isRetakeDeleted());
             enrollments.add(enrollment);
         }
 
@@ -322,11 +333,48 @@ public class SyncAcademicRecordService {
         course.setGrade(info.grade());
         course.setRetake(info.isRetake());
         course.setOriginalScore(info.originalScore());
+        course.setRetakeDeleted(info.isRetakeDeleted());
 
         // null-safe 처리
         course.setCredits(info.credits() != null ? info.credits() : 0);
         course.setEstablishmentSemester(info.establishmentSemester() != null ? info.establishmentSemester() : 0);
 
         return course;
+    }
+
+    private List<CourseEnrollment> collapseByCoursePreferLatestNonDeleted(
+            List<CourseEnrollment> enrollments, Map<Long, CourseOffering> offerings) {
+
+        // offerings에 없는 id는 스킵 (정상 데이터에서는 아무 것도 걸리지 않음)
+        List<CourseEnrollment> safe = enrollments.stream()
+                .filter(e -> offerings.containsKey((long) e.getOfferingId()))
+                .toList();
+
+        // course_id 단위로 그룹화
+        Map<Long, List<CourseEnrollment>> byCourse = safe.stream()
+                .collect(Collectors.groupingBy(e ->
+                        offerings.get((long) e.getOfferingId()).getCourse().getId()
+                ));
+
+        List<CourseEnrollment> result = new ArrayList<>();
+        for (List<CourseEnrollment> list : byCourse.values()) {
+            // 재수강 '삭제 아님'만 후보
+            List<CourseEnrollment> candidates = list.stream()
+                    .filter(e -> !e.isRetakeDeleted())
+                    .toList();
+
+            // 모두 '재수강 삭제'면 집계 제외
+            if (candidates.isEmpty()) continue;
+
+            CourseEnrollment picked = candidates.stream()
+                    .max(Comparator
+                            .comparingInt((CourseEnrollment e) -> offerings.get((long) e.getOfferingId()).getYear())
+                            .thenComparingInt(e -> offerings.get((long) e.getOfferingId()).getSemester())
+                    )
+                    .orElse(null);
+
+            if (picked != null) result.add(picked);
+        }
+        return result;
     }
 }

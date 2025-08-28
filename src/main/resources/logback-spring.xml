@@ -25,11 +25,22 @@
                         <includeMdcKeyName>method</includeMdcKeyName>
                     </mdc>
 
+                    <loggerName/>
+
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <arguments/>
-                    <stackTrace/>
+                    <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
+                        <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
+                    </throwable>
                 </providers>
             </encoder>
 
@@ -47,7 +58,7 @@
 
     <!-- ========== dev ========== -->
     <springProfile name="dev">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <charset>UTF-8</charset>
@@ -59,22 +70,19 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
-                    <loggerName/>
-                    <threadName/>
 
                     <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
-                        <includeMdcKeyName>part</includeMdcKeyName>
-                        <includeMdcKeyName>className</includeMdcKeyName>
-                        <includeMdcKeyName>method</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
                     </mdc>
 
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <arguments/>
-                    <stackTrace/>
+                    <throwable>
+                        <messageFieldName>error</messageFieldName>
+                    </throwable>
                 </providers>
             </encoder>
 
@@ -85,14 +93,20 @@
             </rollingPolicy>
         </appender>
 
-        <root level="INFO">
-            <appender-ref ref="FILE"/>
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
 
     <!-- ========== prod ========== -->
     <springProfile name="prod">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <charset>UTF-8</charset>
@@ -104,22 +118,19 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
-                    <loggerName/>
-                    <threadName/>
 
                     <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
-                        <includeMdcKeyName>part</includeMdcKeyName>
-                        <includeMdcKeyName>className</includeMdcKeyName>
-                        <includeMdcKeyName>method</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
                     </mdc>
 
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <arguments/>
-                    <stackTrace/>
+                    <throwable>
+                        <messageFieldName>error</messageFieldName>
+                    </throwable>
                 </providers>
             </encoder>
 
@@ -130,8 +141,14 @@
             </rollingPolicy>
         </appender>
 
-        <root level="INFO">
-            <appender-ref ref="FILE"/>
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
 

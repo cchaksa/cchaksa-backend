@@ -3,9 +3,11 @@ package com.chukchuk.haksa.application.academic.enrollment;
 
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
+import lombok.Getter;
 
 import java.util.UUID;
 
+@Getter
 public class CourseEnrollment {
     private UUID studentId;
     private Long offeringId;
@@ -13,20 +15,17 @@ public class CourseEnrollment {
     private Integer points;
     private boolean isRetake;
     private Double originalScore;
+    private boolean isRetakeDeleted;
 
     // 생성자
-    public CourseEnrollment(UUID studentId, Long offeringId, Grade grade, Integer points, boolean isRetake, Double originalScore) {
+    public CourseEnrollment(UUID studentId, Long offeringId, Grade grade, Integer points, boolean isRetake, Double originalScore, boolean isRetakeDeleted) {
         this.studentId = studentId;
         this.offeringId = offeringId;
         this.grade = grade;
         this.points = points;
         this.isRetake = isRetake;
         this.originalScore = originalScore;
-    }
-
-    // factory 메서드
-    public static CourseEnrollment create(UUID studentId, Long offeringId, GradeType gradeType, Integer points, boolean isRetake, Double originalScore) {
-        return new CourseEnrollment(studentId, offeringId, new Grade(gradeType), points, isRetake, originalScore);
+        this.isRetakeDeleted = isRetakeDeleted;
     }
 
     // getter 메서드들

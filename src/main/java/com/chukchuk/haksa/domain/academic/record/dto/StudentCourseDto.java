@@ -23,7 +23,8 @@ public class StudentCourseDto {
             @Schema(description = "사이버 강의 여부") Boolean isOnline,
             @Schema(description = "이수 연도") Integer year,
             @Schema(description = "이수 학기") Integer semester,
-            @Schema(description = "원점수") Integer originalScore
+            @Schema(description = "원점수") Integer originalScore,
+            @Schema(description = "재수강 삭제 과목 여부") boolean isRetakeDelete
     ) {
         public static CourseDetailDto from(StudentCourse course) {
             return new CourseDetailDto(
@@ -39,7 +40,8 @@ public class StudentCourseDto {
                     Objects.requireNonNullElse(course.getOffering().getIsVideoLecture(), false),
                     course.getOffering().getYear(),
                     course.getOffering().getSemester(),
-                    course.getOriginalScore() != null ? course.getOriginalScore() : 0
+                    course.getOriginalScore() != null ? course.getOriginalScore() : 0,
+                    course.isRetakeDeleted()
             );
         }
     }
