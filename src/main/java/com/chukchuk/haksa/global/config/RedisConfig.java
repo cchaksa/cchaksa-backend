@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.global.config;
 
+import io.lettuce.core.ReadFrom;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -48,7 +49,7 @@ public class RedisConfig {
         }
 
         LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
-                LettuceClientConfiguration.builder();
+                LettuceClientConfiguration.builder().readFrom(ReadFrom.REPLICA_PREFERRED);
         if (redisSslEnabled) builder.useSsl(); // prod=false 여야 함
 
         var cf = new LettuceConnectionFactory(conf, builder.build());
