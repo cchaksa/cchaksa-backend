@@ -26,23 +26,19 @@
                     </mdc>
 
                     <loggerName/>
-                    
+
                     <message>
                         <fieldName>message</fieldName>
                     </message>
                     <throwable>
-                        <classNameFieldName>errorCause</classNameFieldName>       <!-- 예외 클래스명 -->
-                        <messageFieldName>error</messageFieldName>                <!-- 예외 메시지 -->
-                        <stackTraceFieldName>stackTrace</stackTraceFieldName>     <!-- 스택트레이스 필드명 -->
-                        <!-- (선택) 스택 줄 수/길이 줄이기: ShortenedThrowableConverter 사용 -->
+                        <classNameFieldName>errorCause</classNameFieldName>
+                        <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
                         <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
                             <rootCauseFirst>true</rootCauseFirst>
                             <maxDepthPerThrowable>50</maxDepthPerThrowable>
                             <maxLength>8000</maxLength>
                             <shortenedClassNameLength>40</shortenedClassNameLength>
-                            <!-- (선택) 프레임워크 패키지 줄이기
-                            <exclude>org.springframework,java.,jakarta.,sun.,com.fasterxml.</exclude>
-                            -->
                         </throwableConverter>
                     </throwable>
                 </providers>
@@ -110,7 +106,7 @@
 
     <!-- ========== prod ========== -->
     <springProfile name="prod">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <charset>UTF-8</charset>
@@ -122,22 +118,19 @@
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
-                    <loggerName/>
-                    <threadName/>
 
                     <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
-                        <includeMdcKeyName>part</includeMdcKeyName>
-                        <includeMdcKeyName>className</includeMdcKeyName>
-                        <includeMdcKeyName>method</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
                     </mdc>
 
                     <message>
                         <fieldName>message</fieldName>
                     </message>
-                    <arguments/>
-                    <stackTrace/>
+                    <throwable>
+                        <messageFieldName>error</messageFieldName>
+                    </throwable>
                 </providers>
             </encoder>
 
@@ -148,8 +141,14 @@
             </rollingPolicy>
         </appender>
 
-        <root level="INFO">
-            <appender-ref ref="FILE"/>
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
 
