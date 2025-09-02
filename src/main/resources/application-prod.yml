@@ -5,13 +5,14 @@ spring:
     password: ${PROD_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 8
-      minimum-idle: 2
-      idle-timeout: 60000
-      max-lifetime: 0
-      keepalive-time: 0
-      connection-timeout: 30000
-      validation-timeout: 5000
+      # floor((max_connections - superuser_reserved - 운영여유) / ASG_max / JVM수 / 풀수) -> 10
+      maximum-pool-size: 10
+      minimum-idle: 5              # 워밍업된 연결 유지
+      connection-timeout: 30000    # 30s
+      validation-timeout: 5000     # 5s
+      idle-timeout: 600000         # 10m  (idle 커넥션 정리)
+      max-lifetime: 1800000        # 30m  (DB/네트워크 타임아웃보다 짧게)
+      keepalive-time: 300000       # 5m   (idle 유지 ping; idle-timeout보다 짧게)
 
   data:
     redis:
