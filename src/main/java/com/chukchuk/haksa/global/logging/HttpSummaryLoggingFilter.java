@@ -15,12 +15,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-/** 요청/응답 요약 + 샘플링 + 레벨 매핑 */
+/**
+ * HTTP 요청/응답 요약 로그 필터.
+ * - 샘플링(설정 기반 enabled/rate/patterns)
+ * - 상태코드→레벨 매핑(HttpStatusLevelMapper)
+ * - PII 마스킹(LogSanitizer), 사용자 식별자 해시
+ */
 @Component
 @EnableConfigurationProperties(LoggingProperties.class)
-@Order(/** SecurityFilterChain 이후 = */ 20)
+@Order(30) // SecurityFilterChain 이후 실행
 public class HttpSummaryLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger HTTP = LoggerFactory.getLogger("HTTP");
@@ -34,35 +40,73 @@ public class HttpSummaryLoggingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
 
-        long start = System.currentTimeMillis();
+        final long start = System.currentTimeMillis();
         chain.doFilter(req, res);
-        long took = System.currentTimeMillis() - start;
+        final long took = System.currentTimeMillis() - start;
 
+        // ---- 샘플링 결정 ----
+        boolean enabled = props.getSampling().isEnabled();
+        double rate = clamp(props.getSampling().getRate(), 0.0, 1.0);
+        boolean match = matchesAny(req.getRequestURI(), props.getSampling().getPatterns());
+
+        // 샘플링: enabled && match일 때만 적용 (rate=1.0이면 모두 로깅)
+        if (enabled && match && ThreadLocalRandom.current().nextDouble() >= rate) {
+            return; // 로그 생략
+        }
+
+        // ---- 레벨 매핑 ----
         int status = res.getStatus();
         HttpStatusLevelMapper.Level level = HttpStatusLevelMapper.map(status, req);
 
-        // 샘플링: 고트래픽 URI만 적용 (예: /api/v1/list, /api/v1/search)
-        boolean heavy = isHeavy(req.getRequestURI());
-        double rate = props.getSampling().getHeavyEndpoints();
-        if (heavy && ThreadLocalRandom.current().nextDouble() >= rate) return;
-
+        // ---- 필드 준비 (마스킹/축약) ----
+        String method = req.getMethod();
+        String uri = sanitizeUri(req);
+        String ip = NetUtil.shorten(NetUtil.clientIp(req));
         String userId = req.getUserPrincipal() != null ? req.getUserPrincipal().getName() : "anon";
-        String userIdHash = HashUtil.sha256Short(userId);
-        String ip = NetUtil.clientIp(req);
-        String ipShort = NetUtil.shorten(ip);
-        String cid = MDC.get(CorrelationIdFilter.MDC_KEY);
+        String userHash = HashUtil.sha256Short(userId);
 
-        String msg = "http_summary method={} uri={} status={} took_ms={} userIdHash={} ip={} corrId={}";
+        // 추적키: Micrometer/Brave가 넣는 traceId/spanId가 있으면 사용
+        String traceId = nvl(MDC.get("traceId"));
+        String spanId  = nvl(MDC.get("spanId"));
+
+        // ---- 로깅 ----
+        // 한 줄 요약: 메서드, URI, 상태, 소요(ms), 사용자해시, IP, 추적키
+        final String msg = "http_summary method={} uri={} status={} took_ms={} userIdHash={} ip={} traceId={} spanId={}";
         switch (level) {
-            case ERROR -> HTTP.error(msg, req.getMethod(), req.getRequestURI(), status, took, userIdHash, ipShort, cid);
-            case WARN  -> HTTP.warn (msg, req.getMethod(), req.getRequestURI(), status, took, userIdHash, ipShort, cid);
-            default    -> HTTP.info (msg, req.getMethod(), req.getRequestURI(), status, took, userIdHash, ipShort, cid);
+            case ERROR -> HTTP.error(msg, method, uri, status, took, userHash, ip, traceId, spanId);
+            case WARN  -> HTTP.warn (msg, method, uri, status, took, userHash, ip, traceId, spanId);
+            default    -> HTTP.info (msg, method, uri, status, took, userHash, ip, traceId, spanId);
         }
     }
 
-    private boolean isHeavy(String uri) {
-        if (uri == null) return false;
-        return uri.startsWith("/api/v1/list") || uri.startsWith("/api/v1/search");
+    // --- helpers ---
+
+    private String sanitizeUri(HttpServletRequest req) {
+        String base = nvl(req.getRequestURI());
+        String q = req.getQueryString();
+        String full = q == null || q.isBlank() ? base : (base + "?" + q);
+        return LogSanitizer.clean(full);
+    }
+
+    private boolean matchesAny(String uri, List<String> patterns) {
+        if (uri == null || patterns == null || patterns.isEmpty()) return false;
+        for (String p : patterns) {
+            if (p == null || p.isBlank()) continue;
+            // 1) 접두사 매칭
+            if (uri.startsWith(p)) return true;
+            // 2) 정규식 매칭
+            try {
+                if (uri.matches(p)) return true;
+            } catch (Exception ignored) { /* 잘못된 정규식은 패스 */ }
+        }
+        return false;
+    }
+
+    private double clamp(double v, double min, double max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    private String nvl(String s) {
+        return (s == null) ? "" : s;
     }
 }
-
