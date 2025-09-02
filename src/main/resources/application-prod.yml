@@ -39,6 +39,10 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
+  sampling:
+    enabled: false
+    rate: 1.0
+    patterns: [ ]
 
 swagger:
   server-url: https://api.cchaksa.com
