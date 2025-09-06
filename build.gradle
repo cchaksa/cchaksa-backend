@@ -44,6 +44,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	runtimeOnly 'org.postgresql:postgresql' // prod
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 
 	// Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'

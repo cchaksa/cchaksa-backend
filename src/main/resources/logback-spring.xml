@@ -67,21 +67,28 @@
                         <fieldName>timestamp</fieldName>
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
-                    <logLevel>
-                        <fieldName>level</fieldName>
-                    </logLevel>
+                    <logLevel><fieldName>level</fieldName></logLevel>
 
                     <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
                         <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
                     </mdc>
 
-                    <message>
-                        <fieldName>message</fieldName>
-                    </message>
+                    <message><fieldName>message</fieldName></message>
+
+                    <!-- ERROR에서만 스택이 찍히도록 throwable 추가 (warn/info는 ex 미전달) -->
                     <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
                         <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
                     </throwable>
                 </providers>
             </encoder>
@@ -92,6 +99,9 @@
                 <cleanHistoryOnStart>true</cleanHistoryOnStart>
             </rollingPolicy>
         </appender>
+
+        <!-- HTTP 요약 로그(INFO) 보장 -->
+        <logger name="HTTP" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>ERROR</minimumEventLevel>
@@ -115,31 +125,41 @@
                         <fieldName>timestamp</fieldName>
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
-                    <logLevel>
-                        <fieldName>level</fieldName>
-                    </logLevel>
+                    <logLevel><fieldName>level</fieldName></logLevel>
 
-                    <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
                         <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
                     </mdc>
 
-                    <message>
-                        <fieldName>message</fieldName>
-                    </message>
+                    <message><fieldName>message</fieldName></message>
+
+                    <!-- ERROR에서만 스택 출력 -->
                     <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
                         <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
                     </throwable>
                 </providers>
             </encoder>
 
+            <!-- ⬇운영 보존 정책 강화: gzip 압축 + 30일 -->
             <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>7</maxHistory>
+                <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>30</maxHistory>
                 <cleanHistoryOnStart>true</cleanHistoryOnStart>
             </rollingPolicy>
         </appender>
+
+        <!-- HTTP 요약 로그(INFO) 보장 -->
+        <logger name="HTTP" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>ERROR</minimumEventLevel>
