@@ -1,9 +1,10 @@
 package com.chukchuk.haksa.global.logging;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.servlet.http.HttpServletRequest;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.Duration;
 
 /**
  * HTTP 상태코드 → 로그 레벨 매핑
@@ -16,9 +17,13 @@ public class HttpStatusLevelMapper {
     public enum Level { INFO, WARN, ERROR }
 
     // 401/403 반복 감지 : 5분 윈도우 내 3회 이상
-    private static final Map<String, Counter> AUTH_FAILS = new ConcurrentHashMap<>();
     private static final long WINDOW_MS = 5 * 60 * 1000L;
     private static final int THRESHOLD = 3;
+    private static final int MAX_CACHE_SIZE = 10_000;
+    private static final Cache<String, Counter> AUTH_FAILS = Caffeine.newBuilder()
+            .expireAfterAccess(Duration.ofMillis(MAX_CACHE_SIZE))
+            .maximumSize(10_000)
+            .build();
 
     private HttpStatusLevelMapper() {}
 
@@ -27,7 +32,7 @@ public class HttpStatusLevelMapper {
 
         if (status == 401 || status == 403) {
             String key = key(req);
-            Counter c = AUTH_FAILS.computeIfAbsent(key, k -> new Counter());
+            Counter c = AUTH_FAILS.get(key, k -> new Counter());
             c.hit();
             return c.countInWindow(WINDOW_MS) >= THRESHOLD ? Level.WARN : Level.INFO;
         }
