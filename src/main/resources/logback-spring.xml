@@ -104,7 +104,7 @@
         <logger name="HTTP" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         </appender>
 
@@ -162,7 +162,7 @@
         <logger name="HTTP" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         </appender>
 
