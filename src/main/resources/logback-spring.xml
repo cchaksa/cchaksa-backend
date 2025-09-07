@@ -94,7 +94,7 @@
         </appender>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         </appender>
 
@@ -142,7 +142,7 @@
         </appender>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         </appender>
 
