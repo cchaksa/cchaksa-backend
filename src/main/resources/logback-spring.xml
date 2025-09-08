@@ -109,6 +109,7 @@
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+            <mdcTags>userId,traceId,spanId</mdcTags>
         </appender>
 
         <root level="WARN">
@@ -170,6 +171,7 @@
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>Warn</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+            <mdcTags>userId,traceId,spanId</mdcTags>
         </appender>
 
         <root level="WARN">
