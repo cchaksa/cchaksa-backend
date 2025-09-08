@@ -69,6 +69,8 @@
                     </timestamp>
                     <logLevel><fieldName>level</fieldName></logLevel>
 
+                    <loggerName><fieldName>logger</fieldName></loggerName>
+
                     <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
@@ -102,6 +104,7 @@
 
         <!-- HTTP 요약 로그(INFO) 보장 -->
         <logger name="HTTP" level="INFO"/>
+        <logger name="com.chukchuk.haksa" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>Warn</minimumEventLevel>
@@ -126,6 +129,8 @@
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
                     <logLevel><fieldName>level</fieldName></logLevel>
+
+                    <loggerName><fieldName>logger</fieldName></loggerName>
 
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
@@ -160,6 +165,7 @@
 
         <!-- HTTP 요약 로그(INFO) 보장 -->
         <logger name="HTTP" level="INFO"/>
+        <logger name="com.chukchuk.haksa" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>Warn</minimumEventLevel>
