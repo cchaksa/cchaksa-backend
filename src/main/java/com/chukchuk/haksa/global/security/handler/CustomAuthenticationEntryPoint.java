@@ -38,7 +38,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
             errorCode = ErrorCode.AUTHENTICATION_REQUIRED; // 토큰 없음 등 일반적인 인증 실패 응답
         }
 
-        log.warn("Authentication failed: {}, path: {}", errorCode.name(), request.getRequestURI());
+        log.info("Authentication failed: {}, path: {}", errorCode.name(), request.getRequestURI());
 
         response.setStatus(errorCode.status().value());
         response.setContentType("application/json;charset=UTF-8");

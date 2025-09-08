@@ -74,7 +74,7 @@ public class JwtProvider {
         } catch (ExpiredJwtException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("JWT parsing error: {}", e.getMessage(), e);
+            log.info("JWT parsing error: {}", e.getMessage(), e);
             throw new JwtException("Invalid token", e);
         }
     }

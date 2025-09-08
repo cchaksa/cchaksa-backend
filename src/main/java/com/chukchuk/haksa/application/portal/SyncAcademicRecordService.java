@@ -114,7 +114,7 @@ public class SyncAcademicRecordService {
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
                     if (off == null) {
-                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
+                        log.error("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
                         return null;
                     }
                     // Mapper가 isRetakeDeleted/grade/score 등을 세팅해야 함
