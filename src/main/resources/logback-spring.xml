@@ -1,60 +1,9 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- ===== 공통 프로퍼티 (프로파일별로 덮어씌워짐) ===== -->
-    <springProperty scope="context" name="LOG_PATH"      source="logging.file.path" defaultValue="logs"/>
-    <springProperty scope="context" name="FILE_NAME"     source="logging.file.name" defaultValue="app.log"/>
-    <springProperty scope="context" name="GZIP"          source="logging.archive.gzip" defaultValue="false"/>
-    <springProperty scope="context" name="MAX_HISTORY"   source="logging.archive.max-history" defaultValue="7"/>
-    <springProperty scope="context" name="ROOT_LEVEL"    source="logging.root.level" defaultValue="WARN"/>
-
-    <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
+    <!-- ========== local ========== -->
     <springProfile name="local">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="INFO"/>
-    </springProfile>
-
-    <springProfile name="dev">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
-    </springProfile>
-
-    <springProfile name="prod">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="true"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="30"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
-    </springProfile>
-
-    <!-- ===== 정적 리소스/Swagger 로그 레벨 제한 ===== -->
-    <logger name="org.springdoc" level="WARN"/>
-    <logger name="org.springframework.web.servlet.resource" level="WARN"/>
-
-    <!-- ===== 전역 차단 필터: MDC skipLog=true일 경우 로그 출력 안 함 ===== -->
-    <turboFilter class="ch.qos.logback.classic.turbo.MDCFilter">
-        <MDCKey>skipLog</MDCKey>
-        <Value>true</Value>
-        <OnMatch>DENY</OnMatch>
-        <OnMismatch>NEUTRAL</OnMismatch>
-    </turboFilter>
-
-    <!-- ===== prod/dev Appender: 파일 로그 + Sentry ===== -->
-    <springProfile name="prod,dev">
-        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>${LOG_PATH}/${FILE_NAME}</file>
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.log${GZIP.equals("true") ? ".gz" : ""}</fileNamePattern>
-                <maxHistory>${MAX_HISTORY}</maxHistory>
-                <cleanHistoryOnStart>true</cleanHistoryOnStart>
-            </rollingPolicy>
-
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <charset>UTF-8</charset>
                 <providers>
@@ -62,17 +11,25 @@
                         <fieldName>timestamp</fieldName>
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
-                    <logLevel><fieldName>level</fieldName></logLevel>
-                    <loggerName><fieldName>logger</fieldName></loggerName>
+                    <logLevel>
+                        <fieldName>level</fieldName>
+                    </logLevel>
+                    <loggerName/>
+                    <threadName/>
+
+                    <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
-                        <includeMdcKeyName>traceId</includeMdcKeyName>
-                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                        <includeMdcKeyName>part</includeMdcKeyName>
                         <includeMdcKeyName>className</includeMdcKeyName>
                         <includeMdcKeyName>method</includeMdcKeyName>
-                        <includeMdcKeyName>part</includeMdcKeyName>
                     </mdc>
-                    <message><fieldName>message</fieldName></message>
+
+                    <loggerName/>
+
+                    <message>
+                        <fieldName>message</fieldName>
+                    </message>
                     <throwable>
                         <classNameFieldName>errorCause</classNameFieldName>
                         <messageFieldName>error</messageFieldName>
@@ -86,17 +43,23 @@
                     </throwable>
                 </providers>
             </encoder>
+
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>7</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
         </appender>
 
-        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>WARN</minimumEventLevel>
-            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-        </appender>
+        <root level="INFO">
+            <appender-ref ref="FILE"/>
+        </root>
     </springProfile>
 
-    <!-- ===== local Appender: 콘솔 로그 ===== -->
-    <springProfile name="local">
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- ========== dev ========== -->
+    <springProfile name="dev">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/home/ubuntu/monitoring/logs/app.log</file>
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
                 <charset>UTF-8</charset>
                 <providers>
@@ -105,28 +68,113 @@
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
                     <logLevel><fieldName>level</fieldName></logLevel>
+
                     <loggerName><fieldName>logger</fieldName></loggerName>
+
+                    <!-- MDC 필드 -->
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                    </mdc>
+
                     <message><fieldName>message</fieldName></message>
+
+                    <!-- ERROR에서만 스택이 찍히도록 throwable 추가 (warn/info는 ex 미전달) -->
+                    <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
+                        <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
+                    </throwable>
                 </providers>
             </encoder>
+
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>7</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
         </appender>
-    </springProfile>
 
-    <!-- ===== 패키지별 로거 ===== -->
-    <logger name="HTTP" level="INFO"/>
-    <logger name="com.chukchuk.haksa" level="INFO"/>
+        <!-- HTTP 요약 로그(INFO) 보장 -->
+        <logger name="HTTP" level="INFO"/>
+        <logger name="com.chukchuk.haksa" level="INFO"/>
 
-    <!-- ===== 루트 로거 설정 ===== -->
-    <springProfile name="prod,dev">
-        <root level="${ROOT_LEVEL}">
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>Warn</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+
+        <root level="WARN">
             <appender-ref ref="FILE_JSON"/>
             <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
 
-    <springProfile name="local">
-        <root level="${ROOT_LEVEL}">
-            <appender-ref ref="CONSOLE"/>
+    <!-- ========== prod ========== -->
+    <springProfile name="prod">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/home/ubuntu/monitoring/logs/app.log</file>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
+                <providers>
+                    <timestamp>
+                        <fieldName>timestamp</fieldName>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <logLevel><fieldName>level</fieldName></logLevel>
+
+                    <loggerName><fieldName>logger</fieldName></loggerName>
+
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                    </mdc>
+
+                    <message><fieldName>message</fieldName></message>
+
+                    <!-- ERROR에서만 스택 출력 -->
+                    <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
+                        <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
+                    </throwable>
+                </providers>
+            </encoder>
+
+            <!-- ⬇운영 보존 정책 강화: gzip 압축 + 30일 -->
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>/home/ubuntu/monitoring/logs/app.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
+        </appender>
+
+        <!-- HTTP 요약 로그(INFO) 보장 -->
+        <logger name="HTTP" level="INFO"/>
+        <logger name="com.chukchuk.haksa" level="INFO"/>
+
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>Warn</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+
+        <root level="WARN">
+            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="SENTRY"/>
         </root>
     </springProfile>
 
