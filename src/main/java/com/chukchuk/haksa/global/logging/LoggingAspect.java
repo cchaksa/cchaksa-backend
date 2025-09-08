@@ -9,13 +9,8 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.slf4j.MDC;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.core.annotation.AnnotatedElementUtils;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ReflectionUtils;
 
@@ -26,7 +21,7 @@ import java.lang.reflect.Method;
 @Component
 @RequiredArgsConstructor
 public class LoggingAspect {
-    private final Tracer tracer;
+    private final Tracer tracer; // (미사용) 추후 필요 시 활용
 
     @Around("@within(com.chukchuk.haksa.global.logging.annotation.LogPart) || @annotation(com.chukchuk.haksa.global.logging.annotation.LogPart)")
     public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -46,55 +41,23 @@ public class LoggingAspect {
         String part = methodAnnotation != null ? methodAnnotation.value()
                 : (classAnnotation != null ? classAnnotation.value() : "unknown");
 
-        String userId = resolveUserUUID();
         String className = targetClass.getName();
         String methodName = method.getName();
-        String msg = className + "." + methodName + "() called";
-
-        // MDC 필드 설정
-        MDC.put("userId", userId == null ? "Unknown" : userId);
-        MDC.put("className", className);
-        MDC.put("method", methodName);
-        MDC.put("traceId", tracer.currentSpan() != null ? tracer.currentSpan().context().traceId() : "Unknown");
+        String msg = "[LogPart:{}] {}.{}() called";
 
         try {
             Object result = joinPoint.proceed();
-            log.info(msg);
+            log.info(msg, part, className, methodName);
             return result;
         } catch (BaseException be) {
-            log.warn(msg, be);
+            // 정책: WARN 에서는 스택트레이스 금지
+            log.warn("[LogPart:{}] {}.{}() baseException code={} msg={}",
+                    part, className, methodName, be.getCode(), be.getMessage());
             throw be;
         } catch (Exception e) {
-            log.error(msg, e);
+            // 정책: ERROR 에서는 스택트레이스 포함
+            log.error("[LogPart:{}] {}.{}() error={}", part, className, methodName, e.getMessage(), e);
             throw e;
-        } finally {
-            // MDC 정리(키 단위)
-            MDC.remove("userId");
-            MDC.remove("className");
-            MDC.remove("method");
-            MDC.remove("traceId");
         }
-    }
-
-    private String resolveUserUUID() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
-            return null;
-        }
-        Object principal = authentication.getPrincipal();
-        if (principal instanceof UserDetails) {
-            return ((UserDetails) principal).getUsername();
-        }
-        return null;
-    }
-
-    private static Class<?>[] getParamTypes(ProceedingJoinPoint joinPoint) {
-        if (joinPoint.getSignature() instanceof MethodSignature ms) {
-            return ms.getParameterTypes();
-        }
-        Object[] args = joinPoint.getArgs();
-        Class<?>[] types = new Class<?>[args.length];
-        for (int i = 0; i < args.length; i++) types[i] = args[i] == null ? Object.class : args[i].getClass();
-        return types;
     }
 }

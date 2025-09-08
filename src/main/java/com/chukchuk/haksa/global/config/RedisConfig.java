@@ -60,12 +60,12 @@ public class RedisConfig {
     @Bean
     CommandLineRunner redisBootCheck(StringRedisTemplate rt) {
         return args -> {
-            log.warn(">>> Redis effective: host={}, port={}, ssl={}",
+            log.info(">>> Redis effective: host={}, port={}, ssl={}",
                     redisHost, redisPort, redisSslEnabled);
             try {
                 rt.opsForValue().set("__boot_check__", "ok");
                 String v = rt.opsForValue().get("__boot_check__");
-                log.warn(">>> Redis ping/set/get OK: {}", v);
+                log.info(">>> Redis ping/set/get OK: {}", v);
             } catch (Exception e) {
                 log.error(">>> Redis check FAILED", e);
             }
