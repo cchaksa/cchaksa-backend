@@ -5,6 +5,7 @@ spring:
     password: ${PROD_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
+    
       # floor((max_connections - superuser_reserved - 운영여유) / ASG_max / JVM수 / 풀수) -> 10
       maximum-pool-size: 10
       minimum-idle: 5              # 워밍업된 연결 유지
