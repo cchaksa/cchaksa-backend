@@ -49,7 +49,7 @@ public class RefreshPortalConnectionService {
                     : null;
 
             if (department == null) {
-                log.warn("[PORTAL][INIT] 학과 초기화 실패: userId={}, deptCode={}", userId, raw.department().code());
+                log.error("[PORTAL][INIT] 학과 초기화 실패: userId={}, deptCode={}", userId, raw.department().code());
                 return failure("학과/전공 정보 초기화 실패");
             }
 

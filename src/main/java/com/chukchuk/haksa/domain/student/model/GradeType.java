@@ -47,7 +47,7 @@ public enum GradeType {
                 .findFirst()
                 .orElseThrow(() -> {
                     // 로그 추가
-                    log.warn("[GradeType] Unknown grade: {}", value);
+                    log.error("[GradeType] Unknown grade: {}", value);
                     // log.warn("[GradeType] Unknown grade: '{}'", value);
                     return new CommonException(ErrorCode.INVALID_GRADE_TYPE);
                 });

@@ -5,19 +5,19 @@ spring:
     password: ${DEV_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 1
-      minimum-idle: 0
-      idle-timeout: 30000
-      max-lifetime: 0
-      keepalive-time: 0
+      maximum-pool-size: 3
+      minimum-idle: 1
       connection-timeout: 20000
       validation-timeout: 5000
+      idle-timeout: 300000     # 5m
+      max-lifetime: 900000     # 15m
+      keepalive-time: 120000   # 2m
   data:
     redis:
       host: ${DEV_REDIS_HOST}
       port: ${DEV_REDIS_PORT}
       client-name: redis-client
-      timeout: 5000
+      timeout: 5s
       ssl:
         enabled: false
 
@@ -28,7 +28,6 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           use_get_generated_keys: true
           statement_cache_size: 0
@@ -44,6 +43,10 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
+  sampling:
+    enabled: false
+    rate: 1.0
+    patterns: [ ]
 
 swagger:
   server-url: https://dev.api.cchaksa.com

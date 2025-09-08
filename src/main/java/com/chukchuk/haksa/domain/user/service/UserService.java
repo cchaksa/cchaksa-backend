@@ -11,10 +11,10 @@ import com.chukchuk.haksa.global.security.service.JwtProvider;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import io.jsonwebtoken.Claims;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
