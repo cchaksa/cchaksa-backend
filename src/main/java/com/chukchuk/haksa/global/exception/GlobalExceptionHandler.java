@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -70,6 +72,16 @@ public class GlobalExceptionHandler {
                 ex.getClass().getSimpleName(), ex.getMessage(), ctx(req), ex);
         return ResponseEntity.internalServerError()
                 .body(ErrorResponse.of("E-UNHANDLED", "서버 오류가 발생했습니다.", null));
+    }
+
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class, // @Valid 바인딩 실패
+            MissingServletRequestParameterException.class
+    })
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, HttpServletRequest req) {
+        ErrorCode ec = ErrorCode.INVALID_ARGUMENT;
+        log.warn("[BadRequest] msg={} ctx={}", ex.getMessage(), ctx(req));
+        return ResponseEntity.status(ec.status()).body(ErrorResponse.of(ec.code(), ec.message(), null));
     }
 
     // ===== helper =====
