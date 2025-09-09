@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.Duration;
+import java.util.Objects;
 
 /**
  * HTTP 상태코드 → 로그 레벨 매핑
@@ -21,8 +22,8 @@ public class HttpStatusLevelMapper {
     private static final int THRESHOLD = 3;
     private static final int MAX_CACHE_SIZE = 10_000;
     private static final Cache<String, Counter> AUTH_FAILS = Caffeine.newBuilder()
-            .expireAfterAccess(Duration.ofMillis(MAX_CACHE_SIZE))
-            .maximumSize(10_000)
+            .expireAfterAccess(Duration.ofMillis(WINDOW_MS))
+            .maximumSize(MAX_CACHE_SIZE)
             .build();
 
     private HttpStatusLevelMapper() {}
@@ -44,10 +45,20 @@ public class HttpStatusLevelMapper {
     }
 
     private static String key(HttpServletRequest req) {
-        String ip = req.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isBlank()) ip = req.getRemoteAddr();
-        String path = req.getRequestURI();
-        return (ip == null ? "unknown" : ip) + "|" + (path == null ? "" : path);
+        if (req == null) return "unknown|";
+        String ip = firstForwardedFor(req.getHeader("X-Forwarded-For"));
+        if (ip == null || ip.isBlank()) {
+            String xReal = req.getHeader("X-Real-IP");
+            ip = (xReal != null && !xReal.isBlank()) ? xReal : req.getRemoteAddr();
+        }
+        String path = Objects.toString(req.getRequestURI(), "");
+        return (ip == null ? "unknown" : ip) + "|" + path;
+    }
+
+    private static String firstForwardedFor(String xff) {
+        if (xff == null || xff.isBlank()) return null;
+        int comma = xff.indexOf(',');
+        return comma >= 0 ? xff.substring(0, comma).trim() : xff.trim();
     }
 
     /** 최근 호출 시간과 횟수를 관리하는 카운터 */
