@@ -5,6 +5,7 @@ import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @Repository
 @RequiredArgsConstructor
@@ -44,6 +47,8 @@ public class GraduationQueryRepository {
     }
 
     public List<AreaProgressDto> getStudentAreaProgress(UUID studentId, Long departmentId, Integer admissionYear) {
+        long t0 = LogTime.start();
+
         String sql = """
 WITH raw_courses AS (
     SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
@@ -134,18 +139,25 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
         query.setParameter("effectiveDepartmentId", departmentId);
         query.setParameter("admissionYear", admissionYear);
 
+        // 기존 info: results 전체 출력 → 제거 (PII/용량 리스크)
         List<Object[]> results = query.getResultList();
-        log.info("GraduationQueryRepository SQL 결과: {}", results);
 
         if (results.isEmpty()) {
             throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_NOT_FOUND);
+        }
+
+        List<AreaProgressDto> list = results.stream().map(this::mapToDto).collect(Collectors.toList());
+
+        long took = LogTime.elapsedMs(t0);
+        if (took >= SLOW_MS) {
+            log.info("[BIZ] graduation.progress.query.done deptId={} admissionYear={} rows={} took_ms={}",
+                    departmentId, admissionYear, list.size(), took);
         }
 
         return results.stream().map(this::mapToDto).collect(Collectors.toList());
     }
 
     private AreaProgressDto mapToDto(Object[] row) {
-        log.info("areaType(raw) = '{}'", row[0]);
         FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
 
         Integer requiredCredits = (Integer) row[1];
@@ -160,6 +172,7 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
             try {
                 courses = ob.readValue((String) row[6], new TypeReference<List<CourseDto>>() {});
             } catch (JsonProcessingException e) {
+                log.error("[BIZ] graduation.progress.json.error ex={}", e.getClass().getSimpleName(), e);
                 throw new RuntimeException("JSON 변환 오류", e);
             }
         }

@@ -6,6 +6,7 @@ import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,30 +43,36 @@ public class SemesterAcademicRecordService {
     /* 특정 학생의 특정 학기 성적 조회 (없으면 예외 발생) */
     private SemesterAcademicRecord findSemesterRecordsByYearAndSemester(UUID studentId, Integer year, Integer semester) {
         return semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_NOT_FOUND));
+                .orElseThrow(() -> {
+                    String userHash = HashUtil.sha256Short(studentId.toString());
+                    log.warn("[BIZ] academic.semester.record.not_found userIdHash={} year={} semester={}",
+                            userHash, year, semester);
+                    return new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_NOT_FOUND);
+                });
     }
 
     /* 특정 학생의 전체 학기 성적 조회 (최신순 정렬, 없으면 예외 발생) */
     private List<SemesterAcademicRecord> findAllSemesterRecords(UUID studentId) {
-        List<SemesterAcademicRecord> records = semesterAcademicRecordRepository.findByStudentIdOrderByYearDescSemesterDesc(studentId);
-
+        List<SemesterAcademicRecord> records =
+                semesterAcademicRecordRepository.findByStudentIdOrderByYearDescSemesterDesc(studentId);
         if (records.isEmpty()) {
+            String userHash = HashUtil.sha256Short(studentId.toString());
+            log.warn("[BIZ] academic.semester.records.empty userIdHash={}", userHash);
             throw new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_EMPTY);
         }
-
         return records;
     }
 
     /* 학생의 학기 정보 조회 */
     public List<StudentSemesterDto.StudentSemesterInfoResponse> getSemestersByStudentId(UUID studentId) {
+        String userHash = HashUtil.sha256Short(studentId.toString());
         try {
             List<StudentSemesterDto.StudentSemesterInfoResponse> cached = redisCacheStore.getSemesterList(studentId);
             if (cached != null) {
                 return cached;
             }
         } catch (Exception e) {
-            // Redis 장애 시 로그 남기고 계속 진행
-            log.warn("Redis cache retrieval failed for studentId: {}", studentId, e);
+            log.warn("[BIZ] academic.semester.cache.get.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
         }
 
         List<StudentSemesterDto.StudentSemesterInfoResponse> response = findSemestersByStudent(studentId).stream()
@@ -78,7 +85,7 @@ public class SemesterAcademicRecordService {
         try {
             redisCacheStore.setSemesterList(studentId, response);
         } catch (Exception e) {
-            log.warn("Redis 캐시 저장 실패 - studentId: {}", studentId, e);
+            log.warn("[BIZ] academic.semester.cache.set.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
         }
         return response;
     }
@@ -86,11 +93,11 @@ public class SemesterAcademicRecordService {
     /* 특정 학생의 학기 정보 조회 (신입생 예외 처리) */
     private List<SemesterAcademicRecord> findSemestersByStudent(UUID studentId) {
         List<SemesterAcademicRecord> records = semesterAcademicRecordRepository.findByStudentId(studentId);
-
         if (records.isEmpty()) {
+            String userHash = HashUtil.sha256Short(studentId.toString());
+            log.warn("[BIZ] academic.semester.freshman_no_semester userIdHash={}", userHash);
             throw new CommonException(ErrorCode.FRESHMAN_NO_SEMESTER);
         }
-
         return records;
     }
 

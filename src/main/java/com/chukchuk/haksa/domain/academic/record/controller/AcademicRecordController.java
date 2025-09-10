@@ -5,9 +5,12 @@ import com.chukchuk.haksa.domain.academic.record.dto.AcademicRecordResponse;
 import com.chukchuk.haksa.domain.academic.record.service.AcademicRecordService;
 import com.chukchuk.haksa.domain.academic.record.service.StudentAcademicRecordService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,8 +21,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 import static com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto.AcademicSummaryResponse;
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @LogPart
+@Slf4j
 @RestController
 @RequestMapping("/api/academic")
 @RequiredArgsConstructor
@@ -34,9 +39,17 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
             @RequestParam Integer year,
             @RequestParam Integer semester) {
 
+        long t0 = LogTime.start();
         UUID studentId = userDetails.getStudentId();
+        String userHash = HashUtil.sha256Short(studentId.toString());
+
         AcademicRecordResponse response = academicRecordService.getAcademicRecord(studentId, year, semester);
 
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] academic.record.done userIdHash={} year={} semester={} took_ms={}",
+                    userHash, year, semester, tookMs);
+        }
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 
@@ -44,9 +57,16 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
     public ResponseEntity<SuccessResponse<AcademicSummaryResponse>> getAcademicSummary(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
+        long t0 = LogTime.start();
         UUID studentId = userDetails.getStudentId();
+        String userHash = HashUtil.sha256Short(studentId.toString());
+
         AcademicSummaryResponse response = studentAcademicRecordService.getAcademicSummary(studentId);
 
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] academic.summary.done userIdHash={} took_ms={}", userHash, tookMs);
+        }
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 }

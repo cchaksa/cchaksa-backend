@@ -8,6 +8,7 @@ import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,14 +29,14 @@ public class StudentAcademicRecordService {
     private final RedisCacheStore redisCacheStore;
 
     public StudentAcademicRecordDto.AcademicSummaryResponse getAcademicSummary(UUID studentId) {
+        String userHash = HashUtil.sha256Short(studentId.toString());
         try {
             StudentAcademicRecordDto.AcademicSummaryResponse cached = redisCacheStore.getAcademicSummary(studentId);
             if (cached != null) {
                 return cached;
             }
         } catch (Exception e) {
-            // Redis 장애 시 로그 남기고 계속 진행
-            log.warn("Redis cache retrieval failed for studentId: {}", studentId, e);
+            log.warn("[BIZ] academic.summary.cache.get.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
         }
 
         StudentAcademicRecord studentAcademicRecord = getStudentAcademicRecordByStudentId(studentId);
@@ -53,14 +54,17 @@ public class StudentAcademicRecordService {
         try {
             redisCacheStore.setAcademicSummary(studentId, response);
         } catch (Exception e) {
-            log.warn("Redis 캐시 저장 실패 - studentId: {}", studentId, e);
+            log.warn("[BIZ] academic.summary.cache.set.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
         }
-
         return response;
     }
 
     public StudentAcademicRecord getStudentAcademicRecordByStudentId(UUID studentId) {
         return studentAcademicRecordRepository.findByStudentId(studentId)
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.STUDENT_ACADEMIC_RECORD_NOT_FOUND));
+                .orElseThrow(() -> {
+                    String userHash = HashUtil.sha256Short(studentId.toString());
+                    log.warn("[BIZ] academic.summary.not_found userIdHash={}", userHash);
+                    return new EntityNotFoundException(ErrorCode.STUDENT_ACADEMIC_RECORD_NOT_FOUND);
+                });
     }
 }
