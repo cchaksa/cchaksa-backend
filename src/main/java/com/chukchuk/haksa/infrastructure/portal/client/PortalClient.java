@@ -1,16 +1,19 @@
 package com.chukchuk.haksa.infrastructure.portal.client;
 
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalLoginException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PortalClient {
@@ -41,24 +44,27 @@ public class PortalClient {
     }
 
     public RawPortalData scrapeAll(String username, String password) {
+        String uri = "/scrape";
+        long t0 = LogTime.start();
         try {
-            return webClient.post()
-                    .uri(baseUrl + "/scrape")
+            return webClient.post().uri(baseUrl + uri)
                     .header("Content-Type", "application/json")
                     .bodyValue(new LoginRequest(username, password))
-                    .retrieve()
-                    .bodyToMono(RawPortalData.class)
-                    .block();
+                    .retrieve().bodyToMono(RawPortalData.class).block();
         } catch (WebClientResponseException e) {
-            HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
+            long tookMs = LogTime.elapsedMs(t0);
+            int status = e.getStatusCode().value();
 
-            ErrorCode errorCode = switch (status) {
+            if (status >= 500)      log.error("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+            else if (status == 429) log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+            else                    log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+
+            ErrorCode code = switch (HttpStatus.resolve(status)) {
                 case UNAUTHORIZED -> ErrorCode.PORTAL_LOGIN_FAILED;
-                case LOCKED -> ErrorCode.PORTAL_ACCOUNT_LOCKED;
-                default -> ErrorCode.PORTAL_SCRAPE_FAILED;
+                case LOCKED      -> ErrorCode.PORTAL_ACCOUNT_LOCKED;
+                default          -> ErrorCode.PORTAL_SCRAPE_FAILED;
             };
-
-            throw new PortalScrapeException(errorCode, e);
+            throw new PortalScrapeException(code, e);
         }
     }
 

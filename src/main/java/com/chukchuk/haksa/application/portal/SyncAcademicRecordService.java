@@ -15,6 +15,8 @@ import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.mapper.AcademicRecordMapperFromPortal;
 import com.chukchuk.haksa.infrastructure.portal.mapper.StudentCourseMapper;
 import com.chukchuk.haksa.infrastructure.portal.model.*;
@@ -25,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 /* 학업 이력 동기화 유스케이스 실행 */
 @Service
@@ -41,27 +45,41 @@ public class SyncAcademicRecordService {
 
     @Transactional
     public SyncAcademicRecordResult executeWithPortalData(UUID userId, PortalData portalData) {
+        String userHash = HashUtil.sha256Short(userId.toString());
+        long t0 = LogTime.start();
         try {
-            sync(userId, portalData, true);
+            SyncStats s = sync(userId, portalData, true);
+            long tookMs = LogTime.elapsedMs(t0);
+            if (tookMs >= SLOW_MS) {
+                log.info("[BIZ] sync.done userIdHash={} mode=initial ins={} upd={} del={} took_ms={}",
+                        userHash, s.inserted, s.updated, s.deleted, tookMs);
+            }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("학업 이력 동기화 중 오류 발생", e);
+            log.error("[BIZ] sync.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
 
     @Transactional
     public SyncAcademicRecordResult executeForRefreshPortalData(UUID userId, PortalData portalData) {
+        String userHash = HashUtil.sha256Short(userId.toString());
+        long t0 = LogTime.start();
         try {
-            sync(userId, portalData, false);
+            SyncStats s = sync(userId, portalData, false);
+            long tookMs = LogTime.elapsedMs(t0);
+            if (tookMs >= SLOW_MS) {
+                log.info("[BIZ] sync.done userIdHash={} mode=initial ins={} upd={} del={} took_ms={}",
+                        userHash, s.inserted, s.updated, s.deleted, tookMs);
+            }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("학업 이력 동기화 중 오류 발생", e);
+            log.error("[BIZ] sync.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
 
-    private void sync(UUID userId, PortalData portalData, boolean isInitial) {
+    private SyncStats sync(UUID userId, PortalData portalData, boolean isInitial) {
         Student student = studentService.getStudentByUserId(userId);
         UUID studentId = student.getId();
 
@@ -132,7 +150,13 @@ public class SyncAcademicRecordService {
         // existingEnrollments.stream() ... markDeletedForRetake()
 
         // 4) 포털에 없는 offeringId는 제거 (기존 로직 유지)
-        removeDeletedEnrollments(student, enrollments);
+        int removed = removeDeletedEnrollments(student, enrollments);
+
+        SyncStats stats = new SyncStats();
+        stats.inserted += newStudentCourses.size();
+        stats.updated  += toUpdate.size();
+        stats.deleted += removed;
+        return stats;
     }
 
     /* offerings(교과)와 academic(학업 성적)을 합쳐서
@@ -236,7 +260,7 @@ public class SyncAcademicRecordService {
         return map;
     }
 
-    private void removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments) {
+    private int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments) {
         // 1. DB에서 해당 학생의 기존 수강 기록 전체 조회
         List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
 
@@ -254,6 +278,8 @@ public class SyncAcademicRecordService {
         if (!toRemove.isEmpty()) {
             studentCourseRepository.deleteAll(toRemove);
         }
+
+        return toRemove.size();
     }
 
     private Map<String, Long> buildProfessorMap(PortalCurriculumData curriculumData) {
@@ -377,4 +403,6 @@ public class SyncAcademicRecordService {
         }
         return result;
     }
+
+    private static class SyncStats { int inserted, updated, deleted; }
 }
