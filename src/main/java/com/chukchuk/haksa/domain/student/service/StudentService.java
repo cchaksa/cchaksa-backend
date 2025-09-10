@@ -8,12 +8,15 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -62,18 +65,19 @@ public class StudentService {
     public void resetBy(UUID studentId) {
         Student student = getStudentById(studentId);
         student.resetAcademicData();
+
+        log.info("[BIZ] student.reset.done userIdHash={}", HashUtil.sha256Short(studentId.toString()));
     }
 
     @Transactional
     public void setStudentTargetGpa(UUID studentId, Double targetGpa) {
+        // 유효성 실패는 GlobalExceptionHandler가 WARN 처리
         Student student = getStudentById(studentId);
-
-        //학점 입력 하는데 0 ~ 4.5 이외를 입력하는 경우
-        if (targetGpa != null &&
-                (targetGpa < 0 || targetGpa > 4.5)) {
+        if (targetGpa != null && (targetGpa < 0 || targetGpa > 4.5)) {
+            log.warn("[BIZ] student.target_gpa.set.invalid userIdHash={} value={}",
+                    HashUtil.sha256Short(studentId.toString()), targetGpa);
             throw new CommonException(ErrorCode.INVALID_TARGET_GPA);
         }
-
         student.setTargetGpa(targetGpa);
         studentRepository.save(student);
     }
@@ -83,16 +87,10 @@ public class StudentService {
         int safeGradeLevel = (gradeLevel != null) ? gradeLevel : 0;
         int safeCompletedSemesters = (completedSemesters != null) ? completedSemesters : 0;
 
-        // 1️⃣ 해당 학년 이전에 완료해야 하는 최소 학기 수
         int expectedCompleted = (safeGradeLevel - 1) * 2;
-
-        // 2️⃣ 만약 completedSemesters가 예상보다 낮으면 최소값으로 간주 (방학 중 업데이트가 안된 경우 대비)
         int effectiveCompleted = Math.max(safeCompletedSemesters, expectedCompleted);
-
-        // 3️⃣ 현재 학기 계산
         int currentSemester = effectiveCompleted - expectedCompleted + 1;
 
-        // 4️⃣ currentSemester는 1 또는 2만 가능하도록 보정
         if (currentSemester < 1) {
             return 1;
         } else if (currentSemester > 2) {
