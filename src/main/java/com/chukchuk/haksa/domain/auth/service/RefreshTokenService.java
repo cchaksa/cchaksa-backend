@@ -8,6 +8,8 @@ import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.exception.TokenException;
+import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.UUID;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @Service
 @RequiredArgsConstructor
@@ -39,21 +43,37 @@ public class RefreshTokenService {
     /* 토큰 재발급 */
     @Transactional
     public AuthDto.RefreshResponse reissue(String refreshToken) {
+        long t0 = LogTime.start();
+
         Claims claims = jwtProvider.parseToken(refreshToken);
         String userId = claims.getSubject();
+        String userHash = HashUtil.sha256Short(userId);
 
-        RefreshToken saved = findByUserId(userId);
+        RefreshToken saved = refreshTokenRepository.findById(userId)
+                .orElseThrow(() -> {
+                    log.warn("[BIZ] auth.refresh.not_found userIdHash={}", userHash);
+                    return new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+                });
+
         if (!saved.getToken().equals(refreshToken)) {
+            log.warn("[BIZ] auth.refresh.mismatch userIdHash={}", userHash);
             throw new TokenException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
         User user = userRepository.findById(UUID.fromString(userId))
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[BIZ] auth.refresh.user_not_found userIdHash={}", userHash);
+                    return new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
+                });
 
         String newAccessToken = jwtProvider.createAccessToken(userId, user.getEmail(), "USER");
         AuthDto.RefreshTokenWithExpiry newRefresh = jwtProvider.createRefreshToken(userId);
         save(userId, newRefresh.token(), newRefresh.expiry());
 
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] auth.refresh.issued userIdHash={} took_ms={}", userHash, tookMs);
+        }
         return new AuthDto.RefreshResponse(newAccessToken, newRefresh.token());
     }
 
@@ -69,9 +89,9 @@ public class RefreshTokenService {
         try {
             Date now = new Date();
             int deleted = refreshTokenRepository.deleteByExpiryBefore(now);
-            log.info("[RefreshToken 정리] {}개 삭제", deleted);
+            log.info("[BIZ] auth.refresh.cleanup.deleted count={}", deleted);
         } catch (Exception e) {
-            log.error("[RefreshToken 정리 실패]", e);
+            log.error("[BIZ] auth.refresh.cleanup.error", e);
         }
     }
 }
