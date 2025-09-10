@@ -148,35 +148,34 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
 
         List<AreaProgressDto> list = results.stream().map(this::mapToDto).collect(Collectors.toList());
 
-        long took = LogTime.elapsedMs(t0);
-        if (took >= SLOW_MS) {
+        long tookMS = LogTime.elapsedMs(t0);
+        if (tookMS >= SLOW_MS) {
+            // PII 없음: dept/admission/row수만
             log.info("[BIZ] graduation.progress.query.done deptId={} admissionYear={} rows={} took_ms={}",
-                    departmentId, admissionYear, list.size(), took);
+                    departmentId, admissionYear, list.size(), tookMS);
         }
 
-        return results.stream().map(this::mapToDto).collect(Collectors.toList());
+        return list;
     }
 
     private AreaProgressDto mapToDto(Object[] row) {
-        FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
+        try {
+            FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
+            Integer requiredCredits = (Integer) row[1];
+            Integer earnedCredits = (Integer) row[2];
+            Integer requiredElectiveCourses = (Integer) row[3];
+            Integer completedElectiveCourses = (Integer) row[4];
+            Integer totalElectiveCourses = (Integer) row[5];
 
-        Integer requiredCredits = (Integer) row[1];
-        Integer earnedCredits = (Integer) row[2];
-        Integer requiredElectiveCourses = (Integer) row[3];
-        Integer completedElectiveCourses = (Integer) row[4];
-        Integer totalElectiveCourses = (Integer) row[5];
-
-        // JSON 데이터 변환
-        List<CourseDto> courses = new ArrayList<>();
-        if (row[6] != null) {
-            try {
+            List<CourseDto> courses = new ArrayList<>();
+            if (row[6] != null) {
                 courses = ob.readValue((String) row[6], new TypeReference<List<CourseDto>>() {});
-            } catch (JsonProcessingException e) {
-                log.error("[BIZ] graduation.progress.json.error ex={}", e.getClass().getSimpleName(), e);
-                throw new RuntimeException("JSON 변환 오류", e);
             }
+            return new AreaProgressDto(areaType, requiredCredits, earnedCredits, requiredElectiveCourses,
+                    completedElectiveCourses, totalElectiveCourses, courses);
+        } catch (JsonProcessingException e) {
+            log.error("[BIZ] graduation.progress.json.error ex={}", e.getClass().getSimpleName(), e);
+            throw new RuntimeException("JSON 변환 오류", e);
         }
-
-        return new AreaProgressDto(areaType, requiredCredits, earnedCredits, requiredElectiveCourses, completedElectiveCourses, totalElectiveCourses, courses);
     }
 }
