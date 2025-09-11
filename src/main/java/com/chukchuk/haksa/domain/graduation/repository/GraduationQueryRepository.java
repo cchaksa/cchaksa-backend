@@ -5,6 +5,7 @@ import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,10 +15,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @Repository
 @RequiredArgsConstructor
@@ -44,6 +46,8 @@ public class GraduationQueryRepository {
     }
 
     public List<AreaProgressDto> getStudentAreaProgress(UUID studentId, Long departmentId, Integer admissionYear) {
+        long t0 = LogTime.start();
+
         String sql = """
 WITH raw_courses AS (
     SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
@@ -134,36 +138,73 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
         query.setParameter("effectiveDepartmentId", departmentId);
         query.setParameter("admissionYear", admissionYear);
 
+        // 기존 info: results 전체 출력 → 제거 (PII/용량 리스크)
         List<Object[]> results = query.getResultList();
-        log.info("GraduationQueryRepository SQL 결과: {}", results);
 
         if (results.isEmpty()) {
             throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_NOT_FOUND);
         }
 
-        return results.stream().map(this::mapToDto).collect(Collectors.toList());
+        List<AreaProgressDto> list = results.stream().map(this::mapToDto).collect(Collectors.toList());
+
+        long tookMS = LogTime.elapsedMs(t0);
+        if (tookMS >= SLOW_MS) {
+            // PII 없음: dept/admission/row수만
+            log.info("[BIZ] graduation.progress.query.done deptId={} admissionYear={} rows={} took_ms={}",
+                    departmentId, admissionYear, list.size(), tookMS);
+        }
+
+        return list;
     }
 
     private AreaProgressDto mapToDto(Object[] row) {
-        log.info("areaType(raw) = '{}'", row[0]);
-        FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
+        try {
+            FacultyDivision areaType = parseDivision(row[0]);
+            Integer requiredCredits = toInteger(row[1]);
+            Integer earnedCredits = toInteger(row[2]);
+            Integer requiredElectiveCourses = toInteger(row[3]);
+            Integer completedElectiveCourses = toInteger(row[4]);
+            Integer totalElectiveCourses = toInteger(row[5]);
+            List<CourseDto> courses = parseCourses(row[6]);
 
-        Integer requiredCredits = (Integer) row[1];
-        Integer earnedCredits = (Integer) row[2];
-        Integer requiredElectiveCourses = (Integer) row[3];
-        Integer completedElectiveCourses = (Integer) row[4];
-        Integer totalElectiveCourses = (Integer) row[5];
+            return new AreaProgressDto(
+                    areaType, requiredCredits, earnedCredits,
+                    requiredElectiveCourses, completedElectiveCourses, totalElectiveCourses, courses
+            );
 
-        // JSON 데이터 변환
-        List<CourseDto> courses = new ArrayList<>();
-        if (row[6] != null) {
-            try {
-                courses = ob.readValue((String) row[6], new TypeReference<List<CourseDto>>() {});
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("JSON 변환 오류", e);
-            }
+        } catch (IllegalArgumentException | ClassCastException e) {
+            log.error("[BIZ] graduation.progress.map.error ex={}", e.getClass().getSimpleName(), e);
+            throw new RuntimeException("졸업요건 매핑 오류", e);
+        } catch (JsonProcessingException e) {
+            log.error("[BIZ] graduation.progress.json.error ex={}", e.getClass().getSimpleName(), e);
+            throw new RuntimeException("JSON 변환 오류", e);
         }
+    }
 
-        return new AreaProgressDto(areaType, requiredCredits, earnedCredits, requiredElectiveCourses, completedElectiveCourses, totalElectiveCourses, courses);
+    /** Number/문자열 숫자 → Integer (null 허용) */
+    private static Integer toInteger(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.intValue();
+        if (o instanceof String s) {
+            String t = s.trim();
+            if (t.isEmpty() || t.equalsIgnoreCase("null")) return null;
+            return new java.math.BigDecimal(t).intValue(); // 안전 파싱
+        }
+        throw new ClassCastException("숫자 아님: " + o);
+    }
+
+    /** Enum 파싱: null-safe + trim */
+    private static FacultyDivision parseDivision(Object o) {
+        if (o == null) return null;
+        String v = o.toString().trim();
+        return FacultyDivision.valueOf(v);
+    }
+
+    /** JSON 배열 텍스트 → List<CourseDto> (null/빈값 방어) */
+    private List<CourseDto> parseCourses(Object o) throws JsonProcessingException {
+        if (o == null) return java.util.Collections.emptyList();
+        String json = o.toString().trim();
+        if (json.isEmpty() || "null".equalsIgnoreCase(json)) return java.util.Collections.emptyList();
+        return ob.readValue(json, new TypeReference<List<CourseDto>>() {});
     }
 }

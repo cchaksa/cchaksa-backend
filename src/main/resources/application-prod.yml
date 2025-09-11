@@ -41,6 +41,10 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
+  sampling:
+    enabled: true # 샘플링 활성화
+    rate: 0.1 # 10% 로그만 남김
+    patterns: [ ] # 샘플링 필요 api 경로 추가
 
 swagger:
   server-url: https://api.cchaksa.com

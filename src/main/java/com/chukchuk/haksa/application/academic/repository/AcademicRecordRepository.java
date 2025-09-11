@@ -7,14 +7,23 @@ import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicReco
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.mapper.AcademicRecordMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+
+@Slf4j
 @RequiredArgsConstructor
 @Repository
 public class AcademicRecordRepository {
@@ -25,6 +34,8 @@ public class AcademicRecordRepository {
     /** 포털 최초 연동 */
     @Transactional
     public void insertAllAcademicRecords(AcademicRecord academicRecord, Student student) {
+        long t0 = LogTime.start();
+
         UUID studentId = student.getId();
 
         // StudentAcademicRecord upsert
@@ -77,11 +88,19 @@ public class AcademicRecordRepository {
         }
 
         studentRepository.save(student);
+
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs > SLOW_MS) {
+            log.info("[BIZ] sync.academic.summary studentIdHash={} took_ms={}",
+                    HashUtil.sha256Short(student.getId().toString()), tookMs);
+        }
     }
 
     /** 포털 재연동 */
     @Transactional
     public void updateChangedAcademicRecords(AcademicRecord academicRecord, Student student) {
+        long t0 = LogTime.start();
+
         UUID studentId = student.getId();
 
         // 1) 요약 upsert
@@ -129,6 +148,12 @@ public class AcademicRecordRepository {
         }
         if (!toUpdate.isEmpty()) {
             semesterAcademicRecordRepository.saveAll(toUpdate);
+        }
+
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] sync.academic.summary studentIdHash={} took_ms={}",
+                    HashUtil.sha256Short(student.getId().toString()), tookMs);
         }
     }
 

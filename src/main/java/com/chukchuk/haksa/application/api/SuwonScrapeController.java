@@ -8,7 +8,10 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.logging.LogSanitizer;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
@@ -26,6 +29,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @LogPart("crawl")
 @RestController
@@ -57,21 +62,28 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     public ResponseEntity<SuccessResponse<ScrapingResponse>> startScraping(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        long t0 = LogTime.start();
         String userId = userDetails.getUsername();
-        log.info("[START] 포털 동기화 시작: userId={}", userId); // 요청 시작
+        String userHash = HashUtil.sha256Short(userId);
 
-        // 포털 연동 여부 사전 체크
+        // 포털 연동 여부 사전 체크 - 조건 위반만 WARN
         if (userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+            log.warn("[BIZ] portal.start skipped userIdHash={} reason=already_connected", userHash);
             throw new CommonException(ErrorCode.USER_ALREADY_CONNECTED);
         }
 
         PortalData portalData = fetchPortalData(userId);
-
         ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(userId), portalData);
 
-        // Redis 캐시 제거
+        // 재연동 시 Redis 캐시 초기화
         redisPortalCredentialStore.clear(userId);
-        log.info("[COMPLETE] 동기화 완료: userId={}", userId); // 완료 로그
+
+        long tookMs = LogTime.elapsedMs(t0);
+        // 처리가 느린 경우만 INFO
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] portal.done userIdHash={} taskId={} took_ms={}",
+                    userHash, LogSanitizer.clean(response.taskId()), tookMs);
+        }
 
         return ResponseEntity.accepted().body(SuccessResponse.of(response));
     }
@@ -80,11 +92,13 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     public ResponseEntity<SuccessResponse<ScrapingResponse>> refreshAndSync(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        long t0 = LogTime.start();
         String userId = userDetails.getUsername();
-        log.info("[START] 포털 동기화 시작: userId={}", userId); // 요청 시작
+        String userHash = HashUtil.sha256Short(userId);
 
         // 포털 연동 여부 사전 체크
         if (!userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+            log.warn("[BIZ] portal.refresh.skipped userIdHash={} reason=not_connected", userHash);
             throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
         }
 
@@ -92,12 +106,15 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
         ScrapingResponse response = portalSyncService.refreshFromPortal(UUID.fromString(userId), portalData);
 
-        // 캐시 데이터 무효화
+        // 캐시 데이터 초기화
         UUID studentId = userDetails.getStudentId();
-
         redisCacheStore.deleteAllByStudentId(studentId);
         redisPortalCredentialStore.clear(userId);
-        log.info("[COMPLETE] 동기화 완료: userId={}", userId); // 완료 로그
+
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] portal.refresh.done userIdHash={} took_ms={}", userHash, tookMs);
+        }
 
         return ResponseEntity.accepted().body(SuccessResponse.of(response));
     }
@@ -110,14 +127,18 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
             throw new CommonException(ErrorCode.SESSION_EXPIRED);
         }
 
-        try {
-            log.info("[PORTAL] 포털 데이터 크롤링 시작: userId={}, username={}", userId, username);
+        long t0 = LogTime.start();
+        String userHash = HashUtil.sha256Short(userId);
 
+        try {
             PortalData portalData = portalRepository.fetchPortalData(username, password);
-            log.info("[PORTAL] 포털 데이터 크롤링 성공");
+            long tookMs = LogTime.elapsedMs(t0);
+            if (tookMs >= SLOW_MS) {
+                log.info("[BIZ] portal.fetch.done userIdHash={} took_ms={}", userHash, tookMs);
+            }
             return portalData;
         } catch (Exception e) {
-            log.error("[PORTAL] 포털 데이터 크롤링 실패", e);
+            log.error("[BIZ] portal.fetch.error userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
     }

@@ -6,6 +6,7 @@ import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
+import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
+
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 
 @LogPart("auth")
 @RestController
@@ -29,8 +32,13 @@ public class UserController implements UserControllerDocs {
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        long t0 = LogTime.start();
         UUID userId = UUID.fromString(userDetails.getUsername());
         userService.deleteUserById(userId);
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] users.delete.done took_ms={}", tookMs);
+        }
         return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("회원 탈퇴가 완료되었습니다.")));
     }
 
@@ -38,8 +46,14 @@ public class UserController implements UserControllerDocs {
     public ResponseEntity<SuccessResponse<UserDto.SignInResponse>> signInUser(
             @RequestBody UserDto.SignInRequest signInRequest
     ) {
+        long t0 = LogTime.start();
         AuthDto.SignInTokenResponse tokens = userService.signIn(signInRequest);
-        UserDto.SignInResponse response = new UserDto.SignInResponse(tokens.accessToken(), tokens.refreshToken(), tokens.isPortalLinked());
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] users.signin.done took_ms={}", tookMs);
+        }
+        UserDto.SignInResponse response = new UserDto.SignInResponse(
+                tokens.accessToken(), tokens.refreshToken(), tokens.isPortalLinked());
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 }

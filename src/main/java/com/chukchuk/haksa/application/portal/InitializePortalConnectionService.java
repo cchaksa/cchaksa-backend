@@ -7,6 +7,8 @@ import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
+import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
 import static com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult.*;
 
 /* 포털 연동 초기화 유스케이스 실행 */
@@ -31,10 +34,13 @@ public class InitializePortalConnectionService {
 
     @Transactional
     public PortalConnectionResult executeWithPortalData(UUID userId, PortalData portalData) {
+        long t0 = LogTime.start();
+        String userHash = HashUtil.sha256Short(userId.toString());
         try {
             // 사용자 조회 및 포털 연동 여부 확인
             User user = userService.getUserById(userId);
             if (user.getPortalConnected()) {
+                log.warn("[BIZ] portal.init.skipped userIdHash={} reason=already_connected", userHash);
                 return failure("이미 포털 계정과 연동된 사용자입니다.");
             }
 
@@ -56,7 +62,8 @@ public class InitializePortalConnectionService {
 
             // StudentInitializationDataType 생성
             if (department == null) {
-                throw new IllegalStateException("학과/전공 정보 초기화 실패");
+                log.error("[BIZ] portal.init.fail userIdHash={} reason=dept_init_failed", userHash);
+                return failure("학과/전공 정보 초기화 실패");
             }
 
             // 학과 및 전공 정보 포함된 StudentInitializationDataType 생성
@@ -90,10 +97,14 @@ public class InitializePortalConnectionService {
                     raw.academic().completedSemesters() % 2 == 0 ? 1 : 2
             );
 
+            long tookMs = LogTime.elapsedMs(t0);
+            if (tookMs >= SLOW_MS) {
+                log.info("[BIZ] portal.init.done userIdHash={} took_ms={}", userHash, tookMs);
+            }
             return success(raw.studentCode(), studentInfo);
         } catch (Exception e) {
-            log.error("[PORTAL][INIT] 예외 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e); // rollback이 정상 처리
+            log.error("[BIZ] portal.init.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e);
         }
     }
 }
