@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -160,22 +159,52 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
 
     private AreaProgressDto mapToDto(Object[] row) {
         try {
-            FacultyDivision areaType = FacultyDivision.valueOf(((String) row[0]).trim());
-            Integer requiredCredits = (Integer) row[1];
-            Integer earnedCredits = (Integer) row[2];
-            Integer requiredElectiveCourses = (Integer) row[3];
-            Integer completedElectiveCourses = (Integer) row[4];
-            Integer totalElectiveCourses = (Integer) row[5];
+            FacultyDivision areaType = parseDivision(row[0]);
+            Integer requiredCredits = toInteger(row[1]);
+            Integer earnedCredits = toInteger(row[2]);
+            Integer requiredElectiveCourses = toInteger(row[3]);
+            Integer completedElectiveCourses = toInteger(row[4]);
+            Integer totalElectiveCourses = toInteger(row[5]);
+            List<CourseDto> courses = parseCourses(row[6]);
 
-            List<CourseDto> courses = new ArrayList<>();
-            if (row[6] != null) {
-                courses = ob.readValue((String) row[6], new TypeReference<List<CourseDto>>() {});
-            }
-            return new AreaProgressDto(areaType, requiredCredits, earnedCredits, requiredElectiveCourses,
-                    completedElectiveCourses, totalElectiveCourses, courses);
+            return new AreaProgressDto(
+                    areaType, requiredCredits, earnedCredits,
+                    requiredElectiveCourses, completedElectiveCourses, totalElectiveCourses, courses
+            );
+
+        } catch (IllegalArgumentException | ClassCastException e) {
+            log.error("[BIZ] graduation.progress.map.error ex={}", e.getClass().getSimpleName(), e);
+            throw new RuntimeException("졸업요건 매핑 오류", e);
         } catch (JsonProcessingException e) {
             log.error("[BIZ] graduation.progress.json.error ex={}", e.getClass().getSimpleName(), e);
             throw new RuntimeException("JSON 변환 오류", e);
         }
+    }
+
+    /** Number/문자열 숫자 → Integer (null 허용) */
+    private static Integer toInteger(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.intValue();
+        if (o instanceof String s) {
+            String t = s.trim();
+            if (t.isEmpty() || t.equalsIgnoreCase("null")) return null;
+            return new java.math.BigDecimal(t).intValue(); // 안전 파싱
+        }
+        throw new ClassCastException("숫자 아님: " + o);
+    }
+
+    /** Enum 파싱: null-safe + trim */
+    private static FacultyDivision parseDivision(Object o) {
+        if (o == null) return null;
+        String v = o.toString().trim();
+        return FacultyDivision.valueOf(v);
+    }
+
+    /** JSON 배열 텍스트 → List<CourseDto> (null/빈값 방어) */
+    private List<CourseDto> parseCourses(Object o) throws JsonProcessingException {
+        if (o == null) return java.util.Collections.emptyList();
+        String json = o.toString().trim();
+        if (json.isEmpty() || "null".equalsIgnoreCase(json)) return java.util.Collections.emptyList();
+        return ob.readValue(json, new TypeReference<List<CourseDto>>() {});
     }
 }
