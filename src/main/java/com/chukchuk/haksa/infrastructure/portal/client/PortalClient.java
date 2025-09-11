@@ -59,11 +59,22 @@ public class PortalClient {
             else if (status == 429) log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
             else                    log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
 
-            ErrorCode code = switch (HttpStatus.resolve(status)) {
-                case UNAUTHORIZED -> ErrorCode.PORTAL_LOGIN_FAILED;
-                case LOCKED      -> ErrorCode.PORTAL_ACCOUNT_LOCKED;
-                default          -> ErrorCode.PORTAL_SCRAPE_FAILED;
-            };
+            HttpStatus st = HttpStatus.resolve(status);
+
+            ErrorCode code;
+            if (st == null) {
+                // 비표준/미지원 상태코드(예: 499, 520 등)
+                log.warn("[PORTAL] unknown http status={} -> map to PORTAL_SCRAPE_FAILED", status);
+                code = ErrorCode.PORTAL_SCRAPE_FAILED;
+            } else {
+                // 필요 매핑만 명시, 나머지는 기본값
+                switch (st) {
+                    case UNAUTHORIZED -> code = ErrorCode.PORTAL_LOGIN_FAILED;
+                    case LOCKED       -> code = ErrorCode.PORTAL_ACCOUNT_LOCKED;
+                    default           -> code = ErrorCode.PORTAL_SCRAPE_FAILED;
+                }
+            }
+
             throw new PortalScrapeException(code, e);
         }
     }
