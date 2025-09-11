@@ -69,7 +69,7 @@ public class SyncAcademicRecordService {
             SyncStats s = sync(userId, portalData, false);
             long tookMs = LogTime.elapsedMs(t0);
             if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] sync.done userIdHash={} mode=initial ins={} upd={} del={} took_ms={}",
+                log.info("[BIZ] sync.done userIdHash={} mode=refresh ins={} upd={} del={} took_ms={}",
                         userHash, s.inserted, s.updated, s.deleted, tookMs);
             }
             return new SyncAcademicRecordResult(true, null);

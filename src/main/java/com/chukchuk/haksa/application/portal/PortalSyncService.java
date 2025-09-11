@@ -76,7 +76,7 @@ public class PortalSyncService {
         PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
             log.warn("[BIZ] portal.refresh.conn.fail userIdHash={} msg={}", userHash, LogSanitizer.arg(conn.error()));
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
+            throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
         // 2. 학업 이력 재동기화
