@@ -1,8 +1,8 @@
 package com.chukchuk.haksa.infrastructure.oidc;
 
 import com.chukchuk.haksa.domain.user.service.OidcService;
-import com.chukchuk.haksa.global.exception.ErrorCode;
-import com.chukchuk.haksa.global.exception.TokenException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.TokenException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;

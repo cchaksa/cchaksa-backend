@@ -1,6 +1,9 @@
-package com.chukchuk.haksa.global.exception;
+package com.chukchuk.haksa.global.exception.handler;
 
 import com.chukchuk.haksa.global.common.response.ErrorResponse;
+import com.chukchuk.haksa.global.exception.type.BaseException;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;

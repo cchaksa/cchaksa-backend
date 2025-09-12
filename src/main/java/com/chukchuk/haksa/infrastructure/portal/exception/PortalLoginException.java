@@ -1,7 +1,7 @@
 package com.chukchuk.haksa.infrastructure.portal.exception;
 
-import com.chukchuk.haksa.global.exception.BaseException;
-import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.BaseException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 
 public class PortalLoginException extends BaseException {
 

@@ -5,8 +5,8 @@ import com.chukchuk.haksa.application.academic.AcademicSummary;
 import com.chukchuk.haksa.application.academic.SemesterGrade;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollments;
-import com.chukchuk.haksa.global.exception.CommonException;
-import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalAcademicData;
 
 import java.util.ArrayList;

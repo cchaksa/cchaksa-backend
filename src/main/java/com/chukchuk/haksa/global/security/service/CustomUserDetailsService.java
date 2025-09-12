@@ -1,8 +1,8 @@
 package com.chukchuk.haksa.global.security.service;
 
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
-import com.chukchuk.haksa.global.exception.ErrorCode;
-import com.chukchuk.haksa.global.exception.TokenException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.TokenException;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
