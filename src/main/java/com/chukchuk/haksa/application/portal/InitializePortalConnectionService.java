@@ -7,7 +7,7 @@ import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
-import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 import static com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult.*;
 
 /* 포털 연동 초기화 유스케이스 실행 */

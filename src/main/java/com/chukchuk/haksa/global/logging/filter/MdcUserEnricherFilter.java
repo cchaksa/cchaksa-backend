@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.filter;
 
 import com.chukchuk.haksa.global.logging.util.HashUtil;
 import jakarta.servlet.FilterChain;

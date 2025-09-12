@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.exception;
+package com.chukchuk.haksa.global.exception.code;
 
 import org.springframework.http.HttpStatus;
 

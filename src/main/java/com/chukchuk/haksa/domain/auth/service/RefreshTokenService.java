@@ -5,10 +5,10 @@ import com.chukchuk.haksa.domain.auth.entity.RefreshToken;
 import com.chukchuk.haksa.domain.auth.repository.RefreshTokenRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
-import com.chukchuk.haksa.global.exception.EntityNotFoundException;
-import com.chukchuk.haksa.global.exception.ErrorCode;
-import com.chukchuk.haksa.global.exception.TokenException;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.TokenException;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Date;
 import java.util.UUID;
 
-import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Service
 @RequiredArgsConstructor

@@ -1,5 +1,6 @@
-package com.chukchuk.haksa.global.exception;
+package com.chukchuk.haksa.global.exception.type;
 
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import org.springframework.http.HttpStatus;
 import lombok.Getter;
 

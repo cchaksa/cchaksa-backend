@@ -1,6 +1,6 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.aspect;
 
-import com.chukchuk.haksa.global.exception.BaseException;
+import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import io.micrometer.tracing.Tracer;
 import lombok.RequiredArgsConstructor;

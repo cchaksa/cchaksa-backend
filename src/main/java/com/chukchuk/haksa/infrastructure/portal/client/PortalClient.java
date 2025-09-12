@@ -1,7 +1,7 @@
 package com.chukchuk.haksa.infrastructure.portal.client;
 
-import com.chukchuk.haksa.global.exception.ErrorCode;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalLoginException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;

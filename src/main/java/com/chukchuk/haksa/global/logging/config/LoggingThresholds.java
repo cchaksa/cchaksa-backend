@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.config;
 
 public final class LoggingThresholds {
     private LoggingThresholds() {}

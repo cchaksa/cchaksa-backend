@@ -47,3 +47,11 @@ sentry:
 management:
   tracing:
     enabled: true
+
+logging:
+  exclude:
+    patterns:
+      - /favicon.ico
+      - ^/static/.*
+      - ^/internal/.*
+      - /docs

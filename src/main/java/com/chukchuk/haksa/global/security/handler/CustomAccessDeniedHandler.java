@@ -1,7 +1,7 @@
 package com.chukchuk.haksa.global.security.handler;
 
 import com.chukchuk.haksa.global.common.response.ErrorResponse;
-import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

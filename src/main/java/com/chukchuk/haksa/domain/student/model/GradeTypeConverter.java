@@ -1,6 +1,6 @@
 package com.chukchuk.haksa.domain.student.model;
-import com.chukchuk.haksa.global.exception.CommonException;
-import com.chukchuk.haksa.global.exception.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
