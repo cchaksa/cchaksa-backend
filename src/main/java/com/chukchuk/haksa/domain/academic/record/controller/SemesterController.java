@@ -6,7 +6,6 @@ import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordS
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,14 +36,13 @@ public class SemesterController implements SemesterControllerDocs {
         long t0 = LogTime.start();
 
         UUID studentId = userDetails.getStudentId();
-        String userHash = HashUtil.sha256Short(studentId.toString());
 
         List<StudentSemesterInfoResponse> response = semesterAcademicRecordService.getSemestersByStudentId(studentId);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
             int count = (response != null) ? response.size() : 0;
-            log.info("[BIZ] academic.semester.list.done userIdHash={} count={} took_ms={}", userHash, count, tookMs);
+            log.info("[BIZ] academic.semester.list.done studentId={} count={} took_ms={}", studentId, count, tookMs);
         }
 
         return ResponseEntity.ok(SuccessResponse.of(response));
@@ -56,15 +54,14 @@ public class SemesterController implements SemesterControllerDocs {
         long t0 = LogTime.start();
 
         UUID studentId = userDetails.getStudentId();
-        String userHash = HashUtil.sha256Short(studentId.toString());
 
         List<SemesterGradeResponse> response = semesterAcademicRecordService.getAllSemesterGrades(studentId);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
             int count = (response != null) ? response.size() : 0;
-            log.info("[BIZ] academic.semester.grades.done userIdHash={} count={} took_ms={}",
-                    userHash, count, tookMs);
+            log.info("[BIZ] academic.semester.grades.done studentId={} count={} took_ms={}",
+                    studentId, count, tookMs);
         }
         return ResponseEntity.ok(SuccessResponse.of(response));
     }

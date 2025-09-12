@@ -7,7 +7,6 @@ import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
@@ -31,14 +30,13 @@ public class RefreshPortalConnectionService {
 
     @Transactional
     public PortalConnectionResult executeWithPortalData(UUID userId, PortalData portalData) {
-        String userHash = HashUtil.sha256Short(userId.toString());
 
         try {
             User user = userService.getUserById(userId);
 
             if (!user.getPortalConnected()) {
                 // 정상 흐름 X -> WARN
-                log.warn("[BIZ] portal.conn.fail userIdHash={} reason=not_connected", userHash);
+                log.warn("[BIZ] portal.conn.fail userId={} reason=not_connected", userId);
                 return failure("아직 포털 계정과 연동되지 않은 사용자입니다.");
             }
 
@@ -54,7 +52,7 @@ public class RefreshPortalConnectionService {
                     : null;
 
             if (department == null) {
-                log.error("[BIZ] portal.conn.fail userIdHash={} reason=dept_init_failed deptCode={}", userHash, raw.department().code());
+                log.error("[BIZ] portal.conn.fail userId={} reason=dept_init_failed deptCode={}", userId, raw.department().code());
                 return failure("학과/전공 정보 초기화 실패");
             }
 
@@ -89,7 +87,7 @@ public class RefreshPortalConnectionService {
             return success(raw.studentCode(), studentInfo);
 
         } catch (Exception e) {
-            log.error("[BIZ] portal.conn.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.error("[BIZ] portal.conn.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e);
         }
     }

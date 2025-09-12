@@ -9,7 +9,6 @@ import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.exception.TokenException;
 import com.chukchuk.haksa.global.logging.LogTime;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -47,22 +46,21 @@ public class RefreshTokenService {
 
         Claims claims = jwtProvider.parseToken(refreshToken);
         String userId = claims.getSubject();
-        String userHash = HashUtil.sha256Short(userId);
 
         RefreshToken saved = refreshTokenRepository.findById(userId)
                 .orElseThrow(() -> {
-                    log.warn("[BIZ] auth.refresh.not_found userIdHash={}", userHash);
+                    log.warn("[BIZ] auth.refresh.not_found userId={}", userId);
                     return new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
                 });
 
         if (!saved.getToken().equals(refreshToken)) {
-            log.warn("[BIZ] auth.refresh.mismatch userIdHash={}", userHash);
+            log.warn("[BIZ] auth.refresh.mismatch userId={}", userId);
             throw new TokenException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
         User user = userRepository.findById(UUID.fromString(userId))
                 .orElseThrow(() -> {
-                    log.warn("[BIZ] auth.refresh.user_not_found userIdHash={}", userHash);
+                    log.warn("[BIZ] auth.refresh.user_not_found userId={}", userId);
                     return new EntityNotFoundException(ErrorCode.USER_NOT_FOUND);
                 });
 
@@ -72,7 +70,7 @@ public class RefreshTokenService {
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] auth.refresh.issued userIdHash={} took_ms={}", userHash, tookMs);
+            log.info("[BIZ] auth.refresh.issued userId={} took_ms={}", userId, tookMs);
         }
         return new AuthDto.RefreshResponse(newAccessToken, newRefresh.token());
     }

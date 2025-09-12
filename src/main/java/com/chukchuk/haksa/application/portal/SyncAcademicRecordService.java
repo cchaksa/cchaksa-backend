@@ -16,7 +16,6 @@ import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.logging.LogTime;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.mapper.AcademicRecordMapperFromPortal;
 import com.chukchuk.haksa.infrastructure.portal.mapper.StudentCourseMapper;
 import com.chukchuk.haksa.infrastructure.portal.model.*;
@@ -45,36 +44,34 @@ public class SyncAcademicRecordService {
 
     @Transactional
     public SyncAcademicRecordResult executeWithPortalData(UUID userId, PortalData portalData) {
-        String userHash = HashUtil.sha256Short(userId.toString());
         long t0 = LogTime.start();
         try {
             SyncStats s = sync(userId, portalData, true);
             long tookMs = LogTime.elapsedMs(t0);
             if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] sync.done userIdHash={} mode=initial ins={} upd={} del={} took_ms={}",
-                        userHash, s.inserted, s.updated, s.deleted, tookMs);
+                log.info("[BIZ] sync.done userId={} mode=initial ins={} upd={} del={} took_ms={}",
+                        userId, s.inserted, s.updated, s.deleted, tookMs);
             }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("[BIZ] sync.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.error("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
 
     @Transactional
     public SyncAcademicRecordResult executeForRefreshPortalData(UUID userId, PortalData portalData) {
-        String userHash = HashUtil.sha256Short(userId.toString());
         long t0 = LogTime.start();
         try {
             SyncStats s = sync(userId, portalData, false);
             long tookMs = LogTime.elapsedMs(t0);
             if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] sync.done userIdHash={} mode=refresh ins={} upd={} del={} took_ms={}",
-                        userHash, s.inserted, s.updated, s.deleted, tookMs);
+                log.info("[BIZ] sync.done userId={} mode=refresh ins={} upd={} del={} took_ms={}",
+                        userId, s.inserted, s.updated, s.deleted, tookMs);
             }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("[BIZ] sync.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.error("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }

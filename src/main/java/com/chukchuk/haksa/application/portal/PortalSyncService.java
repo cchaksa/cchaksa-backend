@@ -8,7 +8,6 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.logging.LogSanitizer;
 import com.chukchuk.haksa.global.logging.LogTime;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
@@ -36,19 +35,18 @@ public class PortalSyncService {
     @Transactional
     public ScrapingResponse syncWithPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
-        String userHash = HashUtil.sha256Short(userId.toString());
 
         // 1. 포털 초기화
         PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.sync.conn.fail userIdHash={} msg={}", userHash, LogSanitizer.arg(conn.error()));
+            log.warn("[BIZ] portal.sync.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
         // 2. 학업 이력 동기화
         SyncAcademicRecordResult sync = syncAcademicRecordService.executeWithPortalData(userId, portalData);
         if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.sync.sync.fail userIdHash={} msg={}", userHash, LogSanitizer.arg(sync.getError()));
+            log.warn("[BIZ] portal.sync.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
@@ -60,7 +58,7 @@ public class PortalSyncService {
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.sync.done userIdHash={} took_ms={}", userHash, tookMs);
+            log.info("[BIZ] portal.sync.done userId={} took_ms={}", userId, tookMs);
         }
 
         // 4. 응답 생성
@@ -70,19 +68,18 @@ public class PortalSyncService {
     @Transactional
     public ScrapingResponse refreshFromPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
-        String userHash = HashUtil.sha256Short(userId.toString());
 
         // 1. 포털 연동 정보 갱신
         PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.conn.fail userIdHash={} msg={}", userHash, LogSanitizer.arg(conn.error()));
+            log.warn("[BIZ] portal.refresh.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
         // 2. 학업 이력 재동기화
         SyncAcademicRecordResult sync = syncAcademicRecordService.executeForRefreshPortalData(userId, portalData);
         if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.sync.fail userIdHash={} msg={}", userHash, LogSanitizer.arg(sync.getError()));
+            log.warn("[BIZ] portal.refresh.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
@@ -94,7 +91,7 @@ public class PortalSyncService {
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.refresh.done userIdHash={} took_ms={}", userHash, tookMs);
+            log.info("[BIZ] portal.refresh.done userId={} took_ms={}", userId, tookMs);
         }
 
         // 4. 응답 생성

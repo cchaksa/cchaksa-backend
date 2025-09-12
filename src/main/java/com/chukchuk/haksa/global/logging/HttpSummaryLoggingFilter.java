@@ -1,6 +1,5 @@
 package com.chukchuk.haksa.global.logging;
 
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.logging.util.NetUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -63,7 +62,6 @@ public class HttpSummaryLoggingFilter extends OncePerRequestFilter {
         String uri = sanitizeUri(req);
         String ip = NetUtil.shorten(NetUtil.clientIp(req));
         String userId = req.getUserPrincipal() != null ? req.getUserPrincipal().getName() : "anon";
-        String userHash = HashUtil.sha256Short(userId);
 
         // 추적키: Micrometer/Brave가 넣는 traceId/spanId가 있으면 사용
         String traceId = nvl(MDC.get("traceId"));
@@ -71,11 +69,11 @@ public class HttpSummaryLoggingFilter extends OncePerRequestFilter {
 
         // ---- 로깅 ----
         // 한 줄 요약: 메서드, URI, 상태, 소요(ms), 사용자해시, IP, 추적키
-        final String msg = "http_summary method={} uri={} status={} took_ms={} userIdHash={} ip={} traceId={} spanId={}";
+        final String msg = "http_summary method={} uri={} status={} took_ms={} userId={} ip={} traceId={} spanId={}";
         switch (level) {
-            case ERROR -> HTTP.error(msg, method, uri, status, took, userHash, ip, traceId, spanId);
-            case WARN  -> HTTP.warn (msg, method, uri, status, took, userHash, ip, traceId, spanId);
-            default    -> HTTP.info (msg, method, uri, status, took, userHash, ip, traceId, spanId);
+            case ERROR -> HTTP.error(msg, method, uri, status, took, userId, ip, traceId, spanId);
+            case WARN  -> HTTP.warn (msg, method, uri, status, took, userId, ip, traceId, spanId);
+            default    -> HTTP.info (msg, method, uri, status, took, userId, ip, traceId, spanId);
         }
     }
 

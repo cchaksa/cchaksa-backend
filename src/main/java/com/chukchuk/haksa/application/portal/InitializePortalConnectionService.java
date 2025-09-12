@@ -8,7 +8,6 @@ import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.logging.LogTime;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
@@ -35,12 +34,11 @@ public class InitializePortalConnectionService {
     @Transactional
     public PortalConnectionResult executeWithPortalData(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
-        String userHash = HashUtil.sha256Short(userId.toString());
         try {
             // 사용자 조회 및 포털 연동 여부 확인
             User user = userService.getUserById(userId);
             if (user.getPortalConnected()) {
-                log.warn("[BIZ] portal.init.skipped userIdHash={} reason=already_connected", userHash);
+                log.warn("[BIZ] portal.init.skipped userId={} reason=already_connected", userId);
                 return failure("이미 포털 계정과 연동된 사용자입니다.");
             }
 
@@ -62,7 +60,7 @@ public class InitializePortalConnectionService {
 
             // StudentInitializationDataType 생성
             if (department == null) {
-                log.error("[BIZ] portal.init.fail userIdHash={} reason=dept_init_failed", userHash);
+                log.error("[BIZ] portal.init.fail userId={} reason=dept_init_failed", userId);
                 return failure("학과/전공 정보 초기화 실패");
             }
 
@@ -99,11 +97,11 @@ public class InitializePortalConnectionService {
 
             long tookMs = LogTime.elapsedMs(t0);
             if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] portal.init.done userIdHash={} took_ms={}", userHash, tookMs);
+                log.info("[BIZ] portal.init.done userId={} took_ms={}", userId, tookMs);
             }
             return success(raw.studentCode(), studentInfo);
         } catch (Exception e) {
-            log.error("[BIZ] portal.init.ex userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.error("[BIZ] portal.init.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e);
         }
     }

@@ -11,7 +11,6 @@ import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.logging.LogSanitizer;
 import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
@@ -64,11 +63,10 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     ) {
         long t0 = LogTime.start();
         String userId = userDetails.getUsername();
-        String userHash = HashUtil.sha256Short(userId);
 
         // 포털 연동 여부 사전 체크 - 조건 위반만 WARN
         if (userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
-            log.warn("[BIZ] portal.start skipped userIdHash={} reason=already_connected", userHash);
+            log.warn("[BIZ] portal.start skipped userId={} reason=already_connected", userId);
             throw new CommonException(ErrorCode.USER_ALREADY_CONNECTED);
         }
 
@@ -81,8 +79,8 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         long tookMs = LogTime.elapsedMs(t0);
         // 처리가 느린 경우만 INFO
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.done userIdHash={} taskId={} took_ms={}",
-                    userHash, LogSanitizer.clean(response.taskId()), tookMs);
+            log.info("[BIZ] portal.done userId={} taskId={} took_ms={}",
+                    userId, LogSanitizer.clean(response.taskId()), tookMs);
         }
 
         return ResponseEntity.accepted().body(SuccessResponse.of(response));
@@ -94,11 +92,10 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     ) {
         long t0 = LogTime.start();
         String userId = userDetails.getUsername();
-        String userHash = HashUtil.sha256Short(userId);
 
         // 포털 연동 여부 사전 체크
         if (!userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
-            log.warn("[BIZ] portal.refresh.skipped userIdHash={} reason=not_connected", userHash);
+            log.warn("[BIZ] portal.refresh.skipped userId={} reason=not_connected", userId);
             throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
         }
 
@@ -113,7 +110,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.refresh.done userIdHash={} took_ms={}", userHash, tookMs);
+            log.info("[BIZ] portal.refresh.done userId={} took_ms={}", userId, tookMs);
         }
 
         return ResponseEntity.accepted().body(SuccessResponse.of(response));
@@ -128,17 +125,16 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         }
 
         long t0 = LogTime.start();
-        String userHash = HashUtil.sha256Short(userId);
 
         try {
             PortalData portalData = portalRepository.fetchPortalData(username, password);
             long tookMs = LogTime.elapsedMs(t0);
             if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] portal.fetch.done userIdHash={} took_ms={}", userHash, tookMs);
+                log.info("[BIZ] portal.fetch.done userId={} took_ms={}", userId, tookMs);
             }
             return portalData;
         } catch (Exception e) {
-            log.error("[BIZ] portal.fetch.error userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.error("[BIZ] portal.fetch.error userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
     }

@@ -7,7 +7,6 @@ import com.chukchuk.haksa.domain.academic.record.service.StudentAcademicRecordSe
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,14 +40,13 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
 
         long t0 = LogTime.start();
         UUID studentId = userDetails.getStudentId();
-        String userHash = HashUtil.sha256Short(studentId.toString());
 
         AcademicRecordResponse response = academicRecordService.getAcademicRecord(studentId, year, semester);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] academic.record.done userIdHash={} year={} semester={} took_ms={}",
-                    userHash, year, semester, tookMs);
+            log.info("[BIZ] academic.record.done studentId={} year={} semester={} took_ms={}",
+                    studentId, year, semester, tookMs);
         }
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
@@ -59,13 +57,12 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
 
         long t0 = LogTime.start();
         UUID studentId = userDetails.getStudentId();
-        String userHash = HashUtil.sha256Short(studentId.toString());
 
         AcademicSummaryResponse response = studentAcademicRecordService.getAcademicSummary(studentId);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] academic.summary.done userIdHash={} took_ms={}", userHash, tookMs);
+            log.info("[BIZ] academic.summary.done studentId={} took_ms={}", studentId, tookMs);
         }
         return ResponseEntity.ok(SuccessResponse.of(response));
     }

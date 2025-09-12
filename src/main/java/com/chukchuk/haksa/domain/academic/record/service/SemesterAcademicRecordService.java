@@ -6,7 +6,6 @@ import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,9 +43,8 @@ public class SemesterAcademicRecordService {
     private SemesterAcademicRecord findSemesterRecordsByYearAndSemester(UUID studentId, Integer year, Integer semester) {
         return semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
                 .orElseThrow(() -> {
-                    String userHash = HashUtil.sha256Short(studentId.toString());
-                    log.warn("[BIZ] academic.semester.record.not_found userIdHash={} year={} semester={}",
-                            userHash, year, semester);
+                    log.warn("[BIZ] academic.semester.record.not_found studentId={} year={} semester={}",
+                            studentId, year, semester);
                     return new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_NOT_FOUND);
                 });
     }
@@ -56,8 +54,7 @@ public class SemesterAcademicRecordService {
         List<SemesterAcademicRecord> records =
                 semesterAcademicRecordRepository.findByStudentIdOrderByYearDescSemesterDesc(studentId);
         if (records.isEmpty()) {
-            String userHash = HashUtil.sha256Short(studentId.toString());
-            log.warn("[BIZ] academic.semester.records.empty userIdHash={}", userHash);
+            log.warn("[BIZ] academic.semester.records.empty studentId={}", studentId);
             throw new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_EMPTY);
         }
         return records;
@@ -65,14 +62,13 @@ public class SemesterAcademicRecordService {
 
     /* 학생의 학기 정보 조회 */
     public List<StudentSemesterDto.StudentSemesterInfoResponse> getSemestersByStudentId(UUID studentId) {
-        String userHash = HashUtil.sha256Short(studentId.toString());
         try {
             List<StudentSemesterDto.StudentSemesterInfoResponse> cached = redisCacheStore.getSemesterList(studentId);
             if (cached != null) {
                 return cached;
             }
         } catch (Exception e) {
-            log.warn("[BIZ] academic.semester.cache.get.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] academic.semester.cache.get.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
 
         List<StudentSemesterDto.StudentSemesterInfoResponse> response = findSemestersByStudent(studentId).stream()
@@ -85,7 +81,7 @@ public class SemesterAcademicRecordService {
         try {
             redisCacheStore.setSemesterList(studentId, response);
         } catch (Exception e) {
-            log.warn("[BIZ] academic.semester.cache.set.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] academic.semester.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
         return response;
     }
@@ -94,8 +90,7 @@ public class SemesterAcademicRecordService {
     private List<SemesterAcademicRecord> findSemestersByStudent(UUID studentId) {
         List<SemesterAcademicRecord> records = semesterAcademicRecordRepository.findByStudentId(studentId);
         if (records.isEmpty()) {
-            String userHash = HashUtil.sha256Short(studentId.toString());
-            log.warn("[BIZ] academic.semester.freshman_no_semester userIdHash={}", userHash);
+            log.warn("[BIZ] academic.semester.freshman_no_semester studentId={}", studentId);
             throw new CommonException(ErrorCode.FRESHMAN_NO_SEMESTER);
         }
         return records;

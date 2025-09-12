@@ -5,7 +5,6 @@ import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,14 +26,13 @@ public class GraduationService {
 
     /* 졸업 요건 진행 상황 조회 */
     public GraduationProgressResponse getGraduationProgress(UUID studentId) {
-        String userHash = HashUtil.sha256Short(studentId.toString());
         try {
             GraduationProgressResponse cached = redisCacheStore.getGraduationProgress(studentId);
             if (cached != null) {
                 return cached;
             }
         } catch (Exception e) {
-            log.warn("[BIZ] graduation.progress.cache.get.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] graduation.progress.cache.get.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
 
         Student student = studentService.getStudentById(studentId);
@@ -49,7 +47,7 @@ public class GraduationService {
         try {
             redisCacheStore.setGraduationProgress(studentId, response);
         } catch (Exception e) {
-            log.warn("[BIZ] graduation.progress.cache.set.fail userIdHash={} ex={}", userHash, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] graduation.progress.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
 
         return response;
