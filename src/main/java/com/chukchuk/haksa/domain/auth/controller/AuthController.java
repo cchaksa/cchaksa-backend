@@ -3,7 +3,7 @@ package com.chukchuk.haksa.domain.auth.controller;
 import com.chukchuk.haksa.domain.auth.controller.docs.AuthControllerDocs;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.chukchuk.haksa.domain.auth.dto.AuthDto.RefreshRequest;
 import static com.chukchuk.haksa.domain.auth.dto.AuthDto.RefreshResponse;
-import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Slf4j
 @RestController

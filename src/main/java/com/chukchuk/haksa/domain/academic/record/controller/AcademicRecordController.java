@@ -5,7 +5,7 @@ import com.chukchuk.haksa.domain.academic.record.dto.AcademicRecordResponse;
 import com.chukchuk.haksa.domain.academic.record.service.AcademicRecordService;
 import com.chukchuk.haksa.domain.academic.record.service.StudentAcademicRecordService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 import static com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto.AcademicSummaryResponse;
-import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @LogPart
 @Slf4j

@@ -4,7 +4,7 @@ import com.chukchuk.haksa.domain.graduation.controller.docs.GraduationController
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.service.GraduationService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.LogTime;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-import static com.chukchuk.haksa.global.logging.LoggingThresholds.SLOW_MS;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Slf4j
 @RestController

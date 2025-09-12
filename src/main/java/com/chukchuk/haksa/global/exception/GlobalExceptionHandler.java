@@ -1,7 +1,7 @@
 package com.chukchuk.haksa.global.exception;
 
 import com.chukchuk.haksa.global.common.response.ErrorResponse;
-import com.chukchuk.haksa.global.logging.LogSanitizer;
+import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;

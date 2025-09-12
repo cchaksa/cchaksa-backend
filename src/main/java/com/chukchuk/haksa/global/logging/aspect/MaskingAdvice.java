@@ -1,5 +1,6 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.aspect;
 
+import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;

@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.sanitize;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.logging;
+package com.chukchuk.haksa.global.logging.policy;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
