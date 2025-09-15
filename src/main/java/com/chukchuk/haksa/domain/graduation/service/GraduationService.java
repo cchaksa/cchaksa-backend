@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.graduation.service;
 
+import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -19,6 +21,13 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 @Slf4j
 public class GraduationService {
+
+    private static final int SPECIAL_YEAR = 2025;
+    private static final Set<Long> SPECIAL_DEPTS = Set.of(
+            30L,   // 건축도시부동산학부
+            115L,  // 아트앤엔터테인먼트학부
+            127L   // 디자인학부
+    );
 
     private final StudentService studentService;
     private final GraduationQueryRepository graduationQueryRepository;
@@ -36,13 +45,20 @@ public class GraduationService {
         }
 
         Student student = studentService.getStudentById(studentId);
+        Department dept = student.getDepartment();
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
-        Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : student.getDepartment().getId();
+        Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
+        int admissionYear = student.getAcademicInfo().getAdmissionYear();
 
         // 졸업 요건 충족 여부 조회
-        List<AreaProgressDto> areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, effectiveDepartmentId, student.getAcademicInfo().getAdmissionYear());
+        List<AreaProgressDto> areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, effectiveDepartmentId, admissionYear);
 
         GraduationProgressResponse response = new GraduationProgressResponse(areaProgress);
+
+        if (isDifferentGradRequirement(effectiveDepartmentId, admissionYear)) {
+            response.setHasDifferentGraduationRequirement();
+            log.info("[BIZ] graduation.progress.flag.set studentId={} deptId={} year={}", studentId, effectiveDepartmentId, admissionYear);
+        }
 
         try {
             redisCacheStore.setGraduationProgress(studentId, response);
@@ -51,5 +67,9 @@ public class GraduationService {
         }
 
         return response;
+    }
+
+    private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
+        return admissionYear == SPECIAL_YEAR && departmentId != null && SPECIAL_DEPTS.contains(departmentId);
     }
 }
