@@ -5,10 +5,9 @@ import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
-import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,7 +65,7 @@ public class StudentService {
         Student student = getStudentById(studentId);
         student.resetAcademicData();
 
-        log.info("[BIZ] student.reset.done userIdHash={}", HashUtil.sha256Short(studentId.toString()));
+        log.info("[BIZ] student.reset.done studentId={}", studentId);
     }
 
     @Transactional
@@ -74,8 +73,8 @@ public class StudentService {
         // 유효성 실패는 GlobalExceptionHandler가 WARN 처리
         Student student = getStudentById(studentId);
         if (targetGpa != null && (targetGpa < 0 || targetGpa > 4.5)) {
-            log.warn("[BIZ] student.target_gpa.set.invalid userIdHash={} value={}",
-                    HashUtil.sha256Short(studentId.toString()), targetGpa);
+            log.warn("[BIZ] student.target_gpa.set.invalid studentId={} value={}",
+                    studentId, targetGpa);
             throw new CommonException(ErrorCode.INVALID_TARGET_GPA);
         }
         student.setTargetGpa(targetGpa);

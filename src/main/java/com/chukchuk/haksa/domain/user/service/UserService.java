@@ -5,9 +5,8 @@ import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
-import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.logging.util.HashUtil;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
@@ -58,7 +57,7 @@ public class UserService {
         UUID studentId = user.getStudent().getId();
         redisCacheStore.deleteAllByStudentId(studentId);
         userRepository.delete(user);
-        log.info("[BIZ] user.delete.done userIdHash={}", HashUtil.sha256Short(userId.toString()));
+        log.info("[BIZ] user.delete.done userId={}", userId);
     }
 
     /* private method */
