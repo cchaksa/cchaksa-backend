@@ -8,31 +8,31 @@
 
 ## 📚 목차
 
-1. [프로젝트 소개](#1-프로젝트-소개)
-2. [주요 기능](#2-주요-기능)
-3. [API 문서](#3-api-문서)
-4. [기술 스택](#4-기술-스택)
-5. [아키텍처](#5-아키텍처)
-6. [ERD](#6-erd)
-7. [커밋 컨벤션](#7-커밋-컨벤션)
-8. [관련 블로그 게시글](#8-관련-블로그-게시글)
+1. [프로젝트 소개](#프로젝트-소개)
+2. [주요 기능](#주요-기능)
+3. [API 문서](#api-문서)
+4. [기술 스택](#기술-스택)
+5. [아키텍처](#아키텍처)
+6. [ERD](#erd)
+7. [커밋 컨벤션](#커밋-컨벤션)
+8. [관련 블로그 게시글](#관련-블로그-게시글)
 
 ---
 
-## 1. 📌 프로젝트 소개
+## 프로젝트 소개
 
 **척척학사**는 학생들이 학교 포털과 연동하여 본인의 이수 현황과 졸업 요건을 손쉽게 확인하고 관리할 수 있도록 도와주는 서비스입니다.
 
 > 기존에는 학생들이 졸업 요건을 직접 확인하며 수작업으로 비교해야 했지만,  
 > 척척학사는 이를 **학교 포털과 실시간 연동**, **자동 분석**, **시각적 안내** 기능으로 효율화합니다.
 
-- ✅ **1500명 이상** 수원대 재학생 사용 중
+- ✅ **3000명 이상** 수원대 재학생 사용 중
 - 🔁 **학교 포털과 실시간 동기화**
 - 🧠 **졸업 요건 자동 분석 및 부족 항목 안내**
 
 ---
 
-## 2. 💡 주요 기능
+## 주요 기능
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/84cf31e3-6180-495f-a183-ead0d082b4fc" width="800" alt="IA 구조도" />
@@ -48,57 +48,57 @@
 
 ---
 
-## 3. 🗂️ API 문서
+## API 문서
 
 👉 [Swagger API 문서 보기](https://dev.api.cchaksa.com/swagger-ui/index.html#/)
 
 ---
 
-## 4. ⚙ 기술 스택
+## 기술 스택
 
-### 🔧 Back-end
+### Back-end
 - Java 17
 - Spring Boot 3.2.5
 - Spring Security, OAuth2
 - JPA, Hibernate
 
-### ☁️ Infra
-- AWS EC2, ALB, Route53, ACM ...
+### Infra
+- AWS ASG(EC2), ALB, Route53, ACM ...
 - PostgreSQL (Supabase 연동: BaaS 인증/스토리지 활용)
-- Redis (세션 관리, 포털 데이터 캐싱)
+- Redis (세션 관리, 포털 데이터 캐싱) -> AWS ElastiCache
+- Docker, Nginx
 
-### 🛠 Tools
+### Tools
 - Git, GitHub
 - Swagger (OpenAPI)
-- Gradle
+- Gradle, Tomcat
 
 ---
 
-## 5. 🛠 아키텍처
+## 아키텍처
+
 <p align="center">
   <img width="636" height="744" alt="Image" src="https://github.com/user-attachments/assets/43076c12-de91-479a-9152-7748dca0ea33" />
 </p>
 
 ---
 
-## 6. 🗃 ERD
+## ERD
 
-> *(2025.04.30 기준)*
-
-<img src="https://github.com/user-attachments/assets/7f44b492-5a63-4540-8319-ef45dd70a6ae" width="100%" alt="ERD"/>
+<img src="https://github.com/user-attachments/assets/357f9f0c-44ff-4b7a-80c6-86aceb06853c" width="100%" alt="ERD"/>
 
 ---
 
-## 7. 📝 커밋 컨벤션
+## 커밋 컨벤션
 
-### ✅ 기본 구조
+### 기본 구조
 ```
 type: subject
 
 body (선택)
 ```
 
-### ✅ type 종류
+### type 종류
 ```
 feat: 기능 추가
 fix: 버그 수정
@@ -113,7 +113,7 @@ style: 코드 포맷팅
 !BREAKING CHANGE!: 기존 API 사용에 영향을 주는 변경 (예: 응답 포맷 변경 등)
 ```
 
-### ✅ 커밋 예시
+### 커밋 예시
 ```
 feat: 로그인 기능 구현
 
@@ -128,7 +128,7 @@ fix: 사용자 정보 누락 버그 해결
 
 ---
 
-## 8. 📝 관련 블로그 게시글
+## 관련 블로그 게시글
 
 👉 [척척학사 블로그 시리즈](https://velog.io/@pp8817/series/척척학사)
 
@@ -143,3 +143,6 @@ fix: 사용자 정보 누락 버그 해결
 - [포털 데이터 Redis 캐싱 전략 도입기](https://velog.io/@pp8817/척척학사-포털-데이터-Redis-캐싱-전략-도입기)
 - [복수전공생도 사용할 수 있게 만들기](https://velog.io/@pp8817/척척학사-복수전공생도-사용할-수-있게-만들기)
 - [디스크 용량 부족으로 인한 JVM 실행 실패 해결기](https://velog.io/@pp8817/척척학사-디스크-용량-부족-문제)
+- [CI/CD 적용 과정 With GitHub Actions](https://velog.io/@pp8817/척척학사-GitHub-Actions-적용)
+- [PostgreSQL: duplicate key value violates unique constraint 에러 해결하기](https://velog.io/@pp8817/척척학사-PostgreSQL-duplicate-key-value-violates-unique-constraint-에러-해결하기)
+- [포털 연동 시 이수 구분 오류 & 재수강 중복 문제 해결](https://velog.io/@pp8817/척척학사-트러블슈팅-포털-연동-시-이수-구분-오류-재수강-중복-문제-해결)
