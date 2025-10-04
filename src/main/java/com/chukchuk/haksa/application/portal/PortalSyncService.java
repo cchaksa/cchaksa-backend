@@ -62,7 +62,7 @@ public class PortalSyncService {
         }
 
         // 4. 응답 생성
-        return new ScrapingResponse(UUID.randomUUID().toString(), conn.studentInfo());
+        return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
     }
 
     @Transactional
@@ -95,7 +95,7 @@ public class PortalSyncService {
         }
 
         // 4. 응답 생성
-        return new ScrapingResponse(UUID.randomUUID().toString(), conn.studentInfo());
+        return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
     }
 
 }
