@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.user.model;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -36,4 +37,16 @@ public class SocialAccount {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Builder
+    public SocialAccount(OidcProvider provider, String socialId, String email, User user) {
+        this.provider = provider;
+        this.socialId = socialId;
+        this.email = email;
+        this.user = user;
+    }
+
+    public void updateUser(User user) {
+        this.user = user;
+    }
 }
