@@ -63,22 +63,30 @@
         </encoder>
     </appender>
 
-    <!-- ===== Sentry(선택): 전역 TurboFilter에 의해 동일 차단 적용됨 ===== -->
-    <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-        <minimumEventLevel>Warn</minimumEventLevel>
-        <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-    </appender>
+    <springProfile name="prod,dev">
+        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>WARN</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+    </springProfile>
 
     <!-- ===== 공통 로거 ===== -->
     <logger name="HTTP" level="INFO"/>
     <logger name="com.chukchuk.haksa" level="INFO"/>
 
     <!-- ===== 루트 레벨/출력 (공통) ===== -->
-    <root level="${ROOT_LEVEL}">
-        <appender-ref ref="FILE_JSON"/>
-        <appender-ref ref="SENTRY"/>
-    </root>
+    <springProfile name="prod,dev">
+        <root level="${ROOT_LEVEL}">
+            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="SENTRY"/>
+        </root>
+    </springProfile>
 
+    <springProfile name="local">
+        <root level="${ROOT_LEVEL}">
+            <appender-ref ref="FILE_JSON"/>
+        </root>
+    </springProfile>
     <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
 
     <springProfile name="local">
