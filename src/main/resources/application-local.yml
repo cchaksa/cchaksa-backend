@@ -3,19 +3,51 @@ spring:
     url: ${LOCAL_DB_URL}
     username: ${LOCAL_DB_USERNAME}
     password: ${LOCAL_DB_PASSWORD}
-  jpa:
-    hibernate:
-      ddl-auto: update
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 20000
+      validation-timeout: 5000
+      idle-timeout: 300000     # 5m
+      max-lifetime: 900000     # 15m
+      keepalive-time: 120000   # 2m
   data:
     redis:
       host: ${LOCAL_REDIS_HOST}
       port: ${LOCAL_REDIS_PORT}
       username: default
       password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          use_get_generated_keys: true
+          statement_cache_size: 0
+
+    security:
+      cookie:
+        dev-mode: true
+
+    server:
+      forward-headers-strategy: native
+
+    logging:
+      level:
+        org.hibernate.SQL: off
+        org.hibernate.type.descriptor.sql.BasicBinder: off
+      sampling:
+        enabled: true # 샘플링 활성화
+        rate: 0.1 # 10% 로그만 남김
+        patterns: [ ] # 샘플링 필요 api 경로 추가
+
+sentry:
+  dsn: ""
+  enabled: false
 
 swagger:
   server-url: http://localhost:8080
