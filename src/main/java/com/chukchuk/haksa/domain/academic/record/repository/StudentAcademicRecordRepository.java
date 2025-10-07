@@ -15,4 +15,6 @@ public interface StudentAcademicRecordRepository extends JpaRepository<StudentAc
     // student_id(UUID)로 직접 조회
     @Query("SELECT r FROM StudentAcademicRecord r WHERE r.student.id = :studentId")
     Optional<StudentAcademicRecord> findByStudentId(@Param("studentId") UUID studentId);
+
+    void DeleteByStudentId(UUID studentId);
 }

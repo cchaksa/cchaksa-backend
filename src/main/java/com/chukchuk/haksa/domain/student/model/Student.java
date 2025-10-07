@@ -5,7 +5,6 @@ import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.department.model.Department;
-import com.chukchuk.haksa.domain.graduation.model.StudentGraduationProgress;
 import com.chukchuk.haksa.domain.student.model.embeddable.AcademicInfo;
 import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
@@ -68,11 +67,8 @@ public class Student extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @OneToOne(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
-    private StudentAcademicRecord studentAcademicRecord;
-
-    @OneToOne(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
-    private StudentGraduationProgress graduationProgress;
+//    @OneToOne(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+//    private StudentAcademicRecord studentAcademicRecord;
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SemesterAcademicRecord> semesterAcademicRecords = new ArrayList<>();
@@ -91,19 +87,7 @@ public class Student extends BaseEntity {
         this.studentCourses.clear();
 
         // 누적 성적 기록 삭제
-        this.studentAcademicRecord = null;
-
-//        // 필요한 경우 학업 정보도 초기화
-//        if (this.academicInfo != null) {
-//            this.academicInfo = AcademicInfo.builder()
-//                    .admissionYear(this.academicInfo.getAdmissionYear())
-//                    .semesterEnrolled(this.academicInfo.getSemesterEnrolled())
-//                    .isTransferStudent(this.academicInfo.getIsTransferStudent())
-//                    .status(StudentStatus.ENROLLED) // 예: 기본값
-//                    .gradeLevel(1)
-//                    .completedSemesters(0)
-//                    .build();
-//        }
+//        this.studentAcademicRecord = null;
     }
 
     @Builder
@@ -160,7 +144,7 @@ public class Student extends BaseEntity {
 
     // 연관관계 편의 메서드
     public void setAcademicRecord(StudentAcademicRecord record) {
-        this.studentAcademicRecord = record;
+//        this.studentAcademicRecord = record;
         if (record != null) {
             record.setStudent(this);
         }

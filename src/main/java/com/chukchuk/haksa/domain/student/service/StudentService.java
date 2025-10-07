@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.student.service;
 
+import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.student.dto.StudentDto;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
@@ -23,6 +24,7 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final UserService userService;
+    private final StudentAcademicRecordRepository studentAcademicRecordRepository;
 
     public Student getStudentById(UUID studentId) {
         return studentRepository.findById(studentId)
@@ -64,6 +66,7 @@ public class StudentService {
     public void resetBy(UUID studentId) {
         Student student = getStudentById(studentId);
         student.resetAcademicData();
+        studentAcademicRecordRepository.DeleteByStudentId(studentId);
 
         log.info("[BIZ] student.reset.done studentId={}", studentId);
     }

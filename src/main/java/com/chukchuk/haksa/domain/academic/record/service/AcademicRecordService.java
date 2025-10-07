@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AcademicRecordService {
     private final SemesterAcademicRecordService semesterAcademicRecordService;
-    private final StudentAcademicRecordService studentAcademicRecordService;
     private final StudentCourseService studentCourseService;
+
 
     /* 학기별 성적 및 수강 과목 정보 조회 */
     public AcademicRecordResponse getAcademicRecord(UUID studentId, Integer year, Integer semester) {
