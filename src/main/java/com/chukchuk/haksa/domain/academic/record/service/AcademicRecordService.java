@@ -50,33 +50,4 @@ public class AcademicRecordService {
                     default -> "liberal";
                 }));
     }
-
-    /* 전공 평점 계산 메서드 */
-    private double calculateMajorGpa(List<StudentCourseDto.CourseDetailDto> majorCourses) {
-        if (majorCourses.isEmpty()) {
-            return 0.0;
-        }
-
-        Map<String, Double> gradePoints = Map.of(
-                "A+", 4.5, "A0", 4.0,
-                "B+", 3.5, "B0", 3.0,
-                "C+", 2.5, "C0", 2.0,
-                "D+", 1.5, "D0", 1.0,
-                "F", 0.0
-        );
-
-        double totalPoints = 0.0;
-        int totalCredits = 0;
-
-        for (StudentCourseDto.CourseDetailDto course : majorCourses) {
-            if (gradePoints.containsKey(course.grade())) {
-                double points = gradePoints.get(course.grade());
-                int credits = course.credits().intValue();
-                totalPoints += points * credits;
-                totalCredits += credits;
-            }
-        }
-
-        return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
-    }
 }
