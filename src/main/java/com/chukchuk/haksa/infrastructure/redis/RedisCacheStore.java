@@ -100,6 +100,8 @@ public class RedisCacheStore {
         return "student:" + studentId + ":graduation";
     }
 
+    public String keyForTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) { return "graduation:" + departmentId + ":" + admissionYear;}
+
     // ──────────────── [도메인별 캐시 처리] ──────────────── //
 
     public void setAcademicSummary(UUID studentId, AcademicSummaryResponse summary) {
@@ -124,5 +126,13 @@ public class RedisCacheStore {
 
     public GraduationProgressResponse getGraduationProgress(UUID studentId) {
         return get(keyForGraduation(studentId), GraduationProgressResponse.class);
+    }
+
+    public void setTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear, Integer graduationCredits) {
+        set(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), graduationCredits);
+    }
+
+    public Integer getTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) {
+        return get(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), Integer.class);
     }
 }

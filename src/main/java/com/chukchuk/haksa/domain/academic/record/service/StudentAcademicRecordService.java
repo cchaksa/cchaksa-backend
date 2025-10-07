@@ -38,14 +38,13 @@ public class StudentAcademicRecordService {
         }
 
         StudentAcademicRecord studentAcademicRecord = getStudentAcademicRecordByStudentId(studentId);
-
-        Student student = studentService.getStudentById(studentId);
+        Student student = studentAcademicRecord.getStudent();
 
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
         Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : student.getDepartment().getId();
         Integer admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        Integer totalRequiredGraduationCredits = graduationQueryRepository.getTotalRequiredGraduationCredits(effectiveDepartmentId, admissionYear);
+        Integer totalRequiredGraduationCredits = getGraduationCreditsWithCache(effectiveDepartmentId, admissionYear);
 
         StudentAcademicRecordDto.AcademicSummaryResponse response = StudentAcademicRecordDto.AcademicSummaryResponse.from(studentAcademicRecord, totalRequiredGraduationCredits);
 
@@ -54,6 +53,7 @@ public class StudentAcademicRecordService {
         } catch (Exception e) {
             log.warn("[BIZ] academic.summary.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
+
         return response;
     }
 
@@ -63,5 +63,20 @@ public class StudentAcademicRecordService {
                     log.warn("[BIZ] academic.summary.not_found studentId={}", studentId);
                     return new EntityNotFoundException(ErrorCode.STUDENT_ACADEMIC_RECORD_NOT_FOUND);
                 });
+    }
+
+    private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
+        try {
+            Integer credits = redisCacheStore.getTotalRequiredGraduationCredits(deptId, admissionYear);
+            if (credits != null) return credits;
+
+            credits = graduationQueryRepository.getTotalRequiredGraduationCredits(deptId, admissionYear);
+            redisCacheStore.setTotalRequiredGraduationCredits(deptId, admissionYear, credits);
+            return credits;
+        } catch (Exception e) {
+            log.warn("[BIZ] academic.summary.graduation_credits.cache.fail deptId={} year={} ex={}",
+                    deptId, admissionYear, e.getClass().getSimpleName());
+            return graduationQueryRepository.getTotalRequiredGraduationCredits(deptId, admissionYear);
+        }
     }
 }

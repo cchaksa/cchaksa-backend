@@ -66,7 +66,7 @@ public class StudentService {
     public void resetBy(UUID studentId) {
         Student student = getStudentById(studentId);
         student.resetAcademicData();
-        studentAcademicRecordRepository.DeleteByStudentId(studentId);
+        studentAcademicRecordRepository.deleteByStudentId(studentId);
 
         log.info("[BIZ] student.reset.done studentId={}", studentId);
     }

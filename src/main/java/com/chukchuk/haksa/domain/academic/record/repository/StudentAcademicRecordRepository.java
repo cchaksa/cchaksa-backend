@@ -13,8 +13,12 @@ import java.util.UUID;
 public interface StudentAcademicRecordRepository extends JpaRepository<StudentAcademicRecord, UUID> {
 
     // student_id(UUID)로 직접 조회
-    @Query("SELECT r FROM StudentAcademicRecord r WHERE r.student.id = :studentId")
+    @Query("""
+        SELECT r FROM StudentAcademicRecord r
+        JOIN FETCH r.student s
+        WHERE s.id = :studentId
+    """)
     Optional<StudentAcademicRecord> findByStudentId(@Param("studentId") UUID studentId);
 
-    void DeleteByStudentId(UUID studentId);
+    void deleteByStudentId(UUID studentId);
 }
