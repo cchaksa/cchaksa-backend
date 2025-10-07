@@ -19,54 +19,70 @@
         <OnMismatch>NEUTRAL</OnMismatch>
     </turboFilter>
 
-    <!-- ===== 공통 Appender 1개 정의 (파일 경로/압축/보존일만 프로퍼티로 제어) ===== -->
-    <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${FILE_NAME}</file>
-
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- gzip 여부: true면 .gz, 아니면 그대로 -->
-            <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.log${GZIP.equals("true") ? ".gz" : ""}</fileNamePattern>
-            <maxHistory>${MAX_HISTORY}</maxHistory>
-            <cleanHistoryOnStart>true</cleanHistoryOnStart>
-        </rollingPolicy>
-
-        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-            <charset>UTF-8</charset>
-            <providers>
-                <timestamp>
-                    <fieldName>timestamp</fieldName>
-                    <timeZone>Asia/Seoul</timeZone>
-                </timestamp>
-                <logLevel><fieldName>level</fieldName></logLevel>
-                <loggerName><fieldName>logger</fieldName></loggerName>
-                <mdc>
-                    <includeMdcKeyName>userId</includeMdcKeyName>
-                    <includeMdcKeyName>traceId</includeMdcKeyName>
-                    <includeMdcKeyName>spanId</includeMdcKeyName>
-                    <includeMdcKeyName>className</includeMdcKeyName>
-                    <includeMdcKeyName>method</includeMdcKeyName>
-                    <includeMdcKeyName>part</includeMdcKeyName>
-                </mdc>
-                <message><fieldName>message</fieldName></message>
-                <throwable>
-                    <classNameFieldName>errorCause</classNameFieldName>
-                    <messageFieldName>error</messageFieldName>
-                    <stackTraceFieldName>stackTrace</stackTraceFieldName>
-                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                        <rootCauseFirst>true</rootCauseFirst>
-                        <maxDepthPerThrowable>50</maxDepthPerThrowable>
-                        <maxLength>8000</maxLength>
-                        <shortenedClassNameLength>40</shortenedClassNameLength>
-                    </throwableConverter>
-                </throwable>
-            </providers>
-        </encoder>
-    </appender>
-
+    <!-- ===== prod/dev에서 사용할 파일 Appender ===== -->
     <springProfile name="prod,dev">
+        <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${FILE_NAME}</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/app.%d{yyyy-MM-dd}.log${GZIP.equals("true") ? ".gz" : ""}</fileNamePattern>
+                <maxHistory>${MAX_HISTORY}</maxHistory>
+                <cleanHistoryOnStart>true</cleanHistoryOnStart>
+            </rollingPolicy>
+
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
+                <providers>
+                    <timestamp>
+                        <fieldName>timestamp</fieldName>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <logLevel><fieldName>level</fieldName></logLevel>
+                    <loggerName><fieldName>logger</fieldName></loggerName>
+                    <mdc>
+                        <includeMdcKeyName>userId</includeMdcKeyName>
+                        <includeMdcKeyName>traceId</includeMdcKeyName>
+                        <includeMdcKeyName>spanId</includeMdcKeyName>
+                        <includeMdcKeyName>className</includeMdcKeyName>
+                        <includeMdcKeyName>method</includeMdcKeyName>
+                        <includeMdcKeyName>part</includeMdcKeyName>
+                    </mdc>
+                    <message><fieldName>message</fieldName></message>
+                    <throwable>
+                        <classNameFieldName>errorCause</classNameFieldName>
+                        <messageFieldName>error</messageFieldName>
+                        <stackTraceFieldName>stackTrace</stackTraceFieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <rootCauseFirst>true</rootCauseFirst>
+                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
+                            <maxLength>8000</maxLength>
+                            <shortenedClassNameLength>40</shortenedClassNameLength>
+                        </throwableConverter>
+                    </throwable>
+                </providers>
+            </encoder>
+        </appender>
+
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>WARN</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        </appender>
+    </springProfile>
+
+    <!-- ===== local에서 사용할 콘솔 Appender ===== -->
+    <springProfile name="local">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <charset>UTF-8</charset>
+                <providers>
+                    <timestamp>
+                        <fieldName>timestamp</fieldName>
+                        <timeZone>Asia/Seoul</timeZone>
+                    </timestamp>
+                    <logLevel><fieldName>level</fieldName></logLevel>
+                    <loggerName><fieldName>logger</fieldName></loggerName>
+                    <message><fieldName>message</fieldName></message>
+                </providers>
+            </encoder>
         </appender>
     </springProfile>
 
@@ -74,7 +90,7 @@
     <logger name="HTTP" level="INFO"/>
     <logger name="com.chukchuk.haksa" level="INFO"/>
 
-    <!-- ===== 루트 레벨/출력 (공통) ===== -->
+    <!-- ===== 루트 로거 분기 ===== -->
     <springProfile name="prod,dev">
         <root level="${ROOT_LEVEL}">
             <appender-ref ref="FILE_JSON"/>
@@ -84,11 +100,11 @@
 
     <springProfile name="local">
         <root level="${ROOT_LEVEL}">
-            <appender-ref ref="FILE_JSON"/>
+            <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
-    <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
 
+    <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
     <springProfile name="local">
         <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="logs"/>
         <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
