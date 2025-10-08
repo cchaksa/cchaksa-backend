@@ -3,7 +3,9 @@ package com.chukchuk.haksa.domain.user.service;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
+import com.chukchuk.haksa.domain.user.model.SocialAccount;
 import com.chukchuk.haksa.domain.user.model.User;
+import com.chukchuk.haksa.domain.user.repository.SocialAccountRepository;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
@@ -16,7 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -24,6 +28,7 @@ import java.util.UUID;
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
+    private final SocialAccountRepository socialAccountRepository;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
     private final RedisCacheStore redisCacheStore;
@@ -40,13 +45,15 @@ public class UserService {
         userRepository.save(user);
     }
 
-    // TODO OIDC Provider에 대한 API 추후에 추가 필요
     @Transactional
     public AuthDto.SignInTokenResponse signIn(UserDto.SignInRequest signInRequest) {
-        Claims claims = verifyToken(OidcProvider.KAKAO, signInRequest);
+        OidcProvider provider = OidcProvider.KAKAO; // TODO: 실제 요청에서 provider 추춮
+        Claims claims = verifyToken(provider, signInRequest);
+
+        String sub = claims.getSubject();
         String email = extractEmail(claims);
 
-        User user = findOrCreateUser(email);
+        User user = findOrCreateUser(provider, sub, email, "Unknown User");
         return generateSignInResponse(user);
     }
 
@@ -60,6 +67,37 @@ public class UserService {
         log.info("[BIZ] user.delete.done userId={}", userId);
     }
 
+    /**
+     * 소셜 로그인 후 포털 연동 시, studentCode 기반으로 기존 User가 있는지 탐색하여 병합 시도.
+     * - 기존 User가 없다면: currentUser를 그대로 사용
+     * - 기존 User가 있다면:
+     *   - currentUser의 SocialAccount들을 기존 User에 연결
+     *   - currentUser 제거
+     *   - 기존 User 반환
+     */
+    @Transactional
+    public User tryMergeWithExistingUser(UUID currentUserId, String studentCode) {
+        User currentUser = getUserById(currentUserId);
+        Optional<User> existingUserOpt = userRepository.findByStudent_StudentCode(studentCode);
+
+        if (existingUserOpt.isEmpty()) {
+            return currentUser;
+        }
+
+        User existingUser = existingUserOpt.get();
+
+        // 소셜 계정 모두 이전
+        List<SocialAccount> accounts = socialAccountRepository.findAllByUserId(currentUserId);
+        for (SocialAccount sa : accounts) {
+            sa.updateUser(existingUser);
+        }
+
+        userRepository.delete(currentUser);
+        log.info("[BIZ] user.merged currentUserId={} → existingUserId={}", currentUserId, existingUser.getId());
+
+        return existingUser;
+    }
+
     /* private method */
     private Claims verifyToken(OidcProvider provider, UserDto.SignInRequest request) {
         return oidcServices.get(provider).verifyIdToken(request.id_token(), request.nonce());
@@ -69,14 +107,26 @@ public class UserService {
         return claims.get("email", String.class);
     }
 
-    private User findOrCreateUser(String email) {
-        return userRepository.findByEmail(email)
-                .orElseGet(() -> userRepository.save(
-                        User.builder()
-                                .email(email)
-                                .profileNickname("Unknown User")
-                                .build()
-                ));
+    private User findOrCreateUser(OidcProvider provider, String socialId, String email, String profileNickname) {
+        return socialAccountRepository.findByProviderAndSocialId(provider, socialId)
+                .map(SocialAccount::getUser)
+                .orElseGet(() -> {
+                    User newUser = userRepository.save(User.builder()
+                            .email(email)
+                            .profileNickname(profileNickname)
+                            .build());
+
+                    SocialAccount socialAccount = SocialAccount.builder()
+                            .user(newUser)
+                            .socialId(socialId)
+                            .provider(provider)
+                            .email(email)
+                            .build();
+
+                    socialAccountRepository.save(socialAccount);
+
+                    return newUser;
+                });
     }
 
     private AuthDto.SignInTokenResponse generateSignInResponse(User user) {

@@ -4,6 +4,7 @@ import com.chukchuk.haksa.application.api.docs.SuwonScrapeControllerDocs;
 import com.chukchuk.haksa.application.dto.PortalLoginResponse;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
+import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -71,16 +72,24 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         }
 
         PortalData portalData = fetchPortalData(userId);
-        ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(userId), portalData);
+        // 기존 User 탐색 및 병합 로직
+        User useUser = userService.tryMergeWithExistingUser(UUID.fromString(userId), portalData.student().studentCode());
+        if (useUser.getPortalConnected()) {
+            log.info("[BIZ] portal.sync.skipped mergedUserId={} reason=already_connected", useUser.getId());
+            return ResponseEntity.ok(SuccessResponse.of(ScrapingResponse.alreadyConnected()));
+        }
+
+        String useUserId = useUser.getId().toString();
+        ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(useUserId), portalData);
 
         // 재연동 시 Redis 캐시 초기화
-        redisPortalCredentialStore.clear(userId);
+        redisPortalCredentialStore.clear(useUserId);
 
         long tookMs = LogTime.elapsedMs(t0);
         // 처리가 느린 경우만 INFO
         if (tookMs >= SLOW_MS) {
             log.info("[BIZ] portal.done userId={} taskId={} took_ms={}",
-                    userId, LogSanitizer.clean(response.taskId()), tookMs);
+                    useUserId, LogSanitizer.clean(response.taskId()), tookMs);
         }
 
         return ResponseEntity.accepted().body(SuccessResponse.of(response));
