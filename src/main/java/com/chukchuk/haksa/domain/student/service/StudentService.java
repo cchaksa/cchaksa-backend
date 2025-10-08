@@ -7,6 +7,7 @@ import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,7 +51,8 @@ public class StudentService {
     }
 
     public StudentDto.StudentProfileResponse getStudentProfile(UUID studentId) {
-        Student student = getStudentById(studentId);
+        Student student = studentRepository.findProfileByIdWithAssociations(studentId)
+                .orElseThrow(() -> new CommonException(ErrorCode.STUDENT_NOT_FOUND));
 
         StudentDto.StudentInfoDto studentInfo = StudentDto.StudentInfoDto.from(student);
         int currentSemester = getCurrentSemester(studentInfo.gradeLevel(), studentInfo.completedSemesters());

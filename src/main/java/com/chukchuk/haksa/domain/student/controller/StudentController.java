@@ -55,11 +55,14 @@ public class StudentController implements StudentControllerDocs {
     ) {
         long t0 = LogTime.start();
         UUID studentId = userDetails.getStudentId();
+
         StudentProfileResponse response = studentService.getStudentProfile(studentId);
+
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
             log.info("[BIZ] student.profile.get.done took_ms={}", tookMs);
         }
+
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 
