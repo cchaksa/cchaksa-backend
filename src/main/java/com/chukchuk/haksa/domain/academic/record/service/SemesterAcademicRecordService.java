@@ -56,27 +56,7 @@ public class SemesterAcademicRecordService {
 
     /* 학생의 학기 정보 조회 */
     public List<StudentSemesterDto.StudentSemesterInfoResponse> getSemestersByStudentId(UUID studentId) {
-        try {
-            List<StudentSemesterDto.StudentSemesterInfoResponse> cached = redisCacheStore.getSemesterList(studentId);
-            if (cached != null) {
-                return cached;
-            }
-        } catch (Exception e) {
-            log.warn("[BIZ] academic.semester.cache.get.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
-        }
 
-        List<StudentSemesterDto.StudentSemesterInfoResponse> semesterResponses = getOrderedSemesterRecords(studentId);
-
-        try {
-            redisCacheStore.setSemesterList(studentId, semesterResponses);
-        } catch (Exception e) {
-            log.warn("[BIZ] academic.semester.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
-        }
-        return semesterResponses;
-    }
-
-    /* 특정 학생의 학기 정보 조회 (신입생 예외 처리) */
-    private List<StudentSemesterDto.StudentSemesterInfoResponse> getOrderedSemesterRecords(UUID studentId) {
         List<SemesterSummaryResponse> records = getSemesterSummaries(studentId);
 
         if (records.isEmpty()) {
