@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -71,29 +70,29 @@ public class SemesterAcademicRecordService {
             log.warn("[BIZ] academic.semester.cache.get.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
 
-        List<StudentSemesterDto.StudentSemesterInfoResponse> response = findSemestersByStudent(studentId).stream()
-                .sorted(Comparator
-                        .comparing(SemesterAcademicRecord::getYear).reversed()
-                        .thenComparing(SemesterAcademicRecord::getSemester, Comparator.reverseOrder()))
-                .map(StudentSemesterDto.StudentSemesterInfoResponse::from)
-                .collect(Collectors.toList());
+        List<StudentSemesterDto.StudentSemesterInfoResponse> semesterResponses = getOrderedSemesterRecords(studentId);
 
         try {
-            redisCacheStore.setSemesterList(studentId, response);
+            redisCacheStore.setSemesterList(studentId, semesterResponses);
         } catch (Exception e) {
             log.warn("[BIZ] academic.semester.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
-        return response;
+        return semesterResponses;
     }
 
     /* 특정 학생의 학기 정보 조회 (신입생 예외 처리) */
-    private List<SemesterAcademicRecord> findSemestersByStudent(UUID studentId) {
-        List<SemesterAcademicRecord> records = semesterAcademicRecordRepository.findByStudentId(studentId);
+    private List<StudentSemesterDto.StudentSemesterInfoResponse> getOrderedSemesterRecords(UUID studentId) {
+        List<SemesterAcademicRecord> records = semesterAcademicRecordRepository
+                .findByStudentIdOrderByYearDescSemesterDesc(studentId);
+
         if (records.isEmpty()) {
             log.warn("[BIZ] academic.semester.freshman_no_semester studentId={}", studentId);
             throw new CommonException(ErrorCode.FRESHMAN_NO_SEMESTER);
         }
-        return records;
+
+        return records.stream()
+                .map(StudentSemesterDto.StudentSemesterInfoResponse::from)
+                .collect(Collectors.toList());
     }
 
 }
