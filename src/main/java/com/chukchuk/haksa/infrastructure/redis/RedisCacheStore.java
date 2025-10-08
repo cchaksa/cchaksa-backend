@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.infrastructure.redis;
 
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -101,7 +102,9 @@ public class RedisCacheStore {
         return "student:" + studentId + ":graduation";
     }
 
-    public String keyForTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) { return "graduation:" + departmentId + ":" + admissionYear;}
+    public String keyForGraduationRequirements(Long departmentId, Integer admissionYear) {
+        return "graduation:requirements:" + departmentId + ":" + admissionYear;
+    }
 
     public String keyForSemesterSummaries(UUID studentId) {
         return "student:" + studentId + ":semester-summaries";
@@ -136,14 +139,14 @@ public class RedisCacheStore {
         return get(keyForGraduation(studentId), GraduationProgressResponse.class);
     }
 
-    // ──────────────── [TotalRequiredGraduationCredits 캐시] ──────────────── //
+    // ──────────────── [AreaRequirementDto 캐시] ──────────────── //
 
-    public void setTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear, Integer graduationCredits) {
-        set(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), graduationCredits);
+    public void setGraduationRequirements(Long departmentId, Integer admissionYear, List<AreaRequirementDto> requirements) {
+        set(keyForGraduationRequirements(departmentId, admissionYear), requirements);
     }
 
-    public Integer getTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) {
-        return get(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), Integer.class);
+    public List<AreaRequirementDto> getGraduationRequirements(Long departmentId, Integer admissionYear) {
+        return getList(keyForGraduationRequirements(departmentId, admissionYear), AreaRequirementDto.class);
     }
 
     // ──────────────── [SemesterSummaryResponse 캐시] ──────────────── //

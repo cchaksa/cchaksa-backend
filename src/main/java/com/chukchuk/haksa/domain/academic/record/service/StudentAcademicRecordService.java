@@ -3,17 +3,19 @@ package com.chukchuk.haksa.domain.academic.record.service;
 import com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto;
 import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -67,16 +69,26 @@ public class StudentAcademicRecordService {
 
     private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
         try {
-            Integer credits = redisCacheStore.getTotalRequiredGraduationCredits(deptId, admissionYear);
-            if (credits != null) return credits;
+            List<AreaRequirementDto> requirements = redisCacheStore.getGraduationRequirements(deptId, admissionYear);
+            if (requirements != null && !requirements.isEmpty()) {
+                return requirements.stream()
+                        .mapToInt(AreaRequirementDto::requiredCredits)
+                        .sum();
+            }
 
-            credits = graduationQueryRepository.getTotalRequiredGraduationCredits(deptId, admissionYear);
-            redisCacheStore.setTotalRequiredGraduationCredits(deptId, admissionYear, credits);
-            return credits;
+            requirements = graduationQueryRepository.getAreaRequirements(deptId, admissionYear);
+            redisCacheStore.setGraduationRequirements(deptId, admissionYear, requirements);
+
+            return requirements.stream()
+                    .mapToInt(AreaRequirementDto::requiredCredits)
+                    .sum();
+
         } catch (Exception e) {
             log.warn("[BIZ] academic.summary.graduation_credits.cache.fail deptId={} year={} ex={}",
                     deptId, admissionYear, e.getClass().getSimpleName());
-            return graduationQueryRepository.getTotalRequiredGraduationCredits(deptId, admissionYear);
+            return graduationQueryRepository.getAreaRequirements(deptId, admissionYear).stream()
+                    .mapToInt(AreaRequirementDto::requiredCredits)
+                    .sum();
         }
     }
 }

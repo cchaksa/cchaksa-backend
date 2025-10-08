@@ -2,9 +2,10 @@ package com.chukchuk.haksa.domain.graduation.repository;
 
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
-import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -28,21 +29,33 @@ public class GraduationQueryRepository {
     private final EntityManager em;
     private final ObjectMapper ob;
 
-    /* 필요 졸업 학점 계산 로직 */
-    public Integer getTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) {
+    /* 졸업 요건 조회 (학과 코드, ) */
+    public List<AreaRequirementDto> getAreaRequirements(Long departmentId, Integer admissionYear) {
         String sql = """
-        SELECT COALESCE(SUM(dar.required_credits), 0)
+        SELECT 
+            dar.area_type, 
+            dar.required_credits, 
+            dar.required_elective_courses, 
+            dar.total_elective_courses
         FROM department_area_requirements dar
-        WHERE dar.department_id = :departmentId
+        WHERE dar.department_id = :departmentId 
           AND dar.admission_year = :admissionYear
-    """;
+        """;
 
         Query query = em.createNativeQuery(sql);
         query.setParameter("departmentId", departmentId);
         query.setParameter("admissionYear", admissionYear);
 
-        Object result = query.getSingleResult();
-        return ((Number) result).intValue();
+        List<Object[]> results = query.getResultList();
+
+        return results.stream()
+                .map(row -> new AreaRequirementDto(
+                        (String) row[0],              // area_type
+                        toInteger(row[1]),            // required_credits
+                        toInteger(row[2]),            // required_elective_courses (nullable)
+                        toInteger(row[3])             // total_elective_courses (nullable)
+                ))
+                .toList();
     }
 
     public List<AreaProgressDto> getStudentAreaProgress(UUID studentId, Long departmentId, Integer admissionYear) {
