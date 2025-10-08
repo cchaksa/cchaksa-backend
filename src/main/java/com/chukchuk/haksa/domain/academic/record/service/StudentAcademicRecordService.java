@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -68,27 +67,8 @@ public class StudentAcademicRecordService {
     }
 
     private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
-        try {
-            List<AreaRequirementDto> requirements = redisCacheStore.getGraduationRequirements(deptId, admissionYear);
-            if (requirements != null && !requirements.isEmpty()) {
-                return requirements.stream()
-                        .mapToInt(AreaRequirementDto::requiredCredits)
-                        .sum();
-            }
-
-            requirements = graduationQueryRepository.getAreaRequirements(deptId, admissionYear);
-            redisCacheStore.setGraduationRequirements(deptId, admissionYear, requirements);
-
-            return requirements.stream()
-                    .mapToInt(AreaRequirementDto::requiredCredits)
-                    .sum();
-
-        } catch (Exception e) {
-            log.warn("[BIZ] academic.summary.graduation_credits.cache.fail deptId={} year={} ex={}",
-                    deptId, admissionYear, e.getClass().getSimpleName());
-            return graduationQueryRepository.getAreaRequirements(deptId, admissionYear).stream()
-                    .mapToInt(AreaRequirementDto::requiredCredits)
-                    .sum();
-        }
+        return graduationQueryRepository.getAreaRequirementsWithCache(deptId, admissionYear).stream()
+                .mapToInt(AreaRequirementDto::requiredCredits)
+                .sum();
     }
 }
