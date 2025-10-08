@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.infrastructure.redis;
 
+import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -102,8 +103,13 @@ public class RedisCacheStore {
 
     public String keyForTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) { return "graduation:" + departmentId + ":" + admissionYear;}
 
+    public String keyForSemesterSummaries(UUID studentId) {
+        return "student:" + studentId + ":semester-summaries";
+    }
+
     // ──────────────── [도메인별 캐시 처리] ──────────────── //
 
+    // ──────────────── [AcademicSummaryResponse 캐시] ──────────────── //
     public void setAcademicSummary(UUID studentId, AcademicSummaryResponse summary) {
         set(keyForSummary(studentId), summary);
     }
@@ -112,6 +118,7 @@ public class RedisCacheStore {
         return get(keyForSummary(studentId), AcademicSummaryResponse.class);
     }
 
+    // ──────────────── [StudentSemesterInfoResponse 캐시] ──────────────── //
     public void setSemesterList(UUID studentId, List<StudentSemesterDto.StudentSemesterInfoResponse> list) {
         set(keyForSemesters(studentId), list);
     }
@@ -120,6 +127,7 @@ public class RedisCacheStore {
         return getList(keyForSemesters(studentId), StudentSemesterDto.StudentSemesterInfoResponse.class);
     }
 
+    // ──────────────── [GraduationProgressResponse 캐시] ──────────────── //
     public void setGraduationProgress(UUID studentId, GraduationProgressResponse progress) {
         set(keyForGraduation(studentId), progress);
     }
@@ -128,6 +136,8 @@ public class RedisCacheStore {
         return get(keyForGraduation(studentId), GraduationProgressResponse.class);
     }
 
+    // ──────────────── [TotalRequiredGraduationCredits 캐시] ──────────────── //
+
     public void setTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear, Integer graduationCredits) {
         set(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), graduationCredits);
     }
@@ -135,4 +145,16 @@ public class RedisCacheStore {
     public Integer getTotalRequiredGraduationCredits(Long departmentId, Integer admissionYear) {
         return get(keyForTotalRequiredGraduationCredits(departmentId, admissionYear), Integer.class);
     }
+
+    // ──────────────── [SemesterSummaryResponse 캐시] ──────────────── //
+
+
+    public void setSemesterSummaries(UUID studentId, List<SemesterSummaryResponse> list, Duration ttl) {
+        set(keyForSemesterSummaries(studentId), list, ttl);
+    }
+
+    public List<SemesterSummaryResponse> getSemesterSummaries(UUID studentId) {
+        return getList(keyForSemesterSummaries(studentId), SemesterSummaryResponse.class);
+    }
+
 }

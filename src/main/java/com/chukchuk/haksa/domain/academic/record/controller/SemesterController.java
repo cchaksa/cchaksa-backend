@@ -1,11 +1,11 @@
 package com.chukchuk.haksa.domain.academic.record.controller;
 
 import com.chukchuk.haksa.domain.academic.record.controller.docs.SemesterControllerDocs;
-import com.chukchuk.haksa.domain.academic.record.dto.SemesterAcademicRecordDto.SemesterGradeResponse;
+import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,13 +49,13 @@ public class SemesterController implements SemesterControllerDocs {
     }
 
     @GetMapping("/grades")
-    public ResponseEntity<SuccessResponse<List<SemesterGradeResponse>>> getSemesterGrades(
+    public ResponseEntity<SuccessResponse<List<SemesterSummaryResponse>>> getSemesterGrades(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         long t0 = LogTime.start();
 
         UUID studentId = userDetails.getStudentId();
 
-        List<SemesterGradeResponse> response = semesterAcademicRecordService.getAllSemesterGrades(studentId);
+        List<SemesterSummaryResponse> response = semesterAcademicRecordService.getAllSemesterGrades(studentId);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {

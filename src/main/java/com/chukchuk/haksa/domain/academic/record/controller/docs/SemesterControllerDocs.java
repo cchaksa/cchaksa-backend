@@ -1,6 +1,6 @@
 package com.chukchuk.haksa.domain.academic.record.controller.docs;
 
-import com.chukchuk.haksa.domain.academic.record.dto.SemesterAcademicRecordDto.SemesterGradeResponse;
+import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.wrapper.SemesterGradesApiResponse;
 import com.chukchuk.haksa.domain.academic.record.wrapper.StudentSemesterListApiResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
@@ -50,7 +50,7 @@ public interface SemesterControllerDocs {
             }
     )
     @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<List<SemesterGradeResponse>>> getSemesterGrades(
+    ResponseEntity<SuccessResponse<List<SemesterSummaryResponse>>> getSemesterGrades(
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 }
