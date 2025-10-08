@@ -7,7 +7,6 @@ import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,15 +72,7 @@ public class StudentService {
 
     @Transactional
     public void setStudentTargetGpa(UUID studentId, Double targetGpa) {
-        // 유효성 실패는 GlobalExceptionHandler가 WARN 처리
-        Student student = getStudentById(studentId);
-        if (targetGpa != null && (targetGpa < 0 || targetGpa > 4.5)) {
-            log.warn("[BIZ] student.target_gpa.set.invalid studentId={} value={}",
-                    studentId, targetGpa);
-            throw new CommonException(ErrorCode.INVALID_TARGET_GPA);
-        }
-        student.setTargetGpa(targetGpa);
-        studentRepository.save(student);
+        studentRepository.updateTargetGpaByStudentId(studentId, targetGpa);
     }
 
     private static int getCurrentSemester(Integer gradeLevel, Integer completedSemesters) {

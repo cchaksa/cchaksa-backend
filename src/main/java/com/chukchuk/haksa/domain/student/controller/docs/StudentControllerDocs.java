@@ -13,6 +13,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -38,7 +40,10 @@ public interface StudentControllerDocs {
     ResponseEntity<SuccessResponse<MessageOnlyResponse>> setTargetGpa(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(required = false)
-            @Parameter(description = "목표 GPA", example = "3.8") Double targetGpa
+            @Parameter(description = "목표 GPA", example = "3.8")
+            @DecimalMin(value = "0.0", inclusive = true)
+            @DecimalMax(value = "4.5", inclusive = true)
+            Double targetGpa
     );
 
     @Operation(
