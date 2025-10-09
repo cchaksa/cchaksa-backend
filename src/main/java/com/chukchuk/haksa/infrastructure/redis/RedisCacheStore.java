@@ -46,6 +46,16 @@ public class RedisCacheStore {
         }
     }
 
+    // TTL 없이 영구 저장
+    public <T> void setPermanent(String key, T value) {
+        try {
+            String json = ob.writeValueAsString(value);
+            redisTemplate.opsForValue().set(key, json);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Redis 캐싱 직렬화 실패", e);
+        }
+    }
+
     // 단건 조회
     public <T> T get(String key, Class<T> clazz) {
         String json = redisTemplate.opsForValue().get(key);
@@ -142,7 +152,7 @@ public class RedisCacheStore {
     // ──────────────── [AreaRequirementDto 캐시] ──────────────── //
 
     public void setGraduationRequirements(Long departmentId, Integer admissionYear, List<AreaRequirementDto> requirements) {
-        set(keyForGraduationRequirements(departmentId, admissionYear), requirements);
+        setPermanent(keyForGraduationRequirements(departmentId, admissionYear), requirements);
     }
 
     public List<AreaRequirementDto> getGraduationRequirements(Long departmentId, Integer admissionYear) {
