@@ -82,14 +82,14 @@ public class SemesterAcademicRecordService {
         List<SemesterAcademicRecord> records = semesterAcademicRecordRepository
                 .findByStudentIdOrderByYearDescSemesterDesc(studentId);
 
-        if (records.isEmpty()) {
-            log.warn("[BIZ] semester.summaries.empty studentId={}", studentId);
-            throw new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_EMPTY);
-        }
-
         List<SemesterSummaryResponse> summaries = records.stream()
                 .map(SemesterSummaryResponse::from)
                 .toList();
+
+        if (records.isEmpty()) {
+            log.warn("[BIZ] semester.summaries.empty studentId={}", studentId);
+            return summaries;
+        }
 
         try {
             redisCacheStore.setSemesterSummaries(studentId, summaries, Duration.ofMinutes(3));
