@@ -1,17 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- ===== 공통 프로퍼티 (프로파일별로 덮어씀) ===== -->
+    <!-- ===== 공통 프로퍼티 (프로파일별로 덮어씌워짐) ===== -->
     <springProperty scope="context" name="LOG_PATH"      source="logging.file.path" defaultValue="logs"/>
     <springProperty scope="context" name="FILE_NAME"     source="logging.file.name" defaultValue="app.log"/>
     <springProperty scope="context" name="GZIP"          source="logging.archive.gzip" defaultValue="false"/>
     <springProperty scope="context" name="MAX_HISTORY"   source="logging.archive.max-history" defaultValue="7"/>
     <springProperty scope="context" name="ROOT_LEVEL"    source="logging.root.level" defaultValue="WARN"/>
 
-    <!-- ===== Swagger/정적리소스는 WARN 이상 (공통) ===== -->
+    <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
+    <springProfile name="local">
+        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="logs"/>
+        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
+        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
+        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
+        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="INFO"/>
+    </springProfile>
+
+    <springProfile name="dev">
+        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
+        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
+        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
+        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
+        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
+    </springProfile>
+
+    <springProfile name="prod">
+        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
+        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
+        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="true"/>
+        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="30"/>
+        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
+    </springProfile>
+
+    <!-- ===== 정적 리소스/Swagger 로그 레벨 제한 ===== -->
     <logger name="org.springdoc" level="WARN"/>
     <logger name="org.springframework.web.servlet.resource" level="WARN"/>
 
-    <!-- ===== 전역 차단: HTTP 필터에서 skipLog=true면 어떤 appender에도 기록 안 함 ===== -->
+    <!-- ===== 전역 차단 필터: MDC skipLog=true일 경우 로그 출력 안 함 ===== -->
     <turboFilter class="ch.qos.logback.classic.turbo.MDCFilter">
         <MDCKey>skipLog</MDCKey>
         <Value>true</Value>
@@ -19,7 +45,7 @@
         <OnMismatch>NEUTRAL</OnMismatch>
     </turboFilter>
 
-    <!-- ===== prod/dev에서 사용할 파일 Appender ===== -->
+    <!-- ===== prod/dev Appender: 파일 로그 + Sentry ===== -->
     <springProfile name="prod,dev">
         <appender name="FILE_JSON" class="ch.qos.logback.core.rolling.RollingFileAppender">
             <file>${LOG_PATH}/${FILE_NAME}</file>
@@ -68,7 +94,7 @@
         </appender>
     </springProfile>
 
-    <!-- ===== local에서 사용할 콘솔 Appender ===== -->
+    <!-- ===== local Appender: 콘솔 로그 ===== -->
     <springProfile name="local">
         <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
@@ -86,11 +112,11 @@
         </appender>
     </springProfile>
 
-    <!-- ===== 공통 로거 ===== -->
+    <!-- ===== 패키지별 로거 ===== -->
     <logger name="HTTP" level="INFO"/>
     <logger name="com.chukchuk.haksa" level="INFO"/>
 
-    <!-- ===== 루트 로거 분기 ===== -->
+    <!-- ===== 루트 로거 설정 ===== -->
     <springProfile name="prod,dev">
         <root level="${ROOT_LEVEL}">
             <appender-ref ref="FILE_JSON"/>
@@ -102,31 +128,6 @@
         <root level="${ROOT_LEVEL}">
             <appender-ref ref="CONSOLE"/>
         </root>
-    </springProfile>
-
-    <!-- ===== 프로파일별 프로퍼티 오버라이드 ===== -->
-    <springProfile name="local">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="INFO"/>
-    </springProfile>
-
-    <springProfile name="dev">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="false"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="7"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
-    </springProfile>
-
-    <springProfile name="prod">
-        <springProperty scope="context" name="LOG_PATH"    source="logging.file.path" defaultValue="/home/ubuntu/monitoring/logs"/>
-        <springProperty scope="context" name="FILE_NAME"   source="logging.file.name" defaultValue="app.log"/>
-        <springProperty scope="context" name="GZIP"        source="logging.archive.gzip" defaultValue="true"/>
-        <springProperty scope="context" name="MAX_HISTORY" source="logging.archive.max-history" defaultValue="30"/>
-        <springProperty scope="context" name="ROOT_LEVEL"  source="logging.root.level" defaultValue="WARN"/>
     </springProfile>
 
 </configuration>
