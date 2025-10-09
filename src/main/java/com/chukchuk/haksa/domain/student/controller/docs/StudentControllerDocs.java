@@ -30,7 +30,7 @@ public interface StudentControllerDocs {
             responses = {
                     @ApiResponse(responseCode = "200", description = "목표 GPA 설정 성공",
                             content = @Content(schema = @Schema(implementation = TargetGpaApiResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "잘못된 GPA 입력 (ErrorCode: S02, INVALID_TARGET_GPA)",
+                    @ApiResponse(responseCode = "400", description = "잘못된 GPA 입력 (ErrorCode: C01, INVALID_ARGUMENT)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "404", description = "학생 정보 없음 (ErrorCode: S01, STUDENT_NOT_FOUND)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
