@@ -92,7 +92,7 @@ public class SemesterAcademicRecordService {
         }
 
         try {
-            redisCacheStore.setSemesterSummaries(studentId, summaries, Duration.ofMinutes(3));
+            redisCacheStore.setSemesterSummaries(studentId, summaries);
         } catch (Exception e) {
             log.warn("[BIZ] semester.summaries.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }

@@ -35,7 +35,7 @@ public class StudentAcademicRecord extends BaseEntity {
     @Column(name = "total_earned_credits")
     private Integer totalEarnedCredits;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", unique = true, nullable = false)
     private Student student;
 
