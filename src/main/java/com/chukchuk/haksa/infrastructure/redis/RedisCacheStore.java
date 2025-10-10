@@ -1,5 +1,7 @@
 package com.chukchuk.haksa.infrastructure.redis;
 
+import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,6 +41,16 @@ public class RedisCacheStore {
         try {
             String json = ob.writeValueAsString(value);
             redisTemplate.opsForValue().set(key, json, ttl);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Redis 캐싱 직렬화 실패", e);
+        }
+    }
+
+    // TTL 없이 영구 저장
+    public <T> void setPermanent(String key, T value) {
+        try {
+            String json = ob.writeValueAsString(value);
+            redisTemplate.opsForValue().set(key, json);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Redis 캐싱 직렬화 실패", e);
         }
@@ -100,8 +112,17 @@ public class RedisCacheStore {
         return "student:" + studentId + ":graduation";
     }
 
+    public String keyForGraduationRequirements(Long departmentId, Integer admissionYear) {
+        return "graduation:requirements:" + departmentId + ":" + admissionYear;
+    }
+
+    public String keyForSemesterSummaries(UUID studentId) {
+        return "student:" + studentId + ":semester-summaries";
+    }
+
     // ──────────────── [도메인별 캐시 처리] ──────────────── //
 
+    // ──────────────── [AcademicSummaryResponse 캐시] ──────────────── //
     public void setAcademicSummary(UUID studentId, AcademicSummaryResponse summary) {
         set(keyForSummary(studentId), summary);
     }
@@ -110,6 +131,7 @@ public class RedisCacheStore {
         return get(keyForSummary(studentId), AcademicSummaryResponse.class);
     }
 
+    // ──────────────── [StudentSemesterInfoResponse 캐시] ──────────────── //
     public void setSemesterList(UUID studentId, List<StudentSemesterDto.StudentSemesterInfoResponse> list) {
         set(keyForSemesters(studentId), list);
     }
@@ -118,6 +140,7 @@ public class RedisCacheStore {
         return getList(keyForSemesters(studentId), StudentSemesterDto.StudentSemesterInfoResponse.class);
     }
 
+    // ──────────────── [GraduationProgressResponse 캐시] ──────────────── //
     public void setGraduationProgress(UUID studentId, GraduationProgressResponse progress) {
         set(keyForGraduation(studentId), progress);
     }
@@ -125,4 +148,26 @@ public class RedisCacheStore {
     public GraduationProgressResponse getGraduationProgress(UUID studentId) {
         return get(keyForGraduation(studentId), GraduationProgressResponse.class);
     }
+
+    // ──────────────── [AreaRequirementDto 캐시] ──────────────── //
+
+    public void setGraduationRequirements(Long departmentId, Integer admissionYear, List<AreaRequirementDto> requirements) {
+        setPermanent(keyForGraduationRequirements(departmentId, admissionYear), requirements);
+    }
+
+    public List<AreaRequirementDto> getGraduationRequirements(Long departmentId, Integer admissionYear) {
+        return getList(keyForGraduationRequirements(departmentId, admissionYear), AreaRequirementDto.class);
+    }
+
+    // ──────────────── [SemesterSummaryResponse 캐시] ──────────────── //
+
+
+    public void setSemesterSummaries(UUID studentId, List<SemesterSummaryResponse> list, Duration ttl) {
+        set(keyForSemesterSummaries(studentId), list, ttl);
+    }
+
+    public List<SemesterSummaryResponse> getSemesterSummaries(UUID studentId) {
+        return getList(keyForSemesterSummaries(studentId), SemesterSummaryResponse.class);
+    }
+
 }

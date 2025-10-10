@@ -16,9 +16,8 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, Lo
         SELECT sc FROM StudentCourse sc
         JOIN FETCH sc.offering co
         JOIN FETCH co.course c
-        join FETCH sc.student st
         LEFT JOIN FETCH co.professor p
-        WHERE st.id = :studentId
+        WHERE sc.student.id = :studentId
         AND co.year = :year
         AND co.semester = :semester
     """)
@@ -30,5 +29,3 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, Lo
 
     List<StudentCourse> findByStudent(Student student);
 }
-
-

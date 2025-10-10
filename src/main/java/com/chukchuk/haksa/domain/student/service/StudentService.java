@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.student.service;
 
+import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.student.dto.StudentDto;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
@@ -23,6 +24,7 @@ public class StudentService {
 
     private final StudentRepository studentRepository;
     private final UserService userService;
+    private final StudentAcademicRecordRepository studentAcademicRecordRepository;
 
     public Student getStudentById(UUID studentId) {
         return studentRepository.findById(studentId)
@@ -49,7 +51,8 @@ public class StudentService {
     }
 
     public StudentDto.StudentProfileResponse getStudentProfile(UUID studentId) {
-        Student student = getStudentById(studentId);
+        Student student = studentRepository.findProfileByIdWithAssociations(studentId)
+                .orElseThrow(() -> new CommonException(ErrorCode.STUDENT_NOT_FOUND));
 
         StudentDto.StudentInfoDto studentInfo = StudentDto.StudentInfoDto.from(student);
         int currentSemester = getCurrentSemester(studentInfo.gradeLevel(), studentInfo.completedSemesters());
@@ -64,21 +67,14 @@ public class StudentService {
     public void resetBy(UUID studentId) {
         Student student = getStudentById(studentId);
         student.resetAcademicData();
+        studentAcademicRecordRepository.deleteByStudentId(studentId);
 
         log.info("[BIZ] student.reset.done studentId={}", studentId);
     }
 
     @Transactional
     public void setStudentTargetGpa(UUID studentId, Double targetGpa) {
-        // 유효성 실패는 GlobalExceptionHandler가 WARN 처리
-        Student student = getStudentById(studentId);
-        if (targetGpa != null && (targetGpa < 0 || targetGpa > 4.5)) {
-            log.warn("[BIZ] student.target_gpa.set.invalid studentId={} value={}",
-                    studentId, targetGpa);
-            throw new CommonException(ErrorCode.INVALID_TARGET_GPA);
-        }
-        student.setTargetGpa(targetGpa);
-        studentRepository.save(student);
+        studentRepository.updateTargetGpaByStudentId(studentId, targetGpa);
     }
 
     private static int getCurrentSemester(Integer gradeLevel, Integer completedSemesters) {

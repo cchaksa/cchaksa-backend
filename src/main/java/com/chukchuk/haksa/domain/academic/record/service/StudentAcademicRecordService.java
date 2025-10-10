@@ -3,11 +3,12 @@ package com.chukchuk.haksa.domain.academic.record.service;
 import com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto;
 import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,14 +39,13 @@ public class StudentAcademicRecordService {
         }
 
         StudentAcademicRecord studentAcademicRecord = getStudentAcademicRecordByStudentId(studentId);
-
-        Student student = studentService.getStudentById(studentId);
+        Student student = studentAcademicRecord.getStudent();
 
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
         Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : student.getDepartment().getId();
         Integer admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        Integer totalRequiredGraduationCredits = graduationQueryRepository.getTotalRequiredGraduationCredits(effectiveDepartmentId, admissionYear);
+        Integer totalRequiredGraduationCredits = getGraduationCreditsWithCache(effectiveDepartmentId, admissionYear);
 
         StudentAcademicRecordDto.AcademicSummaryResponse response = StudentAcademicRecordDto.AcademicSummaryResponse.from(studentAcademicRecord, totalRequiredGraduationCredits);
 
@@ -54,6 +54,7 @@ public class StudentAcademicRecordService {
         } catch (Exception e) {
             log.warn("[BIZ] academic.summary.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
+
         return response;
     }
 
@@ -63,5 +64,11 @@ public class StudentAcademicRecordService {
                     log.warn("[BIZ] academic.summary.not_found studentId={}", studentId);
                     return new EntityNotFoundException(ErrorCode.STUDENT_ACADEMIC_RECORD_NOT_FOUND);
                 });
+    }
+
+    private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
+        return graduationQueryRepository.getAreaRequirementsWithCache(deptId, admissionYear).stream()
+                .mapToInt(AreaRequirementDto::requiredCredits)
+                .sum();
     }
 }

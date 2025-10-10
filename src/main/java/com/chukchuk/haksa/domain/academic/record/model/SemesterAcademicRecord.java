@@ -14,7 +14,12 @@ import java.util.UUID;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "semester_academic_records")
+@Table(
+        name = "semester_academic_records",
+        indexes = {
+                @Index(name = "idx_student_year_semester", columnList = "student_id, year, semester")
+        }
+)
 @Access(AccessType.FIELD)
 public class SemesterAcademicRecord extends BaseEntity {
     @Id

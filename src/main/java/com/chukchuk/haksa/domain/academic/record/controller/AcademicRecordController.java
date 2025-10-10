@@ -4,9 +4,10 @@ import com.chukchuk.haksa.domain.academic.record.controller.docs.AcademicRecordC
 import com.chukchuk.haksa.domain.academic.record.dto.AcademicRecordResponse;
 import com.chukchuk.haksa.domain.academic.record.service.AcademicRecordService;
 import com.chukchuk.haksa.domain.academic.record.service.StudentAcademicRecordService;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
 
     private final AcademicRecordService academicRecordService;
     private final StudentAcademicRecordService studentAcademicRecordService;
+    private final StudentService studentService;
 
     @GetMapping("/record")
     public ResponseEntity<SuccessResponse<AcademicRecordResponse>> getAcademicRecord(

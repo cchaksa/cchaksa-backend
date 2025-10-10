@@ -17,8 +17,8 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AcademicRecordService {
     private final SemesterAcademicRecordService semesterAcademicRecordService;
-    private final StudentAcademicRecordService studentAcademicRecordService;
     private final StudentCourseService studentCourseService;
+
 
     /* 학기별 성적 및 수강 과목 정보 조회 */
     public AcademicRecordResponse getAcademicRecord(UUID studentId, Integer year, Integer semester) {
@@ -49,34 +49,5 @@ public class AcademicRecordService {
                     case 전핵, 전선, 복선 -> "major";
                     default -> "liberal";
                 }));
-    }
-
-    /* 전공 평점 계산 메서드 */
-    private double calculateMajorGpa(List<StudentCourseDto.CourseDetailDto> majorCourses) {
-        if (majorCourses.isEmpty()) {
-            return 0.0;
-        }
-
-        Map<String, Double> gradePoints = Map.of(
-                "A+", 4.5, "A0", 4.0,
-                "B+", 3.5, "B0", 3.0,
-                "C+", 2.5, "C0", 2.0,
-                "D+", 1.5, "D0", 1.0,
-                "F", 0.0
-        );
-
-        double totalPoints = 0.0;
-        int totalCredits = 0;
-
-        for (StudentCourseDto.CourseDetailDto course : majorCourses) {
-            if (gradePoints.containsKey(course.grade())) {
-                double points = gradePoints.get(course.grade());
-                int credits = course.credits().intValue();
-                totalPoints += points * credits;
-                totalCredits += credits;
-            }
-        }
-
-        return totalCredits > 0 ? totalPoints / totalCredits : 0.0;
     }
 }
