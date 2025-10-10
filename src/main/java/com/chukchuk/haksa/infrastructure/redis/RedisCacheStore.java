@@ -162,8 +162,8 @@ public class RedisCacheStore {
     // ──────────────── [SemesterSummaryResponse 캐시] ──────────────── //
 
 
-    public void setSemesterSummaries(UUID studentId, List<SemesterSummaryResponse> list, Duration ttl) {
-        set(keyForSemesterSummaries(studentId), list, ttl);
+    public void setSemesterSummaries(UUID studentId, List<SemesterSummaryResponse> list) {
+        set(keyForSemesterSummaries(studentId), list);
     }
 
     public List<SemesterSummaryResponse> getSemesterSummaries(UUID studentId) {
