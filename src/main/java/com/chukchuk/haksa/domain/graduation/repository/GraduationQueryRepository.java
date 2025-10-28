@@ -149,7 +149,7 @@ public class GraduationQueryRepository {
                 .toList();
 
         // 복수전공 및 주전공 전선1 졸업 요건 조회
-        List<AreaRequirementDto> dualMajorReqs = getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
+        List<AreaRequirementDto> dualMajorReqs = getDualMajorRequirementsWithCache(primaryMajorId, secondaryMajorId, admissionYear);
 
         // 전체 병합
         List<AreaRequirementDto> mergedRequirements = new ArrayList<>();
@@ -262,6 +262,26 @@ public class GraduationQueryRepository {
         } catch (Exception e) {
             log.warn("[BIZ] graduation.requirements.cache.fail deptId={} year={} ex={}", deptId, admissionYear, e.getClass().getSimpleName());
             return getAreaRequirements(deptId, admissionYear);
+        }
+    }
+
+    /**
+     * 복수 전공 이수구분 별 졸업 요건 결과 캐싱 로직
+     * 주전공 ID + 복수전공 ID + 입학년도
+     */
+    public List<AreaRequirementDto> getDualMajorRequirementsWithCache(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        try {
+            List<AreaRequirementDto> cached = redisCacheStore.getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
+            if (cached != null && !cached.isEmpty()) return cached;
+
+            List<AreaRequirementDto> result = getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
+            redisCacheStore.setDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear, result);
+            return result;
+
+        } catch (Exception e) {
+            log.warn("[BIZ] graduation.dual.requirements.cache.fail primaryId={} secondaryId={} year={} ex={}",
+                    primaryMajorId, secondaryMajorId, admissionYear, e.getClass().getSimpleName());
+            return getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
         }
     }
 

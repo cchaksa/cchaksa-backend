@@ -100,23 +100,27 @@ public class RedisCacheStore {
 
     // ──────────────── [도메인별 key 헬퍼] ──────────────── //
 
-    public String keyForSummary(UUID studentId) {
+    private String keyForSummary(UUID studentId) {
         return "student:" + studentId + ":summary";
     }
 
-    public String keyForSemesters(UUID studentId) {
+    private String keyForSemesters(UUID studentId) {
         return "student:" + studentId + ":semesters";
     }
 
-    public String keyForGraduation(UUID studentId) {
+    private String keyForGraduation(UUID studentId) {
         return "student:" + studentId + ":graduation";
     }
 
-    public String keyForGraduationRequirements(Long departmentId, Integer admissionYear) {
+    private String keyForGraduationRequirements(Long departmentId, Integer admissionYear) {
         return "graduation:requirements:" + departmentId + ":" + admissionYear;
     }
 
-    public String keyForSemesterSummaries(UUID studentId) {
+    private String keyForGraduationRequirements(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        return "graduation:dual-requirements:" + primaryMajorId + ":" + secondaryMajorId + ":" + admissionYear;
+    }
+
+    private String keyForSemesterSummaries(UUID studentId) {
         return "student:" + studentId + ":semester-summaries";
     }
 
@@ -155,8 +159,16 @@ public class RedisCacheStore {
         setPermanent(keyForGraduationRequirements(departmentId, admissionYear), requirements);
     }
 
+    public void setDualMajorRequirements(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear, List<AreaRequirementDto> requirements) {
+        setPermanent(keyForGraduationRequirements(primaryMajorId, secondaryMajorId, admissionYear), requirements);
+    }
+
     public List<AreaRequirementDto> getGraduationRequirements(Long departmentId, Integer admissionYear) {
         return getList(keyForGraduationRequirements(departmentId, admissionYear), AreaRequirementDto.class);
+    }
+
+    public List<AreaRequirementDto> getDualMajorRequirements(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        return getList(keyForGraduationRequirements(primaryMajorId, secondaryMajorId, admissionYear), AreaRequirementDto.class);
     }
 
     // ──────────────── [SemesterSummaryResponse 캐시] ──────────────── //
