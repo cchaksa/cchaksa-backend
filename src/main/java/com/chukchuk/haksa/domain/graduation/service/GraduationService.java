@@ -47,17 +47,23 @@ public class GraduationService {
         Student student = studentService.getStudentById(studentId);
         Department dept = student.getDepartment();
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
-        Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
+        Long primaryMajorId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
         int admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        // 졸업 요건 충족 여부 조회
-        List<AreaProgressDto> areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, effectiveDepartmentId, admissionYear);
+        List<AreaProgressDto> areaProgress = null;
+        if (student.getSecondaryMajor() != null) { // 복수전공 존재
+            Long secondaryMajorId = student.getSecondaryMajor().getId();
+            areaProgress = graduationQueryRepository.getDualMajorAreaProgress(studentId, primaryMajorId, secondaryMajorId, admissionYear);
+        } else {
+            // 졸업 요건 충족 여부 조회
+            areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, primaryMajorId, admissionYear);
+        }
 
         GraduationProgressResponse response = new GraduationProgressResponse(areaProgress);
 
-        if (isDifferentGradRequirement(effectiveDepartmentId, admissionYear)) {
+        if (isDifferentGradRequirement(primaryMajorId, admissionYear)) {
             response.setHasDifferentGraduationRequirement();
-            log.info("[BIZ] graduation.progress.flag.set studentId={} deptId={} year={}", studentId, effectiveDepartmentId, admissionYear);
+            log.info("[BIZ] graduation.progress.flag.set studentId={} deptId={} year={}", studentId, primaryMajorId, admissionYear);
         }
 
         try {
