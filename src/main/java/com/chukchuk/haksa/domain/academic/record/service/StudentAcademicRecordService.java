@@ -66,9 +66,37 @@ public class StudentAcademicRecordService {
                 });
     }
 
+    /**
+     * 기존 단일 전공 졸업 필요 학점 계산 메서드
+     * @deprecated 예정
+     */
     private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
         return graduationQueryRepository.getAreaRequirementsWithCache(deptId, admissionYear).stream()
                 .mapToInt(AreaRequirementDto::requiredCredits)
                 .sum();
+    }
+
+    /**
+     * 복수 전공을 고려한 졸업 필요 학점 계산 메서드
+     */
+    private Integer getGraduationCreditsWithCache(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        // 단일 전공
+        if (secondaryMajorId == null) {
+            return graduationQueryRepository.getAreaRequirementsWithCache(primaryMajorId, admissionYear).stream()
+                    .mapToInt(AreaRequirementDto::requiredCredits)
+                    .sum();
+        }
+
+        // 복수전공
+        int primaryCredits = graduationQueryRepository.getAreaRequirementsWithCache(primaryMajorId, admissionYear).stream()
+                .filter(req -> !req.areaType().equalsIgnoreCase("전선")) // 주전공 전선 제외
+                .mapToInt(AreaRequirementDto::requiredCredits)
+                .sum();
+
+        int dualCredits = graduationQueryRepository.getDualMajorRequirementsWithCache(primaryMajorId, secondaryMajorId, admissionYear).stream()
+                .mapToInt(AreaRequirementDto::requiredCredits)
+                .sum();
+
+        return primaryCredits + dualCredits;
     }
 }
