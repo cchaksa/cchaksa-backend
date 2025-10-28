@@ -27,7 +27,7 @@ public class GraduationQueryRepository {
     private final ObjectMapper ob;
     private final RedisCacheStore redisCacheStore;
 
-    /* 졸업 요건 조회 (학과 코드, ) */
+    /* 졸업 요건 조회 (학과 코드, 입학년도) */
     public List<AreaRequirementDto> getAreaRequirements(Long departmentId, Integer admissionYear) {
         String sql = """
         SELECT 
@@ -52,6 +52,37 @@ public class GraduationQueryRepository {
                         toInteger(row[1]),            // required_credits
                         toInteger(row[2]),            // required_elective_courses (nullable)
                         toInteger(row[3])             // total_elective_courses (nullable)
+                ))
+                .toList();
+    }
+
+    /* 복수 전공 졸업 요건 조회 (학과 코드, 입학년도) */
+    private List<AreaRequirementDto> getDualMajorRequirements(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        String sql = """
+        SELECT 
+            dmr.area_type,
+            dmr.required_credits,
+            NULL AS required_elective_courses,
+            NULL AS total_elective_courses
+        FROM dual_major_requirements dmr
+        WHERE ((dmr.department_id = :primaryId AND dmr.major_role = 'PRIMARY')
+            OR (dmr.department_id = :secondaryId AND dmr.major_role = 'SECONDARY'))
+          AND dmr.admission_year = :admissionYear
+    """;
+
+        Query query = em.createNativeQuery(sql);
+        query.setParameter("primaryId", primaryMajorId);
+        query.setParameter("secondaryId", secondaryMajorId);
+        query.setParameter("admissionYear", admissionYear);
+
+        List<Object[]> results = query.getResultList();
+
+        return results.stream()
+                .map(row -> new AreaRequirementDto(
+                        (String) row[0],
+                        toInteger(row[1]),
+                        toInteger(row[2]),
+                        toInteger(row[3])
                 ))
                 .toList();
     }
@@ -101,6 +132,79 @@ public class GraduationQueryRepository {
         return result;
     }
 
+    /**
+     * 주전공의 전공 기초 교양과 과목이 겹치는 경우 테스트 필요
+     * 주전공 기존 전선 졸업 요건 -> 복수전공용 전선1로 대체
+     * 복수전공 졸업 요건 영역: 전교, 전필, 전선
+     */
+    public List<AreaProgressDto> getDualMajorAreaProgress(UUID studentId, Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
+        long t0 = LogTime.start();
+
+        // 주전공 졸업 요건 조회
+        List<AreaRequirementDto> primaryReqs = getAreaRequirementsWithCache(primaryMajorId, admissionYear);
+
+        // 주전공 졸업 요건 중 '전선' 제외
+        List<AreaRequirementDto> primaryFiltered = primaryReqs.stream()
+                .filter(req -> !req.areaType().equalsIgnoreCase("전선"))
+                .toList();
+
+        // 복수전공 및 주전공 전선1 졸업 요건 조회
+        List<AreaRequirementDto> dualMajorReqs = getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
+
+        // 전체 병합
+        List<AreaRequirementDto> mergedRequirements = new ArrayList<>();
+        mergedRequirements.addAll(primaryFiltered);   // 주전공 졸업 요건 (전선 제외)
+        mergedRequirements.addAll(dualMajorReqs);     // 복수전공용 졸업 요건
+
+        // 수강 이력 조회
+        List<CourseInternalDto> completedCourses = getLatestValidCourses(studentId);
+        Map<String, List<CourseInternalDto>> coursesByArea = completedCourses.stream()
+                .collect(Collectors.groupingBy(CourseInternalDto::getAreaType));
+
+        // 이수 현황 계산
+        List<AreaProgressDto> result = new ArrayList<>();
+        for (AreaRequirementDto req : mergedRequirements) {
+            List<CourseInternalDto> taken = coursesByArea.getOrDefault(req.areaType(), Collections.emptyList());
+
+            int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
+            int completedElectiveCourses = (int) taken.stream()
+                    .map(CourseInternalDto::getOfferingId)
+                    .distinct()
+                    .count();
+
+            List<CourseDto> courseDtos = taken.stream()
+                    .map(this::toCourseResponseDto)
+                    .toList();
+
+            AreaProgressDto dto = new AreaProgressDto(
+                    parseDivision(req.areaType()),
+                    req.requiredCredits(),
+                    earnedCredits,
+                    req.requiredElectiveCourses(),
+                    completedElectiveCourses,
+                    req.totalElectiveCourses(),
+                    courseDtos
+            );
+
+            // 전공 구분 설정 -> 논의 후 적용
+//            if (req.areaType().equalsIgnoreCase("전선1")) dto.setMajorType("MAJOR1");
+//            else if (req.areaType().equalsIgnoreCase("전선2")
+//                    || req.areaType().equalsIgnoreCase("전필")
+//                    || req.areaType().equalsIgnoreCase("전교")) dto.setMajorType("MAJOR2");
+//            else dto.setMajorType("MAJOR1");
+
+            result.add(dto);
+        }
+
+        long tookMS = LogTime.elapsedMs(t0);
+        if (tookMS >= SLOW_MS) {
+            log.info("[BIZ] graduation.dual.progress.query.done studentId={} primaryDept={} secondaryDept={} year={} rows={} took_ms={}",
+                    studentId, primaryMajorId, secondaryMajorId, admissionYear, result.size(), tookMS);
+        }
+
+        return result;
+    }
+
     public List<CourseInternalDto> getLatestValidCourses(UUID studentId) {
         String sql = """
             SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
@@ -142,7 +246,10 @@ public class GraduationQueryRepository {
                 .toList();
     }
 
-    // 이수구분 별 졸업 요건 결과 캐싱 로직
+    /**
+     * 단일 전공 이수구분 별 졸업 요건 결과 캐싱 로직
+     * 학과 ID + 입학년도
+     */
     public List<AreaRequirementDto> getAreaRequirementsWithCache(Long deptId, Integer admissionYear) {
         try {
             List<AreaRequirementDto> cached = redisCacheStore.getGraduationRequirements(deptId, admissionYear);
