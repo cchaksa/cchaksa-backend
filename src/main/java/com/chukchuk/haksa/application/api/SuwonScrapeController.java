@@ -6,6 +6,7 @@ import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
+import com.chukchuk.haksa.global.exception.BaseException;
 import com.chukchuk.haksa.global.exception.CommonException;
 import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.global.logging.annotation.LogPart;
@@ -116,9 +117,11 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
             PortalData portalData = portalRepository.fetchPortalData(username, password);
             log.info("[PORTAL] 포털 데이터 크롤링 성공");
             return portalData;
+        } catch (BaseException e) {
+            throw e;
         } catch (Exception e) {
             log.error("[PORTAL] 포털 데이터 크롤링 실패", e);
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
+            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED, e);
         }
     }
 }
