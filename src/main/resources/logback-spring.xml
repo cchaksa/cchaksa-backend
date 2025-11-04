@@ -169,8 +169,8 @@
         <logger name="com.chukchuk.haksa" level="INFO"/>
 
         <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>Warn</minimumEventLevel>
-            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumBreadcrumbLevel>WARN</minimumBreadcrumbLevel>
             <mdcTags>userId,traceId,spanId</mdcTags>
         </appender>
 
