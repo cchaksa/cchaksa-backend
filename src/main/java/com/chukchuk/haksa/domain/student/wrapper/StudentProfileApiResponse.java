@@ -15,6 +15,7 @@ public class StudentProfileApiResponse extends SuccessResponse<StudentProfileRes
                 "20231234",               // studentCode
                 "컴퓨터공학과",           // departmentName
                 "컴퓨터SW학과",           // majorName
+                "경영학과",             // dualMajorName
                 3,                        // gradeLevel
                 6,                        // currentSemester
                 StudentStatus.재학,               // status

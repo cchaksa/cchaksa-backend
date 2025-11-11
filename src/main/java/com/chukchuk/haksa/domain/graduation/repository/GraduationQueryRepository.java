@@ -7,7 +7,6 @@ import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseInternalDto;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +23,10 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 @Slf4j
 public class GraduationQueryRepository {
     private final EntityManager em;
-    private final ObjectMapper ob;
     private final RedisCacheStore redisCacheStore;
+
+    private static final String AREA_MAJOR_ELECTIVE = "전선";  // 전공선택
+    private static final String AREA_GENERAL_ELECTIVE = "일선"; // 일반선택
 
     /* 졸업 요건 조회 (학과 코드, 입학년도) */
     public List<AreaRequirementDto> getAreaRequirements(Long departmentId, Integer admissionYear) {
@@ -145,7 +146,8 @@ public class GraduationQueryRepository {
 
         // 주전공 졸업 요건 중 '전선' 제외
         List<AreaRequirementDto> primaryFiltered = primaryReqs.stream()
-                .filter(req -> !req.areaType().equalsIgnoreCase("전선"))
+                .filter(req -> !req.areaType().equalsIgnoreCase(AREA_MAJOR_ELECTIVE))
+                .filter(req -> !req.areaType().equalsIgnoreCase(AREA_GENERAL_ELECTIVE))
                 .toList();
 
         // 복수전공 및 주전공 전선1 졸업 요건 조회
@@ -155,6 +157,16 @@ public class GraduationQueryRepository {
         List<AreaRequirementDto> mergedRequirements = new ArrayList<>();
         mergedRequirements.addAll(primaryFiltered);   // 주전공 졸업 요건 (전선 제외)
         mergedRequirements.addAll(dualMajorReqs);     // 복수전공용 졸업 요건
+
+        int totalRequiredCreditsExcluding = mergedRequirements.stream()
+                .mapToInt(AreaRequirementDto::requiredCredits)
+                .sum();
+
+        int ilsunRequired = (totalRequiredCreditsExcluding < 130)
+                ? 130 - totalRequiredCreditsExcluding
+                : 0;
+
+        mergedRequirements.add(new AreaRequirementDto(AREA_GENERAL_ELECTIVE, ilsunRequired, null, null));
 
         // 수강 이력 조회
         List<CourseInternalDto> completedCourses = getLatestValidCourses(studentId);
@@ -185,13 +197,6 @@ public class GraduationQueryRepository {
                     req.totalElectiveCourses(),
                     courseDtos
             );
-
-            // 전공 구분 설정 -> 논의 후 적용
-//            if (req.areaType().equalsIgnoreCase("전선1")) dto.setMajorType("MAJOR1");
-//            else if (req.areaType().equalsIgnoreCase("전선2")
-//                    || req.areaType().equalsIgnoreCase("전필")
-//                    || req.areaType().equalsIgnoreCase("전교")) dto.setMajorType("MAJOR2");
-//            else dto.setMajorType("MAJOR1");
 
             result.add(dto);
         }

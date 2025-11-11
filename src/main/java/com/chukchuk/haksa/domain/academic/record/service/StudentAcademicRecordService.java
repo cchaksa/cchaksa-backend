@@ -6,7 +6,6 @@ import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecor
 import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
-import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
@@ -25,8 +24,10 @@ public class StudentAcademicRecordService {
 
     private final StudentAcademicRecordRepository studentAcademicRecordRepository;
     private final GraduationQueryRepository graduationQueryRepository;
-    private final StudentService studentService;
     private final RedisCacheStore redisCacheStore;
+
+    private static final String AREA_MAJOR_ELECTIVE = "전선";
+    private static final String AREA_GENERAL_ELECTIVE = "일선";
 
     public StudentAcademicRecordDto.AcademicSummaryResponse getAcademicSummary(UUID studentId) {
         try {
@@ -45,7 +46,9 @@ public class StudentAcademicRecordService {
         Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : student.getDepartment().getId();
         Integer admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        Integer totalRequiredGraduationCredits = getGraduationCreditsWithCache(effectiveDepartmentId, admissionYear);
+        Long secondaryMajorId = student.getSecondaryMajor() != null ? student.getSecondaryMajor().getId() : null;
+
+        Integer totalRequiredGraduationCredits = getGraduationCreditsWithCache(effectiveDepartmentId, secondaryMajorId, admissionYear);
 
         StudentAcademicRecordDto.AcademicSummaryResponse response = StudentAcademicRecordDto.AcademicSummaryResponse.from(studentAcademicRecord, totalRequiredGraduationCredits);
 
@@ -80,16 +83,17 @@ public class StudentAcademicRecordService {
      * 복수 전공을 고려한 졸업 필요 학점 계산 메서드
      */
     private Integer getGraduationCreditsWithCache(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
-        // 단일 전공
+        // 단일 전공 케이스
         if (secondaryMajorId == null) {
             return graduationQueryRepository.getAreaRequirementsWithCache(primaryMajorId, admissionYear).stream()
                     .mapToInt(AreaRequirementDto::requiredCredits)
                     .sum();
         }
 
-        // 복수전공
+        // 복수전공 케이스
         int primaryCredits = graduationQueryRepository.getAreaRequirementsWithCache(primaryMajorId, admissionYear).stream()
-                .filter(req -> !req.areaType().equalsIgnoreCase("전선")) // 주전공 전선 제외
+                .filter(req -> !req.areaType().equalsIgnoreCase(AREA_MAJOR_ELECTIVE))
+                .filter(req -> !req.areaType().equalsIgnoreCase(AREA_GENERAL_ELECTIVE))
                 .mapToInt(AreaRequirementDto::requiredCredits)
                 .sum();
 
@@ -97,6 +101,7 @@ public class StudentAcademicRecordService {
                 .mapToInt(AreaRequirementDto::requiredCredits)
                 .sum();
 
-        return primaryCredits + dualCredits;
+        int totalCredits = Math.max(130, primaryCredits + dualCredits);
+        return totalCredits;
     }
 }

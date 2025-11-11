@@ -20,6 +20,9 @@ public class DualMajorRequirement {
     @Column(name = "major_role", nullable = false)
     private MajorRole majorRole;
 
+    @Column(name = "admission_year", nullable = false)
+    private Integer admissionYear;
+
     @Column(name = "area_type", nullable = false)
     private String areaType;
 
