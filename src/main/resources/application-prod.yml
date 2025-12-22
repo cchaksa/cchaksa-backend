@@ -34,6 +34,10 @@ spring:
           use_get_generated_keys: true
           statement_cache_size: 0
 
+sentry:
+  dsn: ${PROD_SENTRY_DSN}
+  environment: prod
+
 server:
   forward-headers-strategy: native
 
