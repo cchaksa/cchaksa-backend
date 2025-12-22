@@ -7,7 +7,6 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
-import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +18,6 @@ import java.util.UUID;
 
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
-@LogPart("auth")
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor

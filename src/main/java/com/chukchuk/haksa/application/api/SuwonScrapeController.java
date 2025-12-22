@@ -7,11 +7,10 @@ import com.chukchuk.haksa.application.portal.PortalSyncService;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
-import com.chukchuk.haksa.global.logging.annotation.LogPart;
+import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
@@ -32,7 +31,6 @@ import java.util.UUID;
 
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
-@LogPart("crawl")
 @RestController
 @RequestMapping("/api/suwon-scrape")
 @RequiredArgsConstructor

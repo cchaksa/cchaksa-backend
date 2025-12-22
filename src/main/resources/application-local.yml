@@ -46,8 +46,7 @@ spring:
         patterns: [ ] # 샘플링 필요 api 경로 추가
 
 sentry:
-  dsn: ""
-  enabled: false
+  enable: false
 
 swagger:
   server-url: http://localhost:8080

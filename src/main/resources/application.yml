@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: dev
+    active: local
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
@@ -38,7 +38,6 @@ springdoc:
     enabled: true
 
 sentry:
-  dsn: ${SENTRY_DSN}
   traces-sample-rate: 1.0
   logging:
     minimum-event-level: error

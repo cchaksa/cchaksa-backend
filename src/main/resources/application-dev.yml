@@ -32,6 +32,11 @@ spring:
           use_get_generated_keys: true
           statement_cache_size: 0
 
+sentry:
+  dsn: ${DEV_SENTRY_DSN}
+  enable: true
+  environment: dev
+
 security:
   cookie:
     dev-mode: true
