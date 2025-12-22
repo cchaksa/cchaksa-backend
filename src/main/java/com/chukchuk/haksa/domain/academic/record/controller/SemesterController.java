@@ -4,7 +4,6 @@ import com.chukchuk.haksa.domain.academic.record.controller.docs.SemesterControl
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
-import com.chukchuk.haksa.global.logging.annotation.LogPart;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
