@@ -23,7 +23,6 @@ import java.util.UUID;
 import static com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto.AcademicSummaryResponse;
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
-@LogPart
 @Slf4j
 @RestController
 @RequestMapping("/api/academic")

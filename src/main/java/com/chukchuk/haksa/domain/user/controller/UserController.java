@@ -19,7 +19,6 @@ import java.util.UUID;
 
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
-@LogPart("auth")
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor

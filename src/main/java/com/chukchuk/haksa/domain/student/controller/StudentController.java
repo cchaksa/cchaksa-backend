@@ -19,7 +19,6 @@ import java.util.UUID;
 import static com.chukchuk.haksa.domain.student.dto.StudentDto.StudentProfileResponse;
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
-@LogPart
 @Slf4j
 @Validated
 @RestController
