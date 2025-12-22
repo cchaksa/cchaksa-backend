@@ -25,17 +25,21 @@ import java.util.List;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    /** 비즈니스 예외(대부분 4xx) → 로깅 없음, 응답만 */
+    /** 비즈니스 예외(대부분 4xx)*/
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBase(BaseException ex, HttpServletRequest req) {
-        // 분류 정확도만 개선 (이벤트 전송 X)
-        Sentry.setTag("error.code", ex.getCode());
-        Sentry.setFingerprint(List.of("BASE_EXCEPTION", ex.getCode()));
+
+        Sentry.withScope(scope -> {
+            scope.setTag("error.type", "BASE_EXCEPTION");
+            scope.setTag("error.code", ex.getCode());
+            scope.setFingerprint(List.of("BASE_EXCEPTION", ex.getCode()));
+            scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
+            Sentry.captureException(ex);
+        });
 
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
     }
-
     /** 404 */
     @ExceptionHandler(org.springframework.web.servlet.NoHandlerFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoHandler(
@@ -64,6 +68,15 @@ public class GlobalExceptionHandler {
     /** 엔티티 없음 */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex, HttpServletRequest req) {
+
+        Sentry.withScope(scope -> {
+            scope.setTag("error.type", "ENTITY_NOT_FOUND");
+            scope.setTag("error.code", ex.getCode());
+            scope.setFingerprint(List.of("ENTITY_NOT_FOUND", ex.getCode()));
+            scope.setLevel(io.sentry.SentryLevel.WARNING);
+            Sentry.captureException(ex);
+        });
+
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
     }
