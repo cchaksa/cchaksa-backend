@@ -13,13 +13,18 @@
         </root>
     </springProfile>
 
-    <!-- ========== prod / dev ========== -->
-    <springProfile name="prod | dev">
+    <!-- ========== dev ========== -->
+    <springProfile name="dev">
 
-        <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %-5level %logger - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <appender name="SENTRY_DEV" class="io.sentry.logback.SentryAppender">
             <minimumEventLevel>ERROR</minimumEventLevel>
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-            <mdcTags>userId,traceId,spanId</mdcTags>
             <sendDefaultPii>false</sendDefaultPii>
             <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
         </appender>
@@ -28,7 +33,26 @@
         <logger name="com.chukchuk.haksa" level="INFO"/>
 
         <root level="INFO">
-            <appender-ref ref="SENTRY"/>
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="SENTRY_DEV"/>
+        </root>
+    </springProfile>
+
+    <!-- ========== prod ========== -->
+    <springProfile name="prod">
+
+        <appender name="SENTRY_PROD" class="io.sentry.logback.SentryAppender">
+            <minimumEventLevel>ERROR</minimumEventLevel>
+            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+            <sendDefaultPii>false</sendDefaultPii>
+            <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
+        </appender>
+
+        <logger name="HTTP" level="INFO"/>
+        <logger name="com.chukchuk.haksa" level="INFO"/>
+
+        <root level="INFO">
+            <appender-ref ref="SENTRY_PROD"/>
         </root>
     </springProfile>
 
