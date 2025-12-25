@@ -1,0 +1,77 @@
+name: Link Issue to PR
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  link-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Issue Number from Branch
+        id: extract
+        run: |
+          BRANCH_NAME="${{ github.head_ref }}"
+          echo "Branch name: $BRANCH_NAME"
+
+          # feat/{Issue ID} 패턴에서 Issue ID 추출
+          if [[ $BRANCH_NAME =~ ^feat/([0-9]+)(\-[0-9]+)?$ ]]; then
+            ISSUE_NUMBER="${BASH_REMATCH[1]}"
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "Found issue number: $ISSUE_NUMBER"
+          else
+            echo "No issue number found in branch name"
+            echo "issue_number=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if Issue Link Already Exists
+        if: steps.extract.outputs.issue_number != ''
+        id: check_link
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          ISSUE_NUMBER="${{ steps.extract.outputs.issue_number }}"
+
+          if echo "$PR_BODY" | grep -qE "(Close[sd]?|Fix(e[sd])?|Resolve[sd]?) #$ISSUE_NUMBER"; then
+            echo "Link already exists"
+            echo "link_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Link does not exist"
+            echo "link_exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Add Issue Link to PR Description
+        if: steps.extract.outputs.issue_number != '' && steps.check_link.outputs.link_exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNumber = '${{ steps.extract.outputs.issue_number }}';
+            const currentBody = context.payload.pull_request.body || '';
+
+            const title = '### 🔗 Related Issue';
+            const relatedIssueRegex = new RegExp(`${title}\\s*\\n(?:<!--[\\s\\S]*?-->\\s*\\n)*`, 'g');
+            const closeStatement = `Closes #${issueNumber}`;
+
+            let newBody;
+            if (relatedIssueRegex.test(currentBody)) {
+              // Related Issue 섹션이 이미 있으면 그 아래에 추가
+              newBody = currentBody.replace(
+                relatedIssueRegex,
+                `${title}\n\n${closeStatement}\n\n`
+              );
+            } else {
+              newBody = `${currentBody}\n\n${title}\n\n${closeStatement}\n\n`;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              body: newBody
+            });
+
+            console.log(`Successfully linked issue #${issueNumber} to PR #${context.payload.pull_request.number}`);
