@@ -15,8 +15,4 @@ public record ScrapingResponse(
     public static ScrapingResponse success(String taskId, PortalConnectionResult.StudentInfo studentInfo) {
         return new ScrapingResponse(taskId, studentInfo, "SUCCESS");
     }
-
-    public static ScrapingResponse alreadyConnected() {
-        return new ScrapingResponse(null, null, "ALREADY_CONNECTED");
-    }
 }

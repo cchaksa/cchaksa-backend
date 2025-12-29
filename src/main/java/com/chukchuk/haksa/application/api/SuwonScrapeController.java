@@ -4,6 +4,7 @@ import com.chukchuk.haksa.application.api.docs.SuwonScrapeControllerDocs;
 import com.chukchuk.haksa.application.dto.PortalLoginResponse;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
+import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
@@ -13,6 +14,7 @@ import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
+import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
@@ -74,7 +76,19 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         User useUser = userService.tryMergeWithExistingUser(UUID.fromString(userId), portalData.student().studentCode());
         if (useUser.getPortalConnected()) {
             log.info("[BIZ] portal.sync.skipped mergedUserId={} reason=already_connected", useUser.getId());
-            return ResponseEntity.ok(SuccessResponse.of(ScrapingResponse.alreadyConnected()));
+            Student useStudent = useUser.getStudent();
+            return ResponseEntity.ok(SuccessResponse.of(ScrapingResponse.success(UUID.randomUUID().toString(),
+                    new PortalConnectionResult.StudentInfo(
+                            useStudent.getName(),
+                            "수원대학교",
+                            useStudent.getMajor().getEstablishedDepartmentName() == null
+                                    ? useStudent.getDepartment().getEstablishedDepartmentName() : useStudent.getMajor().getEstablishedDepartmentName(),
+                            useStudent.getStudentCode(),
+                            useStudent.getAcademicInfo().getGradeLevel(),
+                            useStudent.getAcademicInfo().getStatus().toString(),
+                            useStudent.getAcademicInfo().getCompletedSemesters() % 2 == 0 ? 1 : 2
+                            ) // TODO: InitializePortalConnectionService에서 사용되는 것과 같은 형태, 리팩터링 필요.
+                    )));
         }
 
         String useUserId = useUser.getId().toString();
