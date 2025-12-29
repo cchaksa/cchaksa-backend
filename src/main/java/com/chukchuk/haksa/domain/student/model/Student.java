@@ -187,4 +187,8 @@ public class Student extends BaseEntity {
     public void markReconnected() {
         this.reconnectionRequired = false;
     }
+
+    public void updateUser(User user) {
+        this.user = user;
+    }
 }

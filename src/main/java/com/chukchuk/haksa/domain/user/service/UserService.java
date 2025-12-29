@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.user.service;
 
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
+import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.SocialAccount;
 import com.chukchuk.haksa.domain.user.model.User;
@@ -71,9 +72,10 @@ public class UserService {
      * 소셜 로그인 후 포털 연동 시, studentCode 기반으로 기존 User가 있는지 탐색하여 병합 시도.
      * - 기존 User가 없다면: currentUser를 그대로 사용
      * - 기존 User가 있다면:
-     *   - currentUser의 SocialAccount들을 기존 User에 연결
-     *   - currentUser 제거
-     *   - 기존 User 반환
+     *   - 기존 User의 SocialAccount들을 currentUser에 연결
+     *   - 기존 User의 필드값들을 currentUser에 할당
+     *   - student에 연결된 기존 User를 currentUser로 변경
+     *   - 기존 User 삭제 후 currentUser 리턴
      */
     @Transactional
     public User tryMergeWithExistingUser(UUID currentUserId, String studentCode) {
@@ -93,6 +95,10 @@ public class UserService {
         }
 
         currentUser.absorbFrom(existingUser);
+
+        Student student = existingUser.getStudent();
+        student.updateUser(currentUser);
+        existingUser.setStudent(null);
 
         userRepository.delete(existingUser);
         log.info("[BIZ] user.merged existingUserId={} into currentUserId={}", existingUser.getId(), currentUserId);
