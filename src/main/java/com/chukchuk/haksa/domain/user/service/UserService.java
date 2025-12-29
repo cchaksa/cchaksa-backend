@@ -87,15 +87,17 @@ public class UserService {
         User existingUser = existingUserOpt.get();
 
         // 소셜 계정 모두 이전
-        List<SocialAccount> accounts = socialAccountRepository.findAllByUserId(currentUserId);
+        List<SocialAccount> accounts = socialAccountRepository.findAllByUserId(existingUser.getId());
         for (SocialAccount sa : accounts) {
-            sa.updateUser(existingUser);
+            sa.updateUser(currentUser);
         }
 
-        userRepository.delete(currentUser);
-        log.info("[BIZ] user.merged currentUserId={} → existingUserId={}", currentUserId, existingUser.getId());
+        currentUser.absorbFrom(existingUser);
 
-        return existingUser;
+        userRepository.delete(existingUser);
+        log.info("[BIZ] user.merged existingUserId={} into currentUserId={}", existingUser.getId(), currentUserId);
+
+        return currentUser;
     }
 
     /* private method */

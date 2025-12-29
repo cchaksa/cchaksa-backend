@@ -71,4 +71,15 @@ public class User extends BaseEntity {
         this.connectedAt = now;
         this.lastSyncedAt = now;
     }
+
+    public void absorbFrom(User origin) {
+        this.email = origin.email;
+        this.profileNickname = origin.profileNickname;
+        this.profileImage = origin.profileImage;
+        this.isDeleted = origin.isDeleted;
+        this.portalConnected = origin.portalConnected;
+        this.connectedAt = origin.connectedAt;
+        this.deletedAt = origin.deletedAt;
+        this.lastSyncedAt = origin.lastSyncedAt;
+    }
 }
