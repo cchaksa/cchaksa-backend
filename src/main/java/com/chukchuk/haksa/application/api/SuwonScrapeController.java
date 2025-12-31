@@ -81,7 +81,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
                     new PortalConnectionResult.StudentInfo(
                             useStudent.getName(),
                             "수원대학교",
-                            useStudent.getMajor().getEstablishedDepartmentName() == null
+                            useStudent.getMajor() == null
                                     ? useStudent.getDepartment().getEstablishedDepartmentName() : useStudent.getMajor().getEstablishedDepartmentName(),
                             useStudent.getStudentCode(),
                             useStudent.getAcademicInfo().getGradeLevel(),
