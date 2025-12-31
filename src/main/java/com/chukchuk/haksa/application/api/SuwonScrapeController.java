@@ -8,6 +8,7 @@ import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
@@ -140,9 +141,12 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
                 log.info("[BIZ] portal.fetch.done userId={} took_ms={}", userId, tookMs);
             }
             return portalData;
+        } catch (BaseException e) {
+            throw e;
         } catch (Exception e) {
+            // 정말 예상 못한 케이스만 C02
             log.error("[BIZ] portal.fetch.error userId={} ex={}", userId, e.getClass().getSimpleName(), e);
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
+            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED, e);
         }
     }
 }
