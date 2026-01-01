@@ -18,8 +18,8 @@ jobs:
           BRANCH_NAME="${{ github.head_ref }}"
           echo "Branch name: $BRANCH_NAME"
 
-          # feat/{Issue ID} 패턴에서 Issue ID 추출
-          if [[ $BRANCH_NAME =~ ^feat/([0-9]+)(\-[0-9]+)?$ ]]; then
+          # {type}/{Issue ID} 패턴에서 Issue ID 추출
+          if [[ $BRANCH_NAME =~ ^[a-zA-Z]+/([0-9]+)(\-[0-9]+)?$ ]]; then
             ISSUE_NUMBER="${BASH_REMATCH[1]}"
             echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
             echo "Found issue number: $ISSUE_NUMBER"
