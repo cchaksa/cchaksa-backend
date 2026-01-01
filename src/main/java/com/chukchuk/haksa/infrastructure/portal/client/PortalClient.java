@@ -3,12 +3,11 @@ package com.chukchuk.haksa.infrastructure.portal.client;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
-import com.chukchuk.haksa.infrastructure.portal.exception.PortalLoginException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -22,62 +21,49 @@ public class PortalClient {
 
     private final WebClient webClient = WebClient.builder().build();
 
-    public void login(String username, String password) {
-        try {
-            webClient.post()
-                    .uri(baseUrl + "/auth")
-                    .header("Content-Type", "application/json")
-                    .bodyValue(new LoginRequest(username, password))
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
-        } catch (WebClientResponseException e) {
-            HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
-
-            String message = switch (status) {
-                case UNAUTHORIZED -> "아이디나 비밀번호가 일치하지 않습니다.";
-                case LOCKED -> "계정이 잠겼습니다. 포털에서 비밀번호 재발급이 필요합니다.";
-                default -> "로그인 중 오류가 발생했습니다.";
-            };
-            throw new PortalLoginException(ErrorCode.PORTAL_LOGIN_FAILED, e);
-        }
-    }
-
     public RawPortalData scrapeAll(String username, String password) {
         String uri = "/scrape";
         long t0 = LogTime.start();
+
         try {
-            return webClient.post().uri(baseUrl + uri)
+            return webClient.post()
+                    .uri(baseUrl + uri)
                     .header("Content-Type", "application/json")
                     .bodyValue(new LoginRequest(username, password))
-                    .retrieve().bodyToMono(RawPortalData.class).block();
+                    .retrieve()
+                    .bodyToMono(RawPortalData.class)
+                    .block();
+
         } catch (WebClientResponseException e) {
+            logHttpError(uri, t0, e);
+            throw new PortalScrapeException(mapHttpStatus(e.getStatusCode()), e);
+
+        } catch (Exception e) {
             long tookMs = LogTime.elapsedMs(t0);
-            int status = e.getStatusCode().value();
-
-            if (status >= 500)      log.error("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
-            else if (status == 429) log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
-            else                    log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
-
-            HttpStatus st = HttpStatus.resolve(status);
-
-            ErrorCode code;
-            if (st == null) {
-                // 비표준/미지원 상태코드(예: 499, 520 등)
-                log.warn("[PORTAL] unknown http status={} -> map to PORTAL_SCRAPE_FAILED", status);
-                code = ErrorCode.PORTAL_SCRAPE_FAILED;
-            } else {
-                // 필요 매핑만 명시, 나머지는 기본값
-                switch (st) {
-                    case UNAUTHORIZED -> code = ErrorCode.PORTAL_LOGIN_FAILED;
-                    case LOCKED       -> code = ErrorCode.PORTAL_ACCOUNT_LOCKED;
-                    default           -> code = ErrorCode.PORTAL_SCRAPE_FAILED;
-                }
-            }
-
-            throw new PortalScrapeException(code, e);
+            log.error("[EXT] method=POST uri={} unexpected_error took_ms={}", uri, tookMs, e);
+            throw new PortalScrapeException(ErrorCode.PORTAL_SCRAPE_FAILED, e);
         }
     }
 
     private record LoginRequest(String username, String password) {}
+
+    private void logHttpError(String uri, long t0, WebClientResponseException e) {
+        long tookMs = LogTime.elapsedMs(t0);
+        int status = e.getStatusCode().value();
+
+        if (status >= 500) log.error("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+        else               log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+    }
+
+    private ErrorCode mapHttpStatus(HttpStatusCode status) {
+        if (status == null) {
+            return ErrorCode.PORTAL_SCRAPE_FAILED;
+        }
+
+        return switch (status.value()) {
+            case 401 -> ErrorCode.PORTAL_LOGIN_FAILED;
+            case 423 -> ErrorCode.PORTAL_ACCOUNT_LOCKED;
+            default  -> ErrorCode.PORTAL_SCRAPE_FAILED;
+        };
+    }
 }

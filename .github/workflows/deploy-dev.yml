@@ -1,16 +1,18 @@
 name: Deploy to Dev EC2
 
 on:
-  push:
-    branches: [ "dev" ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      # dev 브랜치 최신 HEAD 고정
+      - name: Checkout dev branch
         uses: actions/checkout@v4
+        with:
+          ref: dev
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -31,7 +33,6 @@ jobs:
           APP_KEY: ${{ secrets.APP_KEY }}
           CRAWLER_BASE_URL: ${{ secrets.CRAWLER_BASE_URL }}
           REDIS_ENCRYPT_KEY: ${{ secrets.REDIS_ENCRYPT_KEY }}
-
           LOCAL_DB_URL: ${{ secrets.LOCAL_DB_URL }}
           LOCAL_DB_USERNAME: ${{ secrets.LOCAL_DB_USERNAME }}
           LOCAL_DB_PASSWORD: ${{ secrets.LOCAL_DB_PASSWORD }}
@@ -42,10 +43,9 @@ jobs:
         run: |
           mkdir -p deploy
           JAR_PATH=$(find build/libs -name "*.jar" | head -n 1)
-          echo "Found jar: $JAR_PATH"
           cp "$JAR_PATH" deploy/app.jar
 
-      - name: Copy app.jar to EC2
+      - name: Copy app.jar to Dev EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEV_EC2_HOST }}
@@ -55,7 +55,7 @@ jobs:
           target: "/home/ubuntu/app"
           strip_components: 1
 
-      - name: Restart Spring Boot app on EC2
+      - name: Restart Dev server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEV_EC2_HOST }}
@@ -68,10 +68,9 @@ jobs:
               echo "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE"
               cd /home/ubuntu/app
 
-              # 정확히 java로 실행된 app.jar만 찾기
-              PID=$(ps aux | grep "java -jar app.jar" | grep -v grep | awk "{print \$2}")
+              PID=$(sudo lsof -t -i :8080)
               if [ -n "$PID" ]; then
-                echo "Killing app.jar java process: $PID"
+                echo "Killing Spring Boot on port 8080: $PID"
                 kill -9 $PID || true
               fi
 
