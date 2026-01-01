@@ -67,14 +67,14 @@ jobs:
               source /home/ubuntu/env.sh
               echo "SPRING_PROFILES_ACTIVE=$SPRING_PROFILES_ACTIVE"
               cd /home/ubuntu/app
-
+            
               # 정확히 java로 실행된 app.jar만 찾기
-              PID=$(ps aux | grep "[j]ava -jar" | awk '{print $2}')
+              PID=$(ps aux | grep "java -jar app.jar" | grep -v grep | awk "{print \$2}")
               if [ -n "$PID" ]; then
-                echo "Killing java -jar processes: $PIDS"
+                echo "Killing app.jar java process: $PID"
                 kill -9 $PID || true
               fi
-
+            
               nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
               sleep 1
               exit 0
