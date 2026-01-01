@@ -12,7 +12,6 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
-import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
@@ -124,7 +123,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     }
 
     private PortalData fetchPortalData(String userId) {
-        String username = redisPortalCredentialStore.getUsername(userId); //학번
+        String username = redisPortalCredentialStore.getUsername(userId);
         String password = redisPortalCredentialStore.getPassword(userId);
 
         if (username == null || password == null) {
@@ -133,16 +132,13 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
         long t0 = LogTime.start();
 
-        try {
-            PortalData portalData = portalRepository.fetchPortalData(username, password);
-            long tookMs = LogTime.elapsedMs(t0);
-            if (tookMs >= SLOW_MS) {
-                log.info("[BIZ] portal.fetch.done userId={} took_ms={}", userId, tookMs);
-            }
-            return portalData;
-        } catch (Exception e) {
-            log.error("[BIZ] portal.fetch.error userId={} ex={}", userId, e.getClass().getSimpleName(), e);
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
+        PortalData portalData = portalRepository.fetchPortalData(username, password);
+        long tookMs = LogTime.elapsedMs(t0);
+
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] portal.fetch.done userId={} took_ms={}", userId, tookMs);
         }
+
+        return portalData;
     }
 }
