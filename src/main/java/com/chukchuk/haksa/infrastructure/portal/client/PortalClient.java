@@ -3,7 +3,6 @@ package com.chukchuk.haksa.infrastructure.portal.client;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
-import com.chukchuk.haksa.infrastructure.portal.exception.PortalLoginException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,27 +20,6 @@ public class PortalClient {
     private String baseUrl;
 
     private final WebClient webClient = WebClient.builder().build();
-
-    public void login(String username, String password) {
-        try {
-            webClient.post()
-                    .uri(baseUrl + "/auth")
-                    .header("Content-Type", "application/json")
-                    .bodyValue(new LoginRequest(username, password))
-                    .retrieve()
-                    .toBodilessEntity()
-                    .block();
-        } catch (WebClientResponseException e) {
-            HttpStatus status = HttpStatus.resolve(e.getStatusCode().value());
-
-            String message = switch (status) {
-                case UNAUTHORIZED -> "아이디나 비밀번호가 일치하지 않습니다.";
-                case LOCKED -> "계정이 잠겼습니다. 포털에서 비밀번호 재발급이 필요합니다.";
-                default -> "로그인 중 오류가 발생했습니다.";
-            };
-            throw new PortalLoginException(ErrorCode.PORTAL_LOGIN_FAILED, e);
-        }
-    }
 
     public RawPortalData scrapeAll(String username, String password) {
         String uri = "/scrape";
