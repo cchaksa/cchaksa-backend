@@ -69,9 +69,9 @@ jobs:
               cd /home/ubuntu/app
 
               # 정확히 java로 실행된 app.jar만 찾기
-              PID=$(ps aux | grep "java -jar app.jar" | grep -v grep | awk "{print \$2}")
+              PID=$(ps aux | grep "[j]ava -jar" | awk '{print $2}')
               if [ -n "$PID" ]; then
-                echo "Killing app.jar java process: $PID"
+                echo "Killing java -jar processes: $PIDS"
                 kill -9 $PID || true
               fi
 
