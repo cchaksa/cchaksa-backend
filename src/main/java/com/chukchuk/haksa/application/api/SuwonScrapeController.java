@@ -13,6 +13,7 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
+import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
