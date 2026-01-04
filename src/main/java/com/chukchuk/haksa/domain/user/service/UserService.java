@@ -64,6 +64,7 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         UUID studentId = user.getStudent().getId();
         redisCacheStore.deleteAllByStudentId(studentId);
+        socialAccountRepository.deleteByUser(user);
         userRepository.delete(user);
         log.info("[BIZ] user.delete.done userId={}", userId);
     }
