@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 
+import java.util.Objects;
+
 @Embeddable
 public class Grade {
 
@@ -35,5 +37,18 @@ public class Grade {
 
     public double getGradePoint() {
         return value.getGradePoint();
+    }
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Grade g)) return false;
+        return value == g.value;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value);
     }
 }

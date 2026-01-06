@@ -56,7 +56,7 @@ public class SyncAcademicRecordService {
             sync(userId, portalData, false);
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("학업 이력 동기화 중 오류 발생", e);
+            log.error("학업 이력 동기화 중 오류 발생: " + userId, e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
@@ -89,19 +89,24 @@ public class SyncAcademicRecordService {
                 .map(sc -> sc.getOffering().getId())
                 .collect(Collectors.toSet());
 
-        // 2-1) 포털 스냅샷 맵 (offeringId -> isRetakeDeleted)
-        Map<Long, Boolean> portalRetakeDeletedMap = enrollments.stream()
-                .collect(Collectors.toMap(
-                        e -> (long) e.getOfferingId(),
-                        CourseEnrollment::isRetakeDeleted,
-                        (a, b) -> b // 충돌 시 뒤 값 우선
-                ));
+        // 2-1) 포털 스냅샷 맵 (offeringId -> CourseEnrollment)
+        Map<Long, CourseEnrollment> portalEnrollmentMap =
+                enrollments.stream()
+                        .collect(Collectors.toMap(
+                                e -> (long) e.getOfferingId(),
+                                e -> e,
+                                (a, b) -> b
+                        ));
 
-        // 2-2) 기존 DB 레코드 갱신 (false -> true 포함)
+        // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
         List<StudentCourse> toUpdate = existingEnrollments.stream()
-                .filter(sc -> portalRetakeDeletedMap.containsKey(sc.getOffering().getId()))
-                .filter(sc -> sc.isRetakeDeleted() != portalRetakeDeletedMap.get(sc.getOffering().getId()))
-                .peek(sc -> sc.setRetakeDeleted(portalRetakeDeletedMap.get(sc.getOffering().getId())))
+                .filter(sc -> portalEnrollmentMap.containsKey(sc.getOffering().getId()))
+                .filter(sc -> sc.isDifferentFrom(
+                        portalEnrollmentMap.get(sc.getOffering().getId())
+                ))
+                .peek(sc -> sc.updateFromPortal(
+                        portalEnrollmentMap.get(sc.getOffering().getId())
+                ))
                 .toList();
 
         if (!toUpdate.isEmpty()) {
