@@ -2,22 +2,22 @@
 
     <!-- ========== local ========== -->
     <springProfile name="local">
-        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <file>logs/app.log</file>
+
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <charset>UTF-8</charset>
                 <providers>
                     <timestamp>
                         <fieldName>timestamp</fieldName>
                         <timeZone>Asia/Seoul</timeZone>
                     </timestamp>
+
                     <logLevel>
                         <fieldName>level</fieldName>
                     </logLevel>
+
                     <loggerName/>
                     <threadName/>
 
-                    <!-- MDC 필드 -->
                     <mdc>
                         <includeMdcKeyName>userId</includeMdcKeyName>
                         <includeMdcKeyName>part</includeMdcKeyName>
@@ -25,35 +25,23 @@
                         <includeMdcKeyName>method</includeMdcKeyName>
                     </mdc>
 
-                    <loggerName/>
-
                     <message>
                         <fieldName>message</fieldName>
                     </message>
+
                     <throwable>
                         <classNameFieldName>errorCause</classNameFieldName>
                         <messageFieldName>error</messageFieldName>
                         <stackTraceFieldName>stackTrace</stackTraceFieldName>
-                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                            <rootCauseFirst>true</rootCauseFirst>
-                            <maxDepthPerThrowable>50</maxDepthPerThrowable>
-                            <maxLength>8000</maxLength>
-                            <shortenedClassNameLength>40</shortenedClassNameLength>
-                        </throwableConverter>
                     </throwable>
                 </providers>
             </encoder>
-
-            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-                <fileNamePattern>logs/app.%d{yyyy-MM-dd}.log</fileNamePattern>
-                <maxHistory>7</maxHistory>
-                <cleanHistoryOnStart>true</cleanHistoryOnStart>
-            </rollingPolicy>
         </appender>
 
         <root level="INFO">
-            <appender-ref ref="FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </root>
+
     </springProfile>
 
     <!-- ========== dev ========== -->
