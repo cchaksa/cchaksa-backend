@@ -37,7 +37,7 @@ public class CourseEnrollment {
         return offeringId;
     }
 
-    public GradeType getGrade() {
+    public GradeType getGradeType() {
         return grade.getValue();
     }
 
@@ -67,6 +67,6 @@ public class CourseEnrollment {
 
     // 재수강 관련 메서드
     public boolean isEligibleForRetake() {
-        return !isRetake() && isCompleted() && (getGrade() == GradeType.F || getGradePoint() <= 2.0); // C0 이하
+        return !isRetake() && isCompleted() && (getGradeType() == GradeType.F || getGradePoint() <= 2.0); // C0 이하
     }
 }
