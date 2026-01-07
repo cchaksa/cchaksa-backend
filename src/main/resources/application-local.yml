@@ -1,4 +1,7 @@
 spring:
+  autoconfigure:
+    exclude:
+      - io.sentry.spring.boot.jakarta.SentryAutoConfiguration
   datasource:
     url: ${LOCAL_DB_URL}
     username: ${LOCAL_DB_USERNAME}
