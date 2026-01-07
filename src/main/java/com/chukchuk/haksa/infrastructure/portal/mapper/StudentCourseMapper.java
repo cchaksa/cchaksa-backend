@@ -11,7 +11,7 @@ public class StudentCourseMapper {
         return new StudentCourse(
                 student,
                 offering,
-                new Grade(enrollment.getGrade()),  // Embedded
+                new Grade(enrollment.getGradeType()),  // Embedded
                 enrollment.getPoints(),
                 enrollment.isRetake(),
                 enrollment.getOriginalScore().intValue(),

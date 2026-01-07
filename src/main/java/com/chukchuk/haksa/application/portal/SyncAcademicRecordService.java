@@ -88,10 +88,10 @@ public class SyncAcademicRecordService {
         }
 
         // 1) 포털 수강 기록 수집
-        List<CourseEnrollment> enrollments =
+        List<CourseEnrollment> newEnrollments =
                 processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
 
-        List<Long> offeringIds = enrollments.stream()
+        List<Long> offeringIds = newEnrollments.stream()
                 .map(e -> (long) e.getOfferingId())
                 .distinct()
                 .toList();
@@ -104,19 +104,24 @@ public class SyncAcademicRecordService {
                 .map(sc -> sc.getOffering().getId())
                 .collect(Collectors.toSet());
 
-        // 2-1) 포털 스냅샷 맵 (offeringId -> isRetakeDeleted)
-        Map<Long, Boolean> portalRetakeDeletedMap = enrollments.stream()
-                .collect(Collectors.toMap(
-                        e -> (long) e.getOfferingId(),
-                        CourseEnrollment::isRetakeDeleted,
-                        (a, b) -> b // 충돌 시 뒤 값 우선
-                ));
+        // 2-1) 포털 스냅샷 맵 (offeringId -> CourseEnrollment)
+        Map<Long, CourseEnrollment> portalEnrollmentMap =
+                newEnrollments.stream()
+                        .collect(Collectors.toMap(
+                                e -> (long) e.getOfferingId(),
+                                e -> e,
+                                (a, b) -> b
+                        ));
 
-        // 2-2) 기존 DB 레코드 갱신 (false -> true 포함)
+        // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
         List<StudentCourse> toUpdate = existingEnrollments.stream()
-                .filter(sc -> portalRetakeDeletedMap.containsKey(sc.getOffering().getId()))
-                .filter(sc -> sc.isRetakeDeleted() != portalRetakeDeletedMap.get(sc.getOffering().getId()))
-                .peek(sc -> sc.setRetakeDeleted(portalRetakeDeletedMap.get(sc.getOffering().getId())))
+                .map(sc -> {
+                    CourseEnrollment pe = portalEnrollmentMap.get(sc.getOffering().getId());
+                    if (pe == null || !sc.isDifferentFrom(pe)) return null;
+                    sc.updateFromPortal(pe);
+                    return sc;
+                })
+                .filter(Objects::nonNull)
                 .toList();
 
         if (!toUpdate.isEmpty()) {
@@ -124,7 +129,7 @@ public class SyncAcademicRecordService {
         }
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
-        List<StudentCourse> newStudentCourses = enrollments.stream()
+        List<StudentCourse> newStudentCourses = newEnrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
@@ -147,7 +152,7 @@ public class SyncAcademicRecordService {
         // existingEnrollments.stream() ... markDeletedForRetake()
 
         // 4) 포털에 없는 offeringId는 제거 (기존 로직 유지)
-        int removed = removeDeletedEnrollments(student, enrollments);
+        int removed = removeDeletedEnrollments(student, newEnrollments, existingEnrollments);
 
         SyncStats stats = new SyncStats();
         stats.inserted += newStudentCourses.size();
@@ -257,21 +262,18 @@ public class SyncAcademicRecordService {
         return map;
     }
 
-    private int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments) {
-        // 1. DB에서 해당 학생의 기존 수강 기록 전체 조회
-        List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
-
-        // 2. 새로운 수강 기록의 offeringId 목록 추출
+    private int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments, List<StudentCourse> existingEnrollments) {
+        //  새로운 수강 기록의 offeringId 목록 추출
         Set<Long> newOfferingIds = newEnrollments.stream()
                 .map(CourseEnrollment::getOfferingId)
                 .collect(Collectors.toSet());
 
-        // 3. 기존 수강 기록 중에서 새 목록에 없는 offeringId 탐색
+        //  기존 수강 기록 중에서 새 목록에 없는 offeringId 탐색
         List<StudentCourse> toRemove = existingEnrollments.stream()
                 .filter(sc -> !newOfferingIds.contains(sc.getOffering().getId()))
                 .toList();
 
-        // 4. 제거
+        //  제거
         if (!toRemove.isEmpty()) {
             studentCourseRepository.deleteAll(toRemove);
         }
