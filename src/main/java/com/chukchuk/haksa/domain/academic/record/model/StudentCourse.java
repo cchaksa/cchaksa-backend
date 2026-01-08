@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.academic.record.model;
 
+import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -11,6 +12,7 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -76,5 +78,23 @@ public class StudentCourse {
 
     public void setRetakeDeleted(Boolean aBoolean) {
         this.isRetakeDeleted = aBoolean;
+    }
+
+    public boolean isDifferentFrom(CourseEnrollment pe) {
+        return !Objects.equals(this.grade, pe.getGrade())
+                || !Objects.equals(this.originalScore, pe.getOriginalScore() != null ? pe.getOriginalScore().intValue() : null)
+                || !Objects.equals(this.isRetake, pe.isRetake())
+                || !Objects.equals(this.points, pe.getPoints())
+                || this.isRetakeDeleted != pe.isRetakeDeleted();
+    }
+
+    public void updateFromPortal(CourseEnrollment pe) {
+        this.grade = pe.getGrade();
+        this.originalScore = pe.getOriginalScore() != null
+                ? pe.getOriginalScore().intValue()
+                : null;
+        this.points = pe.getPoints();
+        this.isRetake = pe.isRetake();
+        this.isRetakeDeleted = pe.isRetakeDeleted();
     }
 }
