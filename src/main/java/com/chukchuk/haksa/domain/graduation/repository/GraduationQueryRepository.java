@@ -135,10 +135,9 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
         query.setParameter("admissionYear", admissionYear);
 
         List<Object[]> results = query.getResultList();
-        log.info("GraduationQueryRepository SQL 결과: {}", results);
 
         if (results.isEmpty()) {
-            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_NOT_FOUND);
+            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
         }
 
         return results.stream().map(this::mapToDto).collect(Collectors.toList());
