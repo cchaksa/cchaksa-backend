@@ -45,6 +45,11 @@ public class InitializePortalConnectionService {
 
             PortalStudentInfo raw = portalData.student();
 
+            // 복수 전공 판별 후 예외 처리
+            if (raw.secondaryMajor() != null) {
+                throw new CommonException(ErrorCode.DUAL_MAJOR_COURSE_TYPE_MISSING);
+            }
+
             // 학과 및 전공 정보 설정
             Department department = departmentService.getOrCreateDepartment(
                     raw.department().code(), raw.department().name());
