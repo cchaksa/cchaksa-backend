@@ -92,18 +92,6 @@ public class Student extends BaseEntity {
 
         // 누적 성적 기록 삭제
         this.studentAcademicRecord = null;
-
-//        // 필요한 경우 학업 정보도 초기화
-//        if (this.academicInfo != null) {
-//            this.academicInfo = AcademicInfo.builder()
-//                    .admissionYear(this.academicInfo.getAdmissionYear())
-//                    .semesterEnrolled(this.academicInfo.getSemesterEnrolled())
-//                    .isTransferStudent(this.academicInfo.getIsTransferStudent())
-//                    .status(StudentStatus.ENROLLED) // 예: 기본값
-//                    .gradeLevel(1)
-//                    .completedSemesters(0)
-//                    .build();
-//        }
     }
 
     @Builder
@@ -151,6 +139,21 @@ public class Student extends BaseEntity {
                 .gradeLevel(gradeLevel)
                 .completedSemesters(completedSemesters)
                 .build();
+    }
+
+    public boolean isTransferStudent() {
+        if (this.studentCode == null || this.academicInfo == null || this.academicInfo.getAdmissionYear() == null) {
+            return false;
+        }
+
+        if (this.studentCode.length() < 2) {
+            return false;
+        }
+
+        String codePrefix = this.studentCode.substring(0, 2);               // 학번 앞 2자리
+        String yearSuffix = String.valueOf(this.academicInfo.getAdmissionYear()).substring(2); // 입학년도 뒤 2자리
+
+        return !codePrefix.equals(yearSuffix);
     }
 
     public void addStudentCourse(StudentCourse course) {

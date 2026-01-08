@@ -7,6 +7,8 @@ import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.exception.CommonException;
+import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
@@ -37,6 +39,11 @@ public class RefreshPortalConnectionService {
             }
 
             PortalStudentInfo raw = portalData.student();
+
+            // 복수 전공 판별 후 예외 처리
+            if (raw.secondaryMajor() != null) {
+                throw new CommonException(ErrorCode.DUAL_MAJOR_COURSE_TYPE_MISSING);
+            }
 
             Department department = departmentService.getOrCreateDepartment(
                     raw.department().code(), raw.department().name());

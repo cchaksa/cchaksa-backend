@@ -5,6 +5,8 @@ import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.global.exception.CommonException;
+import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,12 @@ public class GraduationService {
         }
 
         Student student = studentService.getStudentById(studentId);
+
+        // 편입생인 경우 예외 처리, TODO: 편입생 졸업 요건 추가 후 삭제
+        if (student.isTransferStudent()) {
+            throw new CommonException(ErrorCode.TRANSFER_STUDENT_UNSUPPORTED);
+        }
+
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
         Long effectiveDepartmentId = student.getMajor() != null ? student.getMajor().getId() : student.getDepartment().getId();
 

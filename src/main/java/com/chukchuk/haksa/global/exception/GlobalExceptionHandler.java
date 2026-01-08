@@ -22,10 +22,23 @@ public class GlobalExceptionHandler {
     /** 우리 커스텀 예외(대부분 4xx) → WARN, 스택트레이스 X */
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBase(BaseException ex, HttpServletRequest req) {
-        log.warn("[BaseException] code={} msg={} ctx={}",
-                ex.getCode(), ex.getMessage(), ctx(req));
-        return ResponseEntity.status(ex.getStatus())
-                .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
+        try {
+            // 졸업 요건 예외는 Sentry로 전송 -> 개발자 예외 처리
+            if (ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.code().equals(ex.getCode())) {
+                sendGraduationRequirementMissingToSentry(ex, req);
+            }
+
+            log.warn("[BaseException] code={} msg={} ctx={}",
+                    ex.getCode(), ex.getMessage(), ctx(req));
+
+            return ResponseEntity.status(ex.getStatus())
+                    .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
+
+        } finally {
+            // MDC 누수 방지
+            MDC.remove("department_id");
+            MDC.remove("admission_year");
+        }
     }
 
     /** 라우팅 미스매치(404) → WARN, 스택트레이스 X */
@@ -85,4 +98,26 @@ public class GlobalExceptionHandler {
         return "method=%s uri=%s traceId=%s spanId=%s".formatted(method, uri, traceId, spanId);
     }
     private String nvl(String s) { return s == null ? "" : s; }
+
+    private void sendGraduationRequirementMissingToSentry(BaseException ex, HttpServletRequest req) {
+        io.sentry.Sentry.withScope(scope -> {
+
+            scope.setTag("error_code", ex.getCode());
+            scope.setTag("error_type", "graduation_requirements_missing");
+
+            // MDC에서 꺼내기
+            scope.setTag("department_id", MDC.get("department_id"));
+            scope.setTag("admission_year", MDC.get("admission_year"));
+
+            scope.setExtra("uri", req.getRequestURI());
+            scope.setExtra("method", req.getMethod());
+            scope.setExtra("traceId", MDC.get("traceId"));
+            scope.setExtra("spanId", MDC.get("spanId"));
+
+            io.sentry.Sentry.captureMessage(
+                    ex.getMessage(),
+                    io.sentry.SentryLevel.WARNING
+            );
+        });
+    }
 }

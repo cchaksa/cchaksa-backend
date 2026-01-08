@@ -33,6 +33,10 @@ public class StudentService {
         return user.getStudent();
     }
 
+    public boolean existsByStudentCode(String studentCode) {
+        return studentRepository.existsByStudentCode(studentCode);
+    }
+
     @Transactional
     public void markReconnectedByUser(User user) {
         Student student = studentRepository.findByUser(user)
