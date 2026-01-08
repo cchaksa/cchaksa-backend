@@ -33,7 +33,12 @@ public interface GraduationControllerDocs {
                     ),
                     @ApiResponse(
                             responseCode = "404",
-                            description = "졸업 요건 정보 없음 (ErrorCode: G01, GRADUATION_REQUIREMENTS_NOT_FOUND)",
+                            description = "졸업 요건 정보 없음 (ErrorCode: G02, GRADUATION_REQUIREMENTS_DATA_NOT_FOUND)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "422",
+                            description = "편입생 학적 정보는 현재 미지원 (ErrorCode: T13, TRANSFER_STUDENT_UNSUPPORTED)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))
                     )
             }
