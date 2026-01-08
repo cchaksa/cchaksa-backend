@@ -59,6 +59,10 @@ public interface SuwonScrapeControllerDocs {
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
                     ),
                     @ApiResponse(
+                            responseCode = "409",
+                            description = "이미 포털 연동된 학생 정보가 존재합 (ErrorCode: S04)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(
                             responseCode = "423",
                             description = "계정 잠김 (ErrorCode: P03)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))

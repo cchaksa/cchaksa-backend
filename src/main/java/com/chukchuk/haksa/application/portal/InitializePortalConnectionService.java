@@ -3,15 +3,19 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.service.DepartmentService;
 import com.chukchuk.haksa.domain.student.model.StudentStatus;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.exception.CommonException;
+import com.chukchuk.haksa.global.exception.ErrorCode;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,12 +32,13 @@ public class InitializePortalConnectionService {
     private final DepartmentService departmentService;
     private final UserPortalConnectionRepository userPortalConnectionRepository;
     private final UserService userService;
+    private final StudentService studentService;
 
     @Transactional
     public PortalConnectionResult executeWithPortalData(UUID userId, PortalData portalData) {
         try {
-            // 사용자 조회 및 포털 연동 여부 확인
             User user = userService.getUserById(userId);
+            // TODO: Controller 단에 동일한 로직 존재 -> 제거 예정
             if (user.getPortalConnected()) {
                 return failure("이미 포털 계정과 연동된 사용자입니다.");
             }
@@ -57,6 +62,12 @@ public class InitializePortalConnectionService {
             // StudentInitializationDataType 생성
             if (department == null) {
                 throw new IllegalStateException("학과/전공 정보 초기화 실패");
+            }
+
+            String studentCode = raw.studentCode();
+
+            if (studentService.existsByStudentCode(studentCode)) {
+                throw new CommonException(ErrorCode.DUPLICATED_STUDENT_CODE);
             }
 
             // 학과 및 전공 정보 포함된 StudentInitializationDataType 생성
@@ -91,9 +102,19 @@ public class InitializePortalConnectionService {
             );
 
             return success(raw.studentCode(), studentInfo);
+        } catch (DataIntegrityViolationException e) {
+            if (isStudentCodeUniqueViolation(e)) {
+                throw new CommonException(ErrorCode.DUPLICATED_STUDENT_CODE);
+            }
+            throw e;
         } catch (Exception e) {
             log.error("[PORTAL][INIT] 예외 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e); // rollback이 정상 처리
+            throw new CommonException(ErrorCode.SCRAPING_FAILED);
         }
+    }
+
+    private boolean isStudentCodeUniqueViolation(DataIntegrityViolationException e) {
+        Throwable cause = e.getMostSpecificCause();
+        return cause != null && cause.getMessage().contains("student_code");
     }
 }
