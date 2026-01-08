@@ -107,6 +107,8 @@ public class InitializePortalConnectionService {
             );
 
             return success(raw.studentCode(), studentInfo);
+        } catch (CommonException e) {
+            throw e;
         } catch (DataIntegrityViolationException e) {
             if (isStudentCodeUniqueViolation(e)) {
                 throw new CommonException(ErrorCode.DUPLICATED_STUDENT_CODE);
