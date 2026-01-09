@@ -1,6 +1,5 @@
 package com.chukchuk.haksa.domain.graduation.service;
 
-import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
@@ -48,31 +47,18 @@ public class GraduationService {
         }
 
         Student student = studentService.getStudentById(studentId);
-        // 편입생인 경우 예외 처리, TODO: 편입생 졸업 요건 추가 후 삭제
         validateTransferStudent(student);
 
-        Department dept = student.getDepartment();
-        // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
-        Long primaryMajorId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
+        Long primaryMajorId = resolvePrimaryMajorId(student);
         int admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        List<AreaProgressDto> areaProgress;
-
-        if (student.getSecondaryMajor() != null) {
-            areaProgress = getDualMajorProgressOrThrow(
-                    student, studentId, primaryMajorId, admissionYear
-            );
-        } else {
-            areaProgress = getSingleMajorProgressOrThrow(
-                    student, studentId, primaryMajorId, admissionYear
-            );
-        }
+        List<AreaProgressDto> areaProgress =
+                resolveAreaProgress(student, studentId, primaryMajorId, admissionYear);
 
         GraduationProgressResponse response = new GraduationProgressResponse(areaProgress);
 
         if (isDifferentGradRequirement(primaryMajorId, admissionYear)) {
             response.setHasDifferentGraduationRequirement();
-            log.info("[BIZ] graduation.progress.flag.set studentId={} deptId={} year={}", studentId, primaryMajorId, admissionYear);
         }
 
         try {
@@ -91,8 +77,30 @@ public class GraduationService {
         }
     }
 
+    private Long resolvePrimaryMajorId(Student student) {
+        return student.getMajor() != null
+                ? student.getMajor().getId()
+                : student.getDepartment().getId();
+    }
+
     private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
         return admissionYear == SPECIAL_YEAR && departmentId != null && SPECIAL_DEPTS.contains(departmentId);
+    }
+
+    private List<AreaProgressDto> resolveAreaProgress(
+            Student student,
+            UUID studentId,
+            Long primaryMajorId,
+            int admissionYear
+    ) {
+        if (student.getSecondaryMajor() != null) {
+            return getDualMajorProgressOrThrow(
+                    student, studentId, primaryMajorId, admissionYear
+            );
+        }
+        return getSingleMajorProgressOrThrow(
+                student, studentId, primaryMajorId, admissionYear
+        );
     }
 
     // 단일 전공 처리 메서드
@@ -118,7 +126,6 @@ public class GraduationService {
         return result;
     }
 
-    // 복수 전공 처리 메서드
     // 복수 전공 처리 메서드
     private List<AreaProgressDto> getDualMajorProgressOrThrow(
             Student student,
