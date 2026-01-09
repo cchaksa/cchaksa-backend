@@ -137,6 +137,21 @@ public class Student extends BaseEntity {
                 .build();
     }
 
+    public boolean isTransferStudent() {
+        if (this.studentCode == null || this.academicInfo == null || this.academicInfo.getAdmissionYear() == null) {
+            return false;
+        }
+
+        if (this.studentCode.length() < 2) {
+            return false;
+        }
+
+        String codePrefix = this.studentCode.substring(0, 2); // 학번 앞 2자리
+        String yearSuffix = String.valueOf(this.academicInfo.getAdmissionYear()).substring(2); // 입학년도 뒤 2자리
+
+        return !codePrefix.equals(yearSuffix);
+    }
+
     public void addStudentCourse(StudentCourse course) {
         this.studentCourses.add(course);
         course.setStudent(this);
