@@ -157,6 +157,11 @@ public class GraduationQueryRepository {
                 .filter(req -> !req.areaType().equalsIgnoreCase(AREA_GENERAL_ELECTIVE))
                 .toList();
 
+        // 필터링 후 빈 리스트가 되는 경우를 대비한 방어 코드
+        if (primaryFiltered.isEmpty()) {
+            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
+        }
+
         // 복수전공 졸업 요건 조회
         List<AreaRequirementDto> dualMajorReqs = getDualMajorRequirementsWithCache(primaryMajorId, secondaryMajorId, admissionYear);
 
