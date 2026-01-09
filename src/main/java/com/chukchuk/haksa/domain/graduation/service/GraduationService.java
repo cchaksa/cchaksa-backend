@@ -48,6 +48,9 @@ public class GraduationService {
         }
 
         Student student = studentService.getStudentById(studentId);
+        // 편입생인 경우 예외 처리, TODO: 편입생 졸업 요건 추가 후 삭제
+        validateTransferStudent(student);
+
         Department dept = student.getDepartment();
         // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
         Long primaryMajorId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
@@ -79,6 +82,13 @@ public class GraduationService {
         }
 
         return response;
+    }
+
+    // 편입생인 경우 예외 처리, TODO: 편입생 졸업 요건 추가 후 삭제
+    private void validateTransferStudent(Student student) {
+        if (student.isTransferStudent()) {
+            throw new CommonException(ErrorCode.TRANSFER_STUDENT_UNSUPPORTED);
+        }
     }
 
     private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
