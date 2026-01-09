@@ -5,6 +5,8 @@ import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseInternalDto;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import jakarta.persistence.EntityManager;
@@ -144,14 +146,24 @@ public class GraduationQueryRepository {
         // 주전공 졸업 요건 조회
         List<AreaRequirementDto> primaryReqs = getAreaRequirementsWithCache(primaryMajorId, admissionYear);
 
-        // 주전공 졸업 요건 중 '전선' 제외
+        // 주전공 졸업 요건 데이터 부재 시 404 예외 처리
+        if (primaryReqs == null || primaryReqs.isEmpty()) {
+            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
+        }
+
+        // 주전공 졸업 요건 중 전선/일선 제외
         List<AreaRequirementDto> primaryFiltered = primaryReqs.stream()
                 .filter(req -> !req.areaType().equalsIgnoreCase(AREA_MAJOR_ELECTIVE))
                 .filter(req -> !req.areaType().equalsIgnoreCase(AREA_GENERAL_ELECTIVE))
                 .toList();
 
-        // 복수전공 및 주전공 전선1 졸업 요건 조회
+        // 복수전공 졸업 요건 조회
         List<AreaRequirementDto> dualMajorReqs = getDualMajorRequirementsWithCache(primaryMajorId, secondaryMajorId, admissionYear);
+
+        // 복수 전공 졸업 요건 데이터 부재 시 404 예외 처리
+        if (dualMajorReqs == null || dualMajorReqs.isEmpty()) {
+            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
+        }
 
         // 전체 병합
         List<AreaRequirementDto> mergedRequirements = new ArrayList<>();

@@ -6,9 +6,12 @@ import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,13 +53,16 @@ public class GraduationService {
         Long primaryMajorId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
         int admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        List<AreaProgressDto> areaProgress = null;
-        if (student.getSecondaryMajor() != null) { // 복수전공 존재
-            Long secondaryMajorId = student.getSecondaryMajor().getId();
-            areaProgress = graduationQueryRepository.getDualMajorAreaProgress(studentId, primaryMajorId, secondaryMajorId, admissionYear);
+        List<AreaProgressDto> areaProgress;
+
+        if (student.getSecondaryMajor() != null) {
+            areaProgress = getDualMajorProgressOrThrow(
+                    student, studentId, primaryMajorId, admissionYear
+            );
         } else {
-            // 졸업 요건 충족 여부 조회
-            areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, primaryMajorId, admissionYear);
+            areaProgress = getSingleMajorProgressOrThrow(
+                    student, studentId, primaryMajorId, admissionYear
+            );
         }
 
         GraduationProgressResponse response = new GraduationProgressResponse(areaProgress);
@@ -77,5 +83,61 @@ public class GraduationService {
 
     private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
         return admissionYear == SPECIAL_YEAR && departmentId != null && SPECIAL_DEPTS.contains(departmentId);
+    }
+
+    // 단일 전공 처리 메서드
+    private List<AreaProgressDto> getSingleMajorProgressOrThrow(
+            Student student,
+            UUID studentId,
+            Long departmentId,
+            int admissionYear
+    ) {
+        List<AreaProgressDto> result =
+                graduationQueryRepository.getStudentAreaProgress(
+                        studentId, departmentId, admissionYear
+                );
+
+        if (result == null || result.isEmpty()) {
+            throwGraduationRequirementNotFound(student, departmentId, admissionYear);
+        }
+
+        return result;
+    }
+
+    // 복수 전공 처리 메서드
+    private List<AreaProgressDto> getDualMajorProgressOrThrow(
+            Student student,
+            UUID studentId,
+            Long primaryMajorId,
+            int admissionYear
+    ) {
+        Long secondaryMajorId = student.getSecondaryMajor().getId();
+
+        try {
+            return graduationQueryRepository.getDualMajorAreaProgress(
+                    studentId, primaryMajorId, secondaryMajorId, admissionYear
+            );
+        } catch (CommonException e) {
+            if (ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.code().equals(e.getCode())) {
+                throwGraduationRequirementNotFound(student, primaryMajorId, admissionYear);
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 졸업 요건 부재 예외 처리 메서드
+     * MDC 정리는 GlobalExceptionHandler에서 수행됨
+     */
+    private void throwGraduationRequirementNotFound(
+            Student student,
+            Long departmentId,
+            int admissionYear
+    ) {
+        MDC.put("department_id", String.valueOf(departmentId));
+        MDC.put("admission_year", String.valueOf(admissionYear));
+        MDC.put("student_code", student.getStudentCode());
+
+        throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
     }
 }
