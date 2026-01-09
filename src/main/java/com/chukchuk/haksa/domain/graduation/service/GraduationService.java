@@ -97,13 +97,18 @@ public class GraduationService {
                         studentId, departmentId, admissionYear
                 );
 
-        if (result == null || result.isEmpty()) {
-            throwGraduationRequirementNotFound(student, departmentId, admissionYear);
+        if (result.isEmpty()) {
+            throwGraduationRequirementNotFound(
+                    student,
+                    departmentId,
+                    null,
+                    admissionYear);
         }
 
         return result;
     }
 
+    // 복수 전공 처리 메서드
     // 복수 전공 처리 메서드
     private List<AreaProgressDto> getDualMajorProgressOrThrow(
             Student student,
@@ -119,7 +124,12 @@ public class GraduationService {
             );
         } catch (CommonException e) {
             if (ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.code().equals(e.getCode())) {
-                throwGraduationRequirementNotFound(student, primaryMajorId, admissionYear);
+                throwGraduationRequirementNotFound(
+                        student,
+                        primaryMajorId,
+                        secondaryMajorId,
+                        admissionYear
+                );
             }
             throw e;
         }
@@ -131,12 +141,21 @@ public class GraduationService {
      */
     private void throwGraduationRequirementNotFound(
             Student student,
-            Long departmentId,
+            Long primaryMajorId,
+            Long secondaryMajorId,
             int admissionYear
     ) {
-        MDC.put("department_id", String.valueOf(departmentId));
-        MDC.put("admission_year", String.valueOf(admissionYear));
         MDC.put("student_code", student.getStudentCode());
+        MDC.put("admission_year", String.valueOf(admissionYear));
+        MDC.put("primary_department_id", String.valueOf(primaryMajorId));
+
+        if (secondaryMajorId == null) {
+            MDC.put("major_type", "SINGLE");
+            MDC.put("secondary_department_id", "NONE");
+        } else {
+            MDC.put("major_type", "DUAL");
+            MDC.put("secondary_department_id", String.valueOf(secondaryMajorId));
+        }
 
         throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
     }
