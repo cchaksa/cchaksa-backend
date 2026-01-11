@@ -12,15 +12,6 @@ spring:
       idle-timeout: 300000     # 5m
       max-lifetime: 900000     # 15m
       keepalive-time: 120000   # 2m
-  data:
-    redis:
-      host: ${DEV_REDIS_HOST}
-      port: ${DEV_REDIS_PORT}
-      client-name: redis-client
-      timeout: 5s
-      ssl:
-        enabled: false
-
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -49,9 +40,9 @@ logging:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
   sampling:
-    enabled: true # 샘플링 활성화
-    rate: 0.1 # 10% 로그만 남김
-    patterns: [ ] # 샘플링 필요 api 경로 추가
+    enabled: true
+    rate: 0.1
+    patterns: [ ]
 
 swagger:
   server-url: https://dev.api.cchaksa.com

@@ -2,6 +2,7 @@ spring:
   autoconfigure:
     exclude:
       - io.sentry.spring.boot.jakarta.SentryAutoConfiguration
+
   datasource:
     url: ${LOCAL_DB_URL}
     username: ${LOCAL_DB_USERNAME}
@@ -15,12 +16,6 @@ spring:
       idle-timeout: 300000     # 5m
       max-lifetime: 900000     # 15m
       keepalive-time: 120000   # 2m
-  data:
-    redis:
-      host: ${LOCAL_REDIS_HOST}
-      port: ${LOCAL_REDIS_PORT}
-      username: default
-      password:
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -32,21 +27,21 @@ spring:
           use_get_generated_keys: true
           statement_cache_size: 0
 
-    security:
-      cookie:
-        dev-mode: true
+security:
+  cookie:
+    dev-mode: true
 
-    server:
-      forward-headers-strategy: native
+server:
+  forward-headers-strategy: native
 
-    logging:
-      level:
-        org.hibernate.SQL: off
-        org.hibernate.type.descriptor.sql.BasicBinder: off
-      sampling:
-        enabled: true # 샘플링 활성화
-        rate: 0.1 # 10% 로그만 남김
-        patterns: [ ] # 샘플링 필요 api 경로 추가
+logging:
+  level:
+    org.hibernate.SQL: off
+    org.hibernate.type.descriptor.sql.BasicBinder: off
+  sampling:
+    enabled: true
+    rate: 0.1
+    patterns: [ ]
 
 sentry:
   enable: false
