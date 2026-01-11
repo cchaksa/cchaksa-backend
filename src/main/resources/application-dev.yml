@@ -25,7 +25,6 @@ spring:
 
 sentry:
   dsn: ${DEV_SENTRY_DSN}
-  enable: true
   environment: dev
 
 security:
@@ -39,10 +38,6 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
-  sampling:
-    enabled: true
-    rate: 0.1
-    patterns: [ ]
 
 swagger:
   server-url: https://dev.api.cchaksa.com
