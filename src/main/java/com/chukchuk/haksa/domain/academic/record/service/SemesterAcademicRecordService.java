@@ -3,11 +3,11 @@ package com.chukchuk.haksa.domain.academic.record.service;
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
+import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ import static com.chukchuk.haksa.domain.academic.record.dto.SemesterAcademicReco
 @Slf4j
 public class SemesterAcademicRecordService {
     private final SemesterAcademicRecordRepository semesterAcademicRecordRepository;
-    private final RedisCacheStore redisCacheStore;
+    private final AcademicCache academicCache;
 
     private static final Duration SEMESTER_RECORD_TTL = Duration.ofMinutes(3);
 
@@ -71,7 +71,7 @@ public class SemesterAcademicRecordService {
 
     public List<SemesterSummaryResponse> getSemesterSummaries(UUID studentId) {
         try {
-            List<SemesterSummaryResponse> cached = redisCacheStore.getSemesterSummaries(studentId);
+            List<SemesterSummaryResponse> cached = academicCache.getSemesterSummaries(studentId);
             if (cached != null) {
                 return cached;
             }
@@ -92,7 +92,7 @@ public class SemesterAcademicRecordService {
         }
 
         try {
-            redisCacheStore.setSemesterSummaries(studentId, summaries);
+            academicCache.setSemesterSummaries(studentId, summaries);
         } catch (Exception e) {
             log.warn("[BIZ] semester.summaries.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }

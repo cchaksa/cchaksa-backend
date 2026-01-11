@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.graduation.repository;
 
+import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
@@ -8,7 +9,6 @@ import com.chukchuk.haksa.domain.graduation.dto.CourseInternalDto;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +25,7 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 @Slf4j
 public class GraduationQueryRepository {
     private final EntityManager em;
-    private final RedisCacheStore redisCacheStore;
+    private final AcademicCache academicCache;
 
     private static final String AREA_MAJOR_ELECTIVE = "전선";  // 전공선택
     private static final String AREA_GENERAL_ELECTIVE = "일선"; // 일반선택
@@ -274,11 +274,11 @@ public class GraduationQueryRepository {
      */
     public List<AreaRequirementDto> getAreaRequirementsWithCache(Long deptId, Integer admissionYear) {
         try {
-            List<AreaRequirementDto> cached = redisCacheStore.getGraduationRequirements(deptId, admissionYear);
+            List<AreaRequirementDto> cached = academicCache.getGraduationRequirements(deptId, admissionYear);
             if (cached != null && !cached.isEmpty()) return cached;
 
             List<AreaRequirementDto> result = getAreaRequirements(deptId, admissionYear);
-            redisCacheStore.setGraduationRequirements(deptId, admissionYear, result);
+            academicCache.setGraduationRequirements(deptId, admissionYear, result);
             return result;
 
         } catch (Exception e) {
@@ -293,11 +293,11 @@ public class GraduationQueryRepository {
      */
     public List<AreaRequirementDto> getDualMajorRequirementsWithCache(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {
         try {
-            List<AreaRequirementDto> cached = redisCacheStore.getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
+            List<AreaRequirementDto> cached = academicCache.getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
             if (cached != null && !cached.isEmpty()) return cached;
 
             List<AreaRequirementDto> result = getDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear);
-            redisCacheStore.setDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear, result);
+            academicCache.setDualMajorRequirements(primaryMajorId, secondaryMajorId, admissionYear, result);
             return result;
 
         } catch (Exception e) {

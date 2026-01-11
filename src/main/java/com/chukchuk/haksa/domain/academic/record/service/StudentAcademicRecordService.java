@@ -3,12 +3,12 @@ package com.chukchuk.haksa.domain.academic.record.service;
 import com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto;
 import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
+import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,14 +24,14 @@ public class StudentAcademicRecordService {
 
     private final StudentAcademicRecordRepository studentAcademicRecordRepository;
     private final GraduationQueryRepository graduationQueryRepository;
-    private final RedisCacheStore redisCacheStore;
+    private final AcademicCache academicCache;
 
     private static final String AREA_MAJOR_ELECTIVE = "전선";
     private static final String AREA_GENERAL_ELECTIVE = "일선";
 
     public StudentAcademicRecordDto.AcademicSummaryResponse getAcademicSummary(UUID studentId) {
         try {
-            StudentAcademicRecordDto.AcademicSummaryResponse cached = redisCacheStore.getAcademicSummary(studentId);
+            StudentAcademicRecordDto.AcademicSummaryResponse cached = academicCache.getAcademicSummary(studentId);
             if (cached != null) {
                 return cached;
             }
@@ -53,7 +53,7 @@ public class StudentAcademicRecordService {
         StudentAcademicRecordDto.AcademicSummaryResponse response = StudentAcademicRecordDto.AcademicSummaryResponse.from(studentAcademicRecord, totalRequiredGraduationCredits);
 
         try {
-            redisCacheStore.setAcademicSummary(studentId, response);
+            academicCache.setAcademicSummary(studentId, response);
         } catch (Exception e) {
             log.warn("[BIZ] academic.summary.cache.set.fail studentId={} ex={}", studentId, e.getClass().getSimpleName(), e);
         }
