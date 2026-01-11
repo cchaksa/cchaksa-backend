@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -135,10 +136,11 @@ GROUP BY ap.areaType, ap.requiredCredits, ap.earnedCredits,
         query.setParameter("admissionYear", admissionYear);
 
         List<Object[]> results = query.getResultList();
-        log.info("GraduationQueryRepository SQL 결과: {}", results);
 
         if (results.isEmpty()) {
-            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_NOT_FOUND);
+            MDC.put("department_id", String.valueOf(departmentId));
+            MDC.put("admission_year", String.valueOf(admissionYear));
+            throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
         }
 
         return results.stream().map(this::mapToDto).collect(Collectors.toList());

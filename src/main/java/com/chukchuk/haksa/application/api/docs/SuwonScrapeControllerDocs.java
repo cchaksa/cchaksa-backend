@@ -58,6 +58,16 @@ public interface SuwonScrapeControllerDocs {
                             description = "아이디 또는 비밀번호 불일치 (ErrorCode: P01)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
                     ),
+                    @ApiResponse(responseCode = "401", description = "로그인 필요 (ErrorCode: C01, 세션 만료)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(
+                            responseCode = "409",
+                            description = "이미 포털 연동된 학생 정보가 존재 (ErrorCode: S04)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(
+                            responseCode = "422",
+                            description = "복수전공 이수 구분 정보가 존재하지 않음 (ErrorCode: D01)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(
                             responseCode = "423",
                             description = "계정 잠김 (ErrorCode: P03)",
@@ -88,6 +98,20 @@ public interface SuwonScrapeControllerDocs {
                     ),
                     @ApiResponse(responseCode = "401", description = "로그인 필요 (ErrorCode: C01, 세션 만료)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(
+                            responseCode = "401",
+                            description = "아이디 또는 비밀번호 불일치 (ErrorCode: P01)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "422",
+                            description = "복수전공 이수 구분 정보가 존재하지 않음 (ErrorCode: D01)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(
+                            responseCode = "423",
+                            description = "계정 잠김 (ErrorCode: P03)",
+                            content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class))
+                    ),
                     @ApiResponse(responseCode = "500", description = "서버 내부 오류 (ErrorCode: C03, 재연동 실패)",
                             content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
