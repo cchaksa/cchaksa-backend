@@ -38,10 +38,6 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
-  sampling:
-    enabled: true
-    rate: 0.1
-    patterns: [ ]
 
 sentry:
   enable: false
