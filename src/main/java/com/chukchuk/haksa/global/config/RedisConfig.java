@@ -4,6 +4,7 @@ import io.lettuce.core.ReadFrom;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -16,6 +17,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 @Slf4j
 @Configuration
+@ConditionalOnProperty(name = "infra.redis.enabled", havingValue = "true")
 public class RedisConfig {
 
     @Value("${spring.data.redis.host}")
@@ -50,13 +52,11 @@ public class RedisConfig {
 
         LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
                 LettuceClientConfiguration.builder().readFrom(ReadFrom.REPLICA_PREFERRED);
-        if (redisSslEnabled) builder.useSsl(); // prod=false 여야 함
+        if (redisSslEnabled) builder.useSsl();
 
-        var cf = new LettuceConnectionFactory(conf, builder.build());
-        return cf;
+        return new LettuceConnectionFactory(conf, builder.build());
     }
 
-    // 부팅 시 실제 효과값 로그 + 즉시 ping
     @Bean
     CommandLineRunner redisBootCheck(StringRedisTemplate rt) {
         return args -> {
