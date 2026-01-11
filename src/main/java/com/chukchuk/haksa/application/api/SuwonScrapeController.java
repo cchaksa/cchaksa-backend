@@ -4,6 +4,7 @@ import com.chukchuk.haksa.application.api.docs.SuwonScrapeControllerDocs;
 import com.chukchuk.haksa.application.dto.PortalLoginResponse;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
+import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -16,8 +17,7 @@ import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
-import com.chukchuk.haksa.infrastructure.redis.RedisPortalCredentialStore;
+import com.chukchuk.haksa.infrastructure.cache.redis.RedisPortalCredentialStore;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
     private final PortalRepository portalRepository;
     private final RedisPortalCredentialStore redisPortalCredentialStore;
-    private final RedisCacheStore redisCacheStore;
+    private final AcademicCache academicCache;
     private final PortalSyncService portalSyncService;
     private final UserService userService;
 
@@ -125,7 +125,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
         // 캐시 데이터 초기화
         UUID studentId = userDetails.getStudentId();
-        redisCacheStore.deleteAllByStudentId(studentId);
+        academicCache.deleteAllByStudentId(studentId);
         redisPortalCredentialStore.clear(userId);
 
         long tookMs = LogTime.elapsedMs(t0);
