@@ -40,6 +40,9 @@ sentry:
 management:
   tracing:
     enabled: true
+  health:
+    redis:
+      enabled: false
 
 logging:
   exclude:
