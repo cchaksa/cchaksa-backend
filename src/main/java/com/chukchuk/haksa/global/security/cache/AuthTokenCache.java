@@ -6,9 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Component
 public class AuthTokenCache {
@@ -41,11 +45,37 @@ public class AuthTokenCache {
         });
     }
 
+    public UserDetails getOrLoad(String userId, String token, Supplier<UserDetails> loader) {
+        String tokenHash = hashToken(token);
+        if ("hash_err".equals(tokenHash)) {
+            return loader.get();
+        }
+
+        UserDetails cached = cache.getIfPresent(tokenHash);
+        if (cached != null) {
+            return cached;
+        }
+
+        UserDetails loaded = loader.get();
+        put(userId, tokenHash, loaded);
+        return loaded;
+    }
+
     public void evictByUserId(String userId) {
         Set<String> tokenHashes = userTokenIndex.getIfPresent(userId);
         if (tokenHashes != null) {
             tokenHashes.forEach(cache::invalidate);
         }
         userTokenIndex.invalidate(userId);
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] digest = md.digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
+            return "hash_err";
+        }
     }
 }
