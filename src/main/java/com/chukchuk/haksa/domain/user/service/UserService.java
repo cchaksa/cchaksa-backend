@@ -11,6 +11,7 @@ import com.chukchuk.haksa.domain.user.repository.SocialAccountRepository;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
 import io.jsonwebtoken.Claims;
@@ -33,6 +34,7 @@ public class UserService {
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
     private final AcademicCache academicCache;
+    private final AuthTokenCache authTokenCache;
 
     private final Map<OidcProvider, OidcService> oidcServices;
 
@@ -64,6 +66,7 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         UUID studentId = user.getStudent().getId();
         academicCache.deleteAllByStudentId(studentId);
+        authTokenCache.evictByUserId(userId.toString());
         socialAccountRepository.deleteByUser(user);
         userRepository.delete(user);
         log.info("[BIZ] user.delete.done userId={}", userId);
