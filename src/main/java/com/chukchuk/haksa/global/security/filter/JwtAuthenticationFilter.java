@@ -69,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (userDetails == null) {
                 userDetails = userDetailsService.loadUserByUsername(userId);
                 if (!"hash_err".equals(tokenHash)) {
-                    authTokenCache.put(tokenHash, userDetails);
+                    authTokenCache.put(userId, tokenHash, userDetails);
                 }
             }
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

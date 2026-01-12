@@ -7,16 +7,24 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class AuthTokenCache {
 
     private final Cache<String, UserDetails> cache;
+    private final Cache<String, Set<String>> userTokenIndex;
 
     public AuthTokenCache(@Value("${security.jwt.access-expiration}") long accessExpirationMs) {
+        Duration ttl = Duration.ofMillis(accessExpirationMs);
         this.cache = Caffeine.newBuilder()
                 .maximumSize(50_000)
-                .expireAfterWrite(Duration.ofMillis(accessExpirationMs))
+                .expireAfterWrite(ttl)
+                .build();
+        this.userTokenIndex = Caffeine.newBuilder()
+                .maximumSize(50_000)
+                .expireAfterWrite(ttl)
                 .build();
     }
 
@@ -24,7 +32,20 @@ public class AuthTokenCache {
         return cache.getIfPresent(tokenHash);
     }
 
-    public void put(String tokenHash, UserDetails userDetails) {
+    public void put(String userId, String tokenHash, UserDetails userDetails) {
         cache.put(tokenHash, userDetails);
+        userTokenIndex.asMap().compute(userId, (key, existing) -> {
+            Set<String> set = (existing != null) ? existing : ConcurrentHashMap.newKeySet();
+            set.add(tokenHash);
+            return set;
+        });
+    }
+
+    public void evictByUserId(String userId) {
+        Set<String> tokenHashes = userTokenIndex.getIfPresent(userId);
+        if (tokenHashes != null) {
+            tokenHashes.forEach(cache::invalidate);
+        }
+        userTokenIndex.invalidate(userId);
     }
 }
