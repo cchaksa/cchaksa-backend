@@ -2,10 +2,13 @@ package com.chukchuk.haksa.domain.auth.controller;
 
 import com.chukchuk.haksa.domain.auth.controller.docs.AuthControllerDocs;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
+import com.chukchuk.haksa.domain.auth.service.TokenCookieProvider;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +26,7 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class AuthController implements AuthControllerDocs {
 
     private final RefreshTokenService refreshTokenService;
+    private final TokenCookieProvider tokenCookieProvider;
 
     @PostMapping("/refresh")
     public ResponseEntity<SuccessResponse<RefreshResponse>> refreshResponse(@RequestBody RefreshRequest request) {
@@ -32,6 +36,12 @@ public class AuthController implements AuthControllerDocs {
         if (tookMs >= SLOW_MS) {
             log.info("[BIZ] auth.refresh.done took_ms={}", tookMs);
         }
-        return ResponseEntity.ok(SuccessResponse.of(response));
+        ResponseCookie accessCookie = tokenCookieProvider.createAccessTokenCookie(response.accessToken());
+        ResponseCookie refreshCookie = tokenCookieProvider.createRefreshTokenCookie(response.refreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(SuccessResponse.of(response));
     }
 }
