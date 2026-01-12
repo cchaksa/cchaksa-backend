@@ -21,9 +21,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Base64;
 import java.util.List;
 
 @Component
@@ -61,17 +58,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtProvider.parseToken(token);
             String userId = claims.getSubject();
 
-            String tokenHash = hashToken(token);
-            UserDetails userDetails = null;
-            if (!"hash_err".equals(tokenHash)) {
-                userDetails = authTokenCache.get(tokenHash);
-            }
-            if (userDetails == null) {
-                userDetails = userDetailsService.loadUserByUsername(userId);
-                if (!"hash_err".equals(tokenHash)) {
-                    authTokenCache.put(userId, tokenHash, userDetails);
-                }
-            }
+            UserDetails userDetails = authTokenCache.getOrLoad(
+                    userId,
+                    token,
+                    () -> userDetailsService.loadUserByUsername(userId)
+            );
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -94,16 +85,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return header.substring(7);
         }
         return null;
-    }
-
-    private String hashToken(String token) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            byte[] digest = md.digest(token.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-        } catch (Exception e) {
-            return "hash_err";
-        }
     }
 
 //    private String extractTokenFromCookie(HttpServletRequest request) {
