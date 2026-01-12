@@ -48,9 +48,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = extractTokenFromHeader(request);
+        String token = extractTokenFromCookie(request);
         if (token == null) {
-            token = extractTokenFromCookie(request);
+            token = extractTokenFromHeader(request);
         }
         if (token == null) {
             filterChain.doFilter(request, response);
