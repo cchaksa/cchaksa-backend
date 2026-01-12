@@ -31,5 +31,18 @@
 - Cache strategy: `cache.type=local|redis`, `portal.credential.store=local|redis`.
 - Auth cache: `AuthTokenCache` stores token → `UserDetails` for access-token TTL; evict by user on deletion.
 
+## Domain Rules & Priorities
+- Graduation requirement analysis is domain-driven; missing or inconsistent data is treated as a domain exception, not a technical error.
+- Portal sync success does not guarantee graduation analysis success (e.g., transfer students, missing requirements).
+- Domain correctness takes priority over API convenience or client expectations.
+
+## Refactoring Guardrails
+- Do not merge domain and infrastructure models.
+- Do not bypass application services to simplify flows.
+- Avoid introducing global transactional boundaries without explicit justification.
+
+## Transaction Boundaries
+- Transactions are managed at the application service level, not in controllers or domain models.
+
 ## Agent Notes (feat/149)
 - On branch `feat/149`, commit messages start with `149 ` and are written in Korean.
