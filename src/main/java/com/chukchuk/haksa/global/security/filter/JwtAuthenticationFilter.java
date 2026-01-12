@@ -43,7 +43,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (WHITELIST_PATHS.stream().anyMatch(p ->
                 p.equals("/") ? path.equals("/") : path.startsWith(p)
         )) {
-            log.info("Bypassing JWT filter for swagger: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
