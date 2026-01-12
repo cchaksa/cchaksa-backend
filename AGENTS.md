@@ -1,42 +1,35 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/main/java` contains the Spring Boot application (`com.chukchuk.haksa`) organized by domain (`domain`, `application`, `infrastructure`, `global`).
-- `src/main/resources` holds configuration (`application-*.yml`), logging (`logback-spring.xml`), and API docs (`public/openapi.yaml`).
-- `src/test/java` contains JUnit tests (e.g., `*Tests`).
-- `docker/` includes local observability configs (Loki/Promtail).
+- `src/main/java` contains the Spring Boot app (`com.chukchuk.haksa`) organized as `domain`, `application`, `infrastructure`, `global`.
+- `src/main/resources` holds config (`application-*.yml`), logging (`logback-spring.xml`), and API docs (`public/openapi.yaml`).
+- `src/test/java` holds JUnit tests (e.g., `*Tests`); `docker/` has local observability configs.
 
 ## Architecture Overview
-- `domain`: core business models, repositories, and services (entities + rules).
-- `application`: use-case orchestration and API-facing DTOs/wrappers.
-- `infrastructure`: external integrations (portal client, cache, mappers).
-- `global`: cross-cutting concerns (security, logging, error handling, config).
-- Dependency direction: `application` and `domain` should not depend on `infrastructure`; wire integrations via interfaces in `domain` (see `domain/portal/PortalCredentialStore`).
-- Controllers should call `application` or `domain` services, not infrastructure classes directly.
+- `domain`: entities + business rules; `application`: use-case orchestration; `infrastructure`: portal client/cache/mappers; `global`: security/logging/error/config.
+- Keep dependencies pointing inward; use interfaces in `domain` (e.g., `domain/portal/PortalCredentialStore`).
+- Portal sync flow: credentials → scrape → initialize/refresh → persistence.
 
 ## Build, Test, and Development Commands
-- `./gradlew build` runs compile + tests and produces the build artifacts.
-- `./gradlew test` runs JUnit tests via the Spring Boot test starter.
-- `./gradlew bootRun` starts the app with the default profile.
-- `./gradlew clean` clears generated build outputs.
+- `./gradlew build` (compile + tests), `./gradlew test`, `./gradlew bootRun`, `./gradlew clean`.
 
 ## Coding Style & Naming Conventions
-- Java 17, Spring Boot 3.2.x; keep 4-space indentation and standard Java formatting.
-- Package naming follows `com.chukchuk.haksa.<layer>.<feature>`.
-- Class names in `UpperCamelCase`, methods/fields in `lowerCamelCase`, constants in `UPPER_SNAKE_CASE`.
-- Lombok is used; prefer explicit annotations over custom boilerplate.
+- Java 17, Spring Boot 3.2.x; 4-space indentation, standard Java formatting.
+- Packages: `com.chukchuk.haksa.<layer>.<feature>`; classes `UpperCamelCase`, fields `lowerCamelCase`.
+- Lombok is used; prefer explicit annotations.
 
 ## Testing Guidelines
-- Frameworks: JUnit 5 + Spring Boot test starter.
-- Test classes follow `*Tests` naming (see `src/test/java`).
-- Run all tests with `./gradlew test`; add unit tests near the impacted domain or service package.
+- JUnit 5 + Spring Boot test starter; tests named `*Tests`.
+- Add unit tests near the impacted service/domain package; run with `./gradlew test`.
 
 ## Commit & Pull Request Guidelines
-- Commit messages follow the convention in `README.md` (e.g., `feat: add login flow`, `fix: handle null token`).
-- Types include `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, etc., and `!BREAKING CHANGE!` when required.
-- PRs should include a clear description, linked issues (if any), and test results or reproduction steps.
-- Add screenshots or API examples when changing user-facing behavior or endpoints.
+- Follow `README.md` commit types (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, etc.).
+- PRs include summary, linked issues, and test results; add API examples for endpoint changes.
 
-## Configuration & Security Notes
-- Use `application-local.yml` for local overrides; avoid committing secrets.
-- External services (PostgreSQL, Redis, OIDC) should be configured via environment-specific YAML files.
+## Configuration, Auth, and Cache Notes
+- Use `application-local.yml` for overrides; avoid committing secrets.
+- Cache strategy: `cache.type=local|redis`, `portal.credential.store=local|redis`.
+- Auth cache: `AuthTokenCache` stores token → `UserDetails` for access-token TTL; evict by user on deletion.
+
+## Agent Notes (feat/149)
+- On branch `feat/149`, commit messages start with `149 ` and are written in Korean.
