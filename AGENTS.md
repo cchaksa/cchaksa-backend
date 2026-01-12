@@ -44,5 +44,6 @@
 ## Transaction Boundaries
 - Transactions are managed at the application service level, not in controllers or domain models.
 
-## Agent Notes (feat/149)
-- On branch `feat/149`, commit messages start with `149 ` and are written in Korean.
+## Agent Notes (type/*)
+- On branch `type/*`, commit messages start with `* ` and are written in Korean.
+  - type: feat, refactor, fix
