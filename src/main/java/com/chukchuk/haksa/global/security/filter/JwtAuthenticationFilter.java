@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.global.security.filter;
 
+import com.chukchuk.haksa.global.security.AuthCookieNames;
 import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
 import com.chukchuk.haksa.global.security.service.CustomUserDetailsService;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
@@ -94,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (request.getCookies() == null) return null;
 
         for (Cookie cookie : request.getCookies()) {
-            if ("accessToken".equals(cookie.getName())) {
+            if (AuthCookieNames.ACCESS.equals(cookie.getName())) {
                 return cookie.getValue();
             }
         }
