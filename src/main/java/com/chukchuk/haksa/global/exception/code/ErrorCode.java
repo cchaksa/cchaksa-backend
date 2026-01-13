@@ -51,7 +51,6 @@ public enum ErrorCode {
     INVALID_GRADE_TYPE("A06", "존재하지 않는 성적 등급입니다.", HttpStatus.BAD_REQUEST),
 
     // 졸업 요건 관련
-    GRADUATION_REQUIREMENTS_NOT_FOUND("G01", "졸업 요건 정보를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     GRADUATION_REQUIREMENTS_DATA_NOT_FOUND("G02", "사용자에게 맞는 졸업 요건 데이터가 존재하지 않습니다.", HttpStatus.NOT_FOUND),
 
     // 포털 관련
