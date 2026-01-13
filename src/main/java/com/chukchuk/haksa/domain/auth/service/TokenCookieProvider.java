@@ -42,7 +42,7 @@ public class TokenCookieProvider {
     }
 
     private ResponseCookie expireCookie(String name) {
-        return baseBuilder(name, "", Duration.ZERO).maxAge(Duration.ZERO).build();
+        return baseBuilder(name, "", Duration.ZERO).build();
     }
 
     private ResponseCookie.ResponseCookieBuilder baseBuilder(String name, String value, Duration maxAge) {
