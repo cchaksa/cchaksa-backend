@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.domain.user.controller;
 
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
+import com.chukchuk.haksa.domain.auth.service.TokenCookieProvider;
 import com.chukchuk.haksa.domain.user.controller.docs.UserControllerDocs;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -10,6 +11,8 @@ import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +28,7 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class UserController implements UserControllerDocs {
 
     private final UserService userService;
+    private final TokenCookieProvider tokenCookieProvider;
 
     @DeleteMapping("/delete")
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
@@ -52,6 +56,12 @@ public class UserController implements UserControllerDocs {
         }
         UserDto.SignInResponse response = new UserDto.SignInResponse(
                 tokens.accessToken(), tokens.refreshToken(), tokens.isPortalLinked());
-        return ResponseEntity.ok(SuccessResponse.of(response));
+        ResponseCookie accessCookie = tokenCookieProvider.createAccessTokenCookie(tokens.accessToken());
+        ResponseCookie refreshCookie = tokenCookieProvider.createRefreshTokenCookie(tokens.refreshToken());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                .body(SuccessResponse.of(response));
     }
 }

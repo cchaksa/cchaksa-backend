@@ -21,6 +21,7 @@
 ## Testing Guidelines
 - JUnit 5 + Spring Boot test starter; tests named `*Tests`.
 - Add unit tests near the impacted service/domain package; run with `./gradlew test`.
+- After all changes, run `./gradlew test` to validate the full suite before sending PRs.
 
 ## Commit & Pull Request Guidelines
 - Follow `README.md` commit types (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, etc.).

@@ -1,44 +1,56 @@
-//package com.chukchuk.haksa.domain.auth.service;
-//
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.http.ResponseCookie;
-//import org.springframework.stereotype.Component;
-//
-//@Component
-//@RequiredArgsConstructor
-//public class TokenCookieProvider {
-//
-//    @Value("${security.jwt.access-expiration}")
-//    private long accessTokenExpiration;
-//
-//    @Value("${security.jwt.refresh-expiration}")
-//    private long refreshTokenExpiration;
-//
-//    @Value("${security.cookie.dev-mode:false}")
-//    private boolean devMode; // 로컬 프론트와 배포 백엔드 조합에서 true로 설정
-//
-//    public ResponseCookie createAccessTokenCookie(String accessToken) {
-//        return ResponseCookie.from("accessToken", accessToken)
-//                .httpOnly(true)
-//                .secure(true)
-//                .path("/")
-//                .maxAge(accessTokenExpiration / 1000)
-//                .sameSite("None")
-//                .build();
-//    }
-//
-//    public ResponseCookie createRefreshTokenCookie(String refreshToken) {
-//        return ResponseCookie.from("refreshToken", refreshToken)
-//                .httpOnly(true)
-//                .secure(true)
-//                .path("/")
-//                .maxAge(refreshTokenExpiration / 1000)
-//                .sameSite("None")
-//                .build();
-//    }
-//
-//    private boolean httpOnly() {
-//        return !devMode;
-//    }
-//}
+package com.chukchuk.haksa.domain.auth.service;
+
+import com.chukchuk.haksa.global.security.AuthCookieNames;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+
+@Component
+@RequiredArgsConstructor
+public class TokenCookieProvider {
+
+    @Value("${security.jwt.access-expiration}")
+    private long accessTokenExpiration;
+
+    @Value("${security.jwt.refresh-expiration}")
+    private long refreshTokenExpiration;
+
+    @Value("${security.cookie.dev-mode:false}")
+    private boolean devMode;
+
+    public ResponseCookie createAccessTokenCookie(String accessToken) {
+        return buildCookie(AuthCookieNames.ACCESS, accessToken, accessTokenExpiration);
+    }
+
+    public ResponseCookie createRefreshTokenCookie(String refreshToken) {
+        return buildCookie(AuthCookieNames.REFRESH, refreshToken, refreshTokenExpiration);
+    }
+
+    public ResponseCookie expireAccessTokenCookie() {
+        return expireCookie(AuthCookieNames.ACCESS);
+    }
+
+    public ResponseCookie expireRefreshTokenCookie() {
+        return expireCookie(AuthCookieNames.REFRESH);
+    }
+
+    private ResponseCookie buildCookie(String name, String value, long expirationMillis) {
+        return baseBuilder(name, value, Duration.ofMillis(expirationMillis)).build();
+    }
+
+    private ResponseCookie expireCookie(String name) {
+        return baseBuilder(name, "", Duration.ZERO).build();
+    }
+
+    private ResponseCookie.ResponseCookieBuilder baseBuilder(String name, String value, Duration maxAge) {
+        return ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(!devMode)
+                .path("/")
+                .sameSite(devMode ? "Lax" : "None")
+                .maxAge(maxAge);
+    }
+}
