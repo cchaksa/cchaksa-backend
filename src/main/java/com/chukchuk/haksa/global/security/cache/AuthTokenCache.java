@@ -62,11 +62,10 @@ public class AuthTokenCache {
     }
 
     public void evictByUserId(String userId) {
-        Set<String> tokenHashes = userTokenIndex.getIfPresent(userId);
-        if (tokenHashes != null) {
-            tokenHashes.forEach(cache::invalidate);
+        Set<String> tokenHashes = userTokenIndex.asMap().remove(userId);
+        if (tokenHashes != null && !tokenHashes.isEmpty()) {
+            cache.invalidateAll(tokenHashes);
         }
-        userTokenIndex.invalidate(userId);
     }
 
     private String hashToken(String token) {
