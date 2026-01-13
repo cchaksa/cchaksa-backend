@@ -36,29 +36,13 @@ public class AuthTokenCache {
         return cache.getIfPresent(tokenHash);
     }
 
-    public void put(String userId, String tokenHash, UserDetails userDetails) {
-        cache.put(tokenHash, userDetails);
-        userTokenIndex.asMap().compute(userId, (key, existing) -> {
-            Set<String> set = (existing != null) ? existing : ConcurrentHashMap.newKeySet();
-            set.add(tokenHash);
-            return set;
-        });
-    }
-
     public UserDetails getOrLoad(String userId, String token, Supplier<UserDetails> loader) {
         String tokenHash = hashToken(token);
-        if ("hash_err".equals(tokenHash)) {
-            return loader.get();
-        }
-
-        UserDetails cached = cache.getIfPresent(tokenHash);
-        if (cached != null) {
-            return cached;
-        }
-
-        UserDetails loaded = loader.get();
-        put(userId, tokenHash, loaded);
-        return loaded;
+        return cache.get(tokenHash, key -> {
+            UserDetails loaded = loader.get();
+            recordTokenHash(userId, key);
+            return loaded;
+        });
     }
 
     public void evictByUserId(String userId) {
@@ -73,8 +57,16 @@ public class AuthTokenCache {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(token.getBytes(StandardCharsets.UTF_8));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-        } catch (Exception e) {
-            return "hash_err";
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
         }
+    }
+
+    private void recordTokenHash(String userId, String tokenHash) {
+        userTokenIndex.asMap().compute(userId, (key, existing) -> {
+            Set<String> set = (existing != null) ? existing : ConcurrentHashMap.newKeySet();
+            set.add(tokenHash);
+            return set;
+        });
     }
 }
