@@ -1,14 +1,16 @@
 package com.chukchuk.haksa.domain.graduation.service;
 
-import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,25 +47,18 @@ public class GraduationService {
         }
 
         Student student = studentService.getStudentById(studentId);
-        Department dept = student.getDepartment();
-        // 전공 코드가 없는 학과도 있으므로 majorId가 없으면 departmentId를 사용
-        Long primaryMajorId = student.getMajor() != null ? student.getMajor().getId() : dept.getId();
+        validateTransferStudent(student);
+
+        Long primaryMajorId = resolvePrimaryMajorId(student);
         int admissionYear = student.getAcademicInfo().getAdmissionYear();
 
-        List<AreaProgressDto> areaProgress = null;
-        if (student.getSecondaryMajor() != null) { // 복수전공 존재
-            Long secondaryMajorId = student.getSecondaryMajor().getId();
-            areaProgress = graduationQueryRepository.getDualMajorAreaProgress(studentId, primaryMajorId, secondaryMajorId, admissionYear);
-        } else {
-            // 졸업 요건 충족 여부 조회
-            areaProgress = graduationQueryRepository.getStudentAreaProgress(studentId, primaryMajorId, admissionYear);
-        }
+        List<AreaProgressDto> areaProgress =
+                resolveAreaProgress(student, studentId, primaryMajorId, admissionYear);
 
         GraduationProgressResponse response = new GraduationProgressResponse(areaProgress);
 
         if (isDifferentGradRequirement(primaryMajorId, admissionYear)) {
             response.setHasDifferentGraduationRequirement();
-            log.info("[BIZ] graduation.progress.flag.set studentId={} deptId={} year={}", studentId, primaryMajorId, admissionYear);
         }
 
         try {
@@ -75,7 +70,110 @@ public class GraduationService {
         return response;
     }
 
+    // 편입생인 경우 예외 처리, TODO: 편입생 졸업 요건 추가 후 삭제
+    private void validateTransferStudent(Student student) {
+        if (student.isTransferStudent()) {
+            throw new CommonException(ErrorCode.TRANSFER_STUDENT_UNSUPPORTED);
+        }
+    }
+
+    private Long resolvePrimaryMajorId(Student student) {
+        return student.getMajor() != null
+                ? student.getMajor().getId()
+                : student.getDepartment().getId();
+    }
+
     private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
         return admissionYear == SPECIAL_YEAR && departmentId != null && SPECIAL_DEPTS.contains(departmentId);
+    }
+
+    private List<AreaProgressDto> resolveAreaProgress(
+            Student student,
+            UUID studentId,
+            Long primaryMajorId,
+            int admissionYear
+    ) {
+        if (student.getSecondaryMajor() != null) {
+            return getDualMajorProgressOrThrow(
+                    student, studentId, primaryMajorId, admissionYear
+            );
+        }
+        return getSingleMajorProgressOrThrow(
+                student, studentId, primaryMajorId, admissionYear
+        );
+    }
+
+    // 단일 전공 처리 메서드
+    private List<AreaProgressDto> getSingleMajorProgressOrThrow(
+            Student student,
+            UUID studentId,
+            Long departmentId,
+            int admissionYear
+    ) {
+        List<AreaProgressDto> result =
+                graduationQueryRepository.getStudentAreaProgress(
+                        studentId, departmentId, admissionYear
+                );
+
+        if (result.isEmpty()) {
+            throwGraduationRequirementNotFound(
+                    student,
+                    departmentId,
+                    null,
+                    admissionYear);
+        }
+
+        return result;
+    }
+
+    // 복수 전공 처리 메서드
+    private List<AreaProgressDto> getDualMajorProgressOrThrow(
+            Student student,
+            UUID studentId,
+            Long primaryMajorId,
+            int admissionYear
+    ) {
+        Long secondaryMajorId = student.getSecondaryMajor().getId();
+
+        try {
+            return graduationQueryRepository.getDualMajorAreaProgress(
+                    studentId, primaryMajorId, secondaryMajorId, admissionYear
+            );
+        } catch (CommonException e) {
+            if (ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.code().equals(e.getCode())) {
+                throwGraduationRequirementNotFound(
+                        student,
+                        primaryMajorId,
+                        secondaryMajorId,
+                        admissionYear
+                );
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 졸업 요건 부재 예외 처리 메서드
+     * MDC 정리는 GlobalExceptionHandler에서 수행됨
+     */
+    private void throwGraduationRequirementNotFound(
+            Student student,
+            Long primaryMajorId,
+            Long secondaryMajorId,
+            int admissionYear
+    ) {
+        MDC.put("student_code", student.getStudentCode());
+        MDC.put("admission_year", String.valueOf(admissionYear));
+        MDC.put("primary_department_id", String.valueOf(primaryMajorId));
+
+        if (secondaryMajorId == null) {
+            MDC.put("major_type", "SINGLE");
+            MDC.put("secondary_department_id", "NONE");
+        } else {
+            MDC.put("major_type", "DUAL");
+            MDC.put("secondary_department_id", String.valueOf(secondaryMajorId));
+        }
+
+        throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
     }
 }
