@@ -27,6 +27,8 @@ security:
     access-expiration: ${JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
   appKey: ${APP_KEY}
+  cookie:
+    dev-mode: false
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}
