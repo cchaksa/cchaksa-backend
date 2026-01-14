@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.global.security.filter;
 
+import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
 import com.chukchuk.haksa.global.security.service.CustomUserDetailsService;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
@@ -29,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
+    private final AuthTokenCache authTokenCache;
 
     private static final List<String> WHITELIST_PATHS = List.of(
             "/", "/v3/api-docs", "/swagger", "/webjars", "/swagger-config", "/error"
@@ -41,7 +43,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (WHITELIST_PATHS.stream().anyMatch(p ->
                 p.equals("/") ? path.equals("/") : path.startsWith(p)
         )) {
-            log.info("Bypassing JWT filter for swagger: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
@@ -56,7 +57,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Claims claims = jwtProvider.parseToken(token);
             String userId = claims.getSubject();
 
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
+            UserDetails userDetails = authTokenCache.getOrLoad(
+                    userId,
+                    token,
+                    () -> userDetailsService.loadUserByUsername(userId)
+            );
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -65,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (ExpiredJwtException e) {
             request.setAttribute("exception", "expired");
             throw new InsufficientAuthenticationException("Access token expired", e);
-        } catch (JwtException e) {
+        } catch (IllegalStateException | JwtException e) {
             request.setAttribute("exception", "invalid");
             throw new InsufficientAuthenticationException("Invalid token", e);
         }
