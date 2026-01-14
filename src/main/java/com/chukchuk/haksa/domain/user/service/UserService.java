@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.user.service;
 
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
+import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.SocialAccount;
@@ -12,7 +13,6 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import com.chukchuk.haksa.global.security.service.OidcProvider;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ public class UserService {
     private final SocialAccountRepository socialAccountRepository;
     private final JwtProvider jwtProvider;
     private final RefreshTokenService refreshTokenService;
-    private final RedisCacheStore redisCacheStore;
+    private final AcademicCache academicCache;
 
     private final Map<OidcProvider, OidcService> oidcServices;
 
@@ -63,7 +63,7 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
         UUID studentId = user.getStudent().getId();
-        redisCacheStore.deleteAllByStudentId(studentId);
+        academicCache.deleteAllByStudentId(studentId);
         socialAccountRepository.deleteByUser(user);
         userRepository.delete(user);
         log.info("[BIZ] user.delete.done userId={}", userId);

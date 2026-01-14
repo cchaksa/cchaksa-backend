@@ -5,24 +5,14 @@ spring:
     password: ${PROD_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-    
-      # floor((max_connections - superuser_reserved - 운영여유) / ASG_max / JVM수 / 풀수) -> 10
+      # floor((max_connections - superuser_reserved - 운영여유) / ASG_max / JVM수 / 풀수)
       maximum-pool-size: 10
-      minimum-idle: 5              # 워밍업된 연결 유지
-      connection-timeout: 30000    # 30s
-      validation-timeout: 5000     # 5s
-      idle-timeout: 600000         # 10m  (idle 커넥션 정리)
-      max-lifetime: 1800000        # 30m  (DB/네트워크 타임아웃보다 짧게)
-      keepalive-time: 300000       # 5m   (idle 유지 ping; idle-timeout보다 짧게)
-
-  data:
-    redis:
-      host: ${PROD_REDIS_HOST}
-      port: ${PROD_REDIS_PORT}
-      client-name: redis-client
-      timeout: 1s
-      ssl:
-        enabled: false
+      minimum-idle: 5
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000      # 10m
+      max-lifetime: 1800000     # 30m
+      keepalive-time: 300000    # 5m
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -45,10 +35,6 @@ logging:
   level:
     org.hibernate.SQL: off
     org.hibernate.type.descriptor.sql.BasicBinder: off
-  sampling:
-    enabled: true # 샘플링 활성화
-    rate: 0.1 # 10% 로그만 남김
-    patterns: [ ] # 샘플링 필요 api 경로 추가
 
 swagger:
   server-url: https://api.cchaksa.com

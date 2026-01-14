@@ -4,6 +4,8 @@ import com.chukchuk.haksa.application.api.docs.SuwonScrapeControllerDocs;
 import com.chukchuk.haksa.application.dto.PortalLoginResponse;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
+import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -16,8 +18,6 @@ import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
-import com.chukchuk.haksa.infrastructure.redis.RedisCacheStore;
-import com.chukchuk.haksa.infrastructure.redis.RedisPortalCredentialStore;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +40,8 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
     private final PortalRepository portalRepository;
-    private final RedisPortalCredentialStore redisPortalCredentialStore;
-    private final RedisCacheStore redisCacheStore;
+    private final PortalCredentialStore portalCredentialStore;
+    private final AcademicCache academicCache;
     private final PortalSyncService portalSyncService;
     private final UserService userService;
 
@@ -52,7 +52,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
             @RequestParam String password
     ) {
         String userId = userDetails.getUsername();
-        redisPortalCredentialStore.save(userId, username, password);
+        portalCredentialStore.save(userId, username, password);
 
         return ResponseEntity.ok(SuccessResponse.of(new PortalLoginResponse("로그인 성공")));
     }
@@ -94,7 +94,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(useUserId), portalData);
 
         // 재연동 시 Redis 캐시 초기화
-        redisPortalCredentialStore.clear(useUserId);
+        portalCredentialStore.clear(useUserId);
 
         long tookMs = LogTime.elapsedMs(t0);
         // 처리가 느린 경우만 INFO
@@ -125,8 +125,8 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
 
         // 캐시 데이터 초기화
         UUID studentId = userDetails.getStudentId();
-        redisCacheStore.deleteAllByStudentId(studentId);
-        redisPortalCredentialStore.clear(userId);
+        academicCache.deleteAllByStudentId(studentId);
+        portalCredentialStore.clear(userId);
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
@@ -137,8 +137,8 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     }
 
     private PortalData fetchPortalData(String userId) {
-        String username = redisPortalCredentialStore.getUsername(userId);
-        String password = redisPortalCredentialStore.getPassword(userId);
+        String username = portalCredentialStore.getUsername(userId);
+        String password = portalCredentialStore.getPassword(userId);
 
         if (username == null || password == null) {
             throw new CommonException(ErrorCode.SESSION_EXPIRED);

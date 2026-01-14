@@ -1,4 +1,8 @@
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   profiles:
     active: local
   jackson:
@@ -6,8 +10,6 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
   config:
     import: optional:file:.env[.properties]
-  cache:
-    type: simple
   mvc:
     throw-exception-if-no-handler-found: true
   web:
@@ -29,10 +31,6 @@ security:
 crawler:
   base-url: ${CRAWLER_BASE_URL}
 
-redis:
-  encrypt:
-    key: ${REDIS_ENCRYPT_KEY}
-
 springdoc:
   api-docs:
     enabled: true
@@ -46,6 +44,9 @@ sentry:
 management:
   tracing:
     enabled: true
+  health:
+    redis:
+      enabled: false
 
 logging:
   exclude:
@@ -54,3 +55,17 @@ logging:
       - ^/static/.*
       - ^/internal/.*
       - /docs
+
+# ─────────────────────────────────────────
+# Cache / Infra 전략 (기본값)
+# ─────────────────────────────────────────
+cache:
+  type: local   # local | redis
+
+portal:
+  credential:
+    store: local   # local | redis
+
+infra:
+  redis:
+    enabled: false
