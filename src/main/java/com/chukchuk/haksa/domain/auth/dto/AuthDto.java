@@ -44,4 +44,13 @@ public class AuthDto {
             @Schema(description = "포털 연동 여부", example = "true", required = true)
             boolean isPortalLinked
     ) {}
+
+    @Schema(description = "CSRF 토큰 응답 DTO")
+    public record CsrfTokenResponse(
+            @Schema(description = "CSRF 토큰 값", required = true)
+            String token,
+
+            @Schema(description = "클라이언트가 토큰을 전달해야 하는 헤더 이름", example = "X-XSRF-TOKEN", required = true)
+            String headerName
+    ) {}
 }

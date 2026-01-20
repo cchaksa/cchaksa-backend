@@ -4,9 +4,12 @@ import com.chukchuk.haksa.global.security.filter.JwtAuthenticationFilter;
 import com.chukchuk.haksa.global.security.handler.CustomAccessDeniedHandler;
 import com.chukchuk.haksa.global.security.handler.CustomAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.Cookie;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -16,11 +19,15 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import java.util.List;
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -32,11 +39,21 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
+    @Value("${security.cookie.dev-mode:false}")
+    private boolean devMode;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(cookieCsrfTokenRepository())
+                        .ignoringRequestMatchers(
+                                AUTHORIZATION_HEADER_REQUEST_MATCHER,
+                                new AntPathRequestMatcher("/api/users/signin"),
+                                new AntPathRequestMatcher("/api/users/signin/**")
+                        )
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
@@ -54,7 +71,7 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/", "/health", "/error","/auth/kakao", "/sentry-test",
-            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh"
+            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh", "/api/auth/csrf-token"
     };
 
     private static final String[] SWAGGER_ENDPOINTS = {
@@ -62,6 +79,20 @@ public class SecurityConfig {
             "/swagger-resources/**", "/swagger-config/**",
             "/webjars/**", "/openapi.yaml"
     };
+
+    private static final RequestMatcher AUTHORIZATION_HEADER_REQUEST_MATCHER =
+            request -> {
+                if (request.getHeader(HttpHeaders.AUTHORIZATION) == null) {
+                    return false;
+                }
+                Cookie[] cookies = request.getCookies();
+                if (cookies == null || cookies.length == 0) {
+                    return true;
+                }
+                return Arrays.stream(cookies)
+                        .map(Cookie::getName)
+                        .noneMatch(name -> AuthCookieNames.ACCESS.equals(name) || AuthCookieNames.REFRESH.equals(name));
+            };
 
     // ---- CORS (dev) ----
     @Bean("corsConfigurationSource")
@@ -121,5 +152,16 @@ public class SecurityConfig {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
         return new ProviderManager(authProvider);
+    }
+
+    @Bean
+    public CookieCsrfTokenRepository cookieCsrfTokenRepository() {
+        CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookieName("XSRF-TOKEN");
+        repository.setHeaderName("X-XSRF-TOKEN");
+        repository.setCookiePath("/");
+        repository.setSecure(!devMode);
+        repository.setCookieCustomizer(builder -> builder.sameSite(devMode ? "Lax" : "None"));
+        return repository;
     }
 }

@@ -10,13 +10,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import static com.chukchuk.haksa.domain.auth.dto.AuthDto.RefreshRequest;
 import static com.chukchuk.haksa.domain.auth.dto.AuthDto.RefreshResponse;
+import static com.chukchuk.haksa.domain.auth.dto.AuthDto.CsrfTokenResponse;
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Slf4j
@@ -27,6 +30,13 @@ public class AuthController implements AuthControllerDocs {
 
     private final RefreshTokenService refreshTokenService;
     private final TokenCookieProvider tokenCookieProvider;
+
+    @Override
+    @GetMapping("/csrf-token")
+    public ResponseEntity<SuccessResponse<CsrfTokenResponse>> getCsrfToken(CsrfToken csrfToken) {
+        CsrfTokenResponse response = new CsrfTokenResponse(csrfToken.getToken(), csrfToken.getHeaderName());
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
 
     @PostMapping("/refresh")
     public ResponseEntity<SuccessResponse<RefreshResponse>> refreshResponse(@RequestBody RefreshRequest request) {
