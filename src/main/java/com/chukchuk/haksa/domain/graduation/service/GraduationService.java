@@ -1,7 +1,10 @@
 package com.chukchuk.haksa.domain.graduation.service;
 
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.department.model.Department;
+import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -14,6 +17,7 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -34,6 +38,7 @@ public class GraduationService {
     private final StudentService studentService;
     private final GraduationQueryRepository graduationQueryRepository;
     private final AcademicCache academicCache;
+    private final DepartmentRepository departmentRepository;
 
     /* 졸업 요건 진행 상황 조회 */
     public GraduationProgressResponse getGraduationProgress(UUID studentId) {
@@ -49,8 +54,8 @@ public class GraduationService {
         Student student = studentService.getStudentById(studentId);
         validateTransferStudent(student);
 
-        Long primaryMajorId = resolvePrimaryMajorId(student);
         int admissionYear = student.getAcademicInfo().getAdmissionYear();
+        Long primaryMajorId = resolvePrimaryDepartmentId(student, admissionYear);
 
         List<AreaProgressDto> areaProgress =
                 resolveAreaProgress(student, studentId, primaryMajorId, admissionYear);
@@ -77,10 +82,69 @@ public class GraduationService {
         }
     }
 
-    private Long resolvePrimaryMajorId(Student student) {
-        return student.getMajor() != null
+    private Long resolvePrimaryDepartmentId(Student student, int admissionYear) {
+        List<Long> candidateIds = resolveCandidateDepartmentIds(student);
+
+        for (Long departmentId : candidateIds) {
+            if (departmentId == null) {
+                continue;
+            }
+            List<AreaRequirementDto> requirements =
+                    graduationQueryRepository.getAreaRequirementsWithCache(
+                            departmentId,
+                            admissionYear
+                    );
+            if (requirements != null && !requirements.isEmpty()) {
+                return departmentId;
+            }
+        }
+
+        Long primaryCandidate = student.getMajor() != null
                 ? student.getMajor().getId()
                 : student.getDepartment().getId();
+
+        throwGraduationRequirementNotFound(
+                student,
+                primaryCandidate,
+                student.getSecondaryMajor() != null ? student.getSecondaryMajor().getId() : null,
+                admissionYear
+        );
+        return null; // unreachable
+    }
+
+    private List<Long> resolveCandidateDepartmentIds(Student student) {
+        List<Long> candidateIds = new ArrayList<>();
+
+        Department baseDepartment = student.getMajor() != null
+                ? student.getMajor()
+                : student.getDepartment();
+
+        addCandidate(candidateIds, baseDepartment.getId());
+
+        String establishedName = baseDepartment.getEstablishedDepartmentName();
+
+        if (establishedName != null) {
+            String normalizedName = establishedName.trim();
+            if (!normalizedName.isEmpty()) {
+                List<Department> siblings = departmentRepository
+                        .findAllByEstablishedDepartmentName(normalizedName);
+                if (siblings != null) {
+                    for (Department sibling : siblings) {
+                        addCandidate(candidateIds, sibling.getId());
+                    }
+                }
+            }
+        }
+        return candidateIds;
+    }
+
+    private void addCandidate(List<Long> candidateIds, Long departmentId) {
+        if (departmentId == null) {
+            return;
+        }
+        if (!candidateIds.contains(departmentId)) {
+            candidateIds.add(departmentId);
+        }
     }
 
     private boolean isDifferentGradRequirement(Long departmentId, int admissionYear) {
