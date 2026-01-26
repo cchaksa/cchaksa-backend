@@ -165,7 +165,7 @@ fix: 사용자 정보 누락 버그 해결
 <summary><b>🚀 성능 최적화 & 트러블슈팅</b></summary>
 <div markdown="1">
 
-- [1차 쿼리 튜닝: P6Spy 기반 병목 진단과 캐싱 설계](https://velog.io/@pp8817/척척학사-쿼리-튜닝-1차)
+- [ API 성능 튜닝: P6Spy 쿼리 분석부터 인덱싱 & 캐싱까지](https://velog.io/@pp8817/척척학사-API-성능-튜닝)
 - [크롤링 로직 비동기 처리 대신 Redis 캐싱 도입한 이유](https://velog.io/@pp8817/척척학사-크롤링-로직-비동기-처리-대신-Redis-캐싱을-도입한-이유)
 - [포털 데이터 Redis 캐싱 전략 도입기](https://velog.io/@pp8817/척척학사-포털-데이터-Redis-캐싱-전략-도입기)
 - [부하테스트 (1) t3.micro 서버의 한계 측정](https://velog.io/@pp8817/척척학사-t3.micro-서버의-한계-측정-7-TPS는-버티고-10-TPS는-왜-무너졌나)
@@ -184,6 +184,7 @@ fix: 사용자 정보 누락 버그 해결
 - [CI/CD 적용 과정 With GitHub Actions](https://velog.io/@pp8817/척척학사-GitHub-Actions-적용)
 - [트래픽이 몰리는 서비스는 어떻게 버텨야 할까: 서버 장애 대응](https://velog.io/@pp8817/척척학사-트래픽이-몰리는-서비스는-어떻게-버텨야-할까-서버-장애-대응)
 - [디스크 용량 부족으로 인한 JVM 실행 실패 해결기](https://velog.io/@pp8817/척척학사-디스크-용량-부족-문제)
+- [Terraform으로 AWS 계정 간 인프라를 재현 가능하게 만들기](https://velog.io/@pp8817/DevOps-Terraform으로-AWS-계정-간-인프라를-재현-가능하게-만들기)
 
 </div>
 </details>
@@ -200,6 +201,7 @@ fix: 사용자 정보 누락 버그 해결
 - [소셜 로그인 정보 변경으로 인한 중복 계정 생성 문제 해결](https://velog.io/@pp8817/척척학사-소셜-로그인-시-email-변경-또는-Provider-변경-시-발생하는-중복-계정-문제-해결기)
 - [PostgreSQL Unique Constraint 에러 해결하기](https://velog.io/@pp8817/척척학사-PostgreSQL-duplicate-key-value-violates-unique-constraint-에러-해결하기)
 - [포털 연동 시 이수 구분 오류 & 재수강 중복 문제 해결](https://velog.io/@pp8817/척척학사-트러블슈팅-포털-연동-시-이수-구분-오류-재수강-중복-문제-해결)
+- [복잡한 졸업 요건 검증 로직: 거대 SQL(CTE)에서 애플리케이션 조합으로의 전환](https://velog.io/@pp8817/God-Query-해체-분석-척척학사)
 
 </div>
 </details>
