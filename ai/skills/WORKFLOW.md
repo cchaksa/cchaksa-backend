@@ -21,7 +21,7 @@
 ## Phase 3: Application
 - 목적: use-case orchestration과 트랜잭션 경계를 구현한다.
 - 입력: Context, Domain 산출물, 인터페이스 계약.
-- 출력: `src/main/java/.../application` 서비스, `src/test/java/.../application` 테스트, DTO 계약.
+- 출력: `src/main/java/.../service` 서비스, `src/test/java/.../service` 테스트, DTO 계약.
 - 완료 조건:
   - [ ] Repository 인터페이스로만 의존
   - [ ] Application 단위 테스트 통과 (`./gradlew test`)
@@ -48,7 +48,7 @@
 ## Phase 6: API / Controller
 - 목적: Global 규칙을 준수하며 Controller와 API 계약을 완성한다.
 - 입력: Context, Application 서비스, Global 설정.
-- 출력: `src/main/java/.../global` 하위 Controller, `src/main/resources/public/openapi.yaml` 업데이트, API 테스트.
+- 출력: `src/main/java/.../domain/controller` 하위 Controller, `src/main/resources/public/openapi.yaml` 업데이트, API 테스트.
 - 완료 조건:
   - [ ] Controller 테스트 및 문서화 완료
   - [ ] `./gradlew test` 와 필요 시 `./gradlew build` 통과
