@@ -107,6 +107,7 @@ public class UserService {
         userRepository.delete(existingUser);
         log.info("[BIZ] user.merged existingUserId={} into currentUserId={}", existingUser.getId(), currentUserId);
 
+        authTokenCache.evictByUserId(currentUserId.toString());
         return currentUser;
     }
 
@@ -148,5 +149,9 @@ public class UserService {
         refreshTokenService.save(userId, refresh.token(), refresh.expiry());
 
         return new AuthDto.SignInTokenResponse(accessToken, refresh.token(), user.getPortalConnected());
+    }
+
+    public void evictUserDetailsCache(UUID userId) {
+        authTokenCache.evictByUserId(userId.toString());
     }
 }
