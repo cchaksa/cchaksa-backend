@@ -49,6 +49,7 @@ public class UserPortalConnectionRepository {
         // DB에 저장
         userService.save(user);
         studentService.save(student);
+        userService.evictUserDetailsCache(user.getId());
     }
 
     @Transactional
