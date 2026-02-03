@@ -3,11 +3,11 @@ package com.chukchuk.haksa.domain.graduation.service;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.department.model.Department;
-import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
 import com.chukchuk.haksa.domain.graduation.dto.AreaProgressDto;
-import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
+import com.chukchuk.haksa.domain.graduation.policy.GraduationMajorResolver;
+import com.chukchuk.haksa.domain.graduation.policy.MajorResolutionResult;
 import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.model.embeddable.AcademicInfo;
@@ -17,10 +17,8 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
@@ -43,31 +41,22 @@ class GraduationServiceTests {
     @Mock
     private AcademicCache academicCache;
     @Mock
-    private DepartmentRepository departmentRepository;
+    private GraduationMajorResolver graduationMajorResolver;
 
     @InjectMocks
     private GraduationService graduationService;
 
     private static final UUID STUDENT_ID = UUID.randomUUID();
     private static final int ADMISSION_YEAR = 2022;
-    private static final String DEPARTMENT_NAME = "Global Business";
-    private static final String SECONDARY_DEPARTMENT_NAME = "Culture Studies";
-
     @Test
     @DisplayName("전공 학과가 존재하면 전공 학과 ID로 졸업요건을 조회한다")
     void getGraduationProgressUsesMajorDepartmentIdFirst() {
-        Department department = mockDepartment(20L, "Another Name");
-        Department major = mockDepartment(10L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, major, null);
+        Student student = mockStudent(10L, null);
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
         when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
-        List<Department> siblings = List.of(mockDepartment(30L, DEPARTMENT_NAME));
-        when(departmentRepository.findAllByEstablishedDepartmentName(DEPARTMENT_NAME))
-                .thenReturn(siblings);
-
-        when(graduationQueryRepository.getAreaRequirementsWithCache(10L, ADMISSION_YEAR))
-                .thenReturn(sampleRequirements());
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
 
         List<AreaProgressDto> progressDtos = sampleProgress();
         when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
@@ -77,93 +66,51 @@ class GraduationServiceTests {
 
         assertThat(response.getGraduationProgress()).isEqualTo(progressDtos);
         verify(graduationQueryRepository).getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR);
-        verify(graduationQueryRepository, never()).getStudentAreaProgress(STUDENT_ID, 30L, ADMISSION_YEAR);
         verify(academicCache).setGraduationProgress(eq(STUDENT_ID), any(GraduationProgressResponse.class));
-        verify(departmentRepository).findAllByEstablishedDepartmentName(DEPARTMENT_NAME);
-        verify(departmentRepository, never()).findAllByEstablishedDepartmentName("Another Name");
     }
 
     @Test
-    @DisplayName("첫 학과에 졸업요건이 없으면 다음 학과로 폴백한다")
-    void getGraduationProgressTriesNextDepartmentWhenFirstMisses() {
-        Department department = mockDepartment(1L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, null, null);
+    @DisplayName("resolver가 반환한 학과 ID로 단일전공 조회가 실패하면 예외를 던진다")
+    void getGraduationProgressThrowsWhenSingleMajorProgressEmpty() {
+        Student student = mockStudent(1L, null);
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
         when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
-        Department candidate1 = mockDepartment(1L, DEPARTMENT_NAME);
-        Department candidate2 = mockDepartment(2L, DEPARTMENT_NAME);
-        when(departmentRepository.findAllByEstablishedDepartmentName(DEPARTMENT_NAME))
-                .thenReturn(List.of(candidate1, candidate2));
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(1L, null));
 
-        when(graduationQueryRepository.getAreaRequirementsWithCache(1L, ADMISSION_YEAR))
-                .thenReturn(Collections.emptyList());
-        when(graduationQueryRepository.getAreaRequirementsWithCache(2L, ADMISSION_YEAR))
-                .thenReturn(sampleRequirements());
-
-        List<AreaProgressDto> fallbackProgress = sampleProgress();
-        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 2L, ADMISSION_YEAR))
-                .thenReturn(fallbackProgress);
-
-        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
-
-        assertThat(response.getGraduationProgress()).isEqualTo(fallbackProgress);
-        InOrder inOrder = Mockito.inOrder(graduationQueryRepository);
-        inOrder.verify(graduationQueryRepository).getAreaRequirementsWithCache(1L, ADMISSION_YEAR);
-        inOrder.verify(graduationQueryRepository).getAreaRequirementsWithCache(2L, ADMISSION_YEAR);
-        verify(graduationQueryRepository).getStudentAreaProgress(STUDENT_ID, 2L, ADMISSION_YEAR);
-        verify(graduationQueryRepository, never()).getStudentAreaProgress(STUDENT_ID, 1L, ADMISSION_YEAR);
-        verify(departmentRepository).findAllByEstablishedDepartmentName(DEPARTMENT_NAME);
-    }
-
-    @Test
-    @DisplayName("모든 학과에서 졸업요건을 찾지 못하면 예외를 던진다")
-    void getGraduationProgressThrowsWhenAllCandidatesFail() {
-        Department department = mockDepartment(5L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, null, null);
-        when(student.getStudentCode()).thenReturn("20221234");
-
-        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
-        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
-        Department candidate1 = mockDepartment(5L, DEPARTMENT_NAME);
-        Department candidate2 = mockDepartment(6L, DEPARTMENT_NAME);
-        when(departmentRepository.findAllByEstablishedDepartmentName(DEPARTMENT_NAME))
-                .thenReturn(List.of(candidate1, candidate2));
-
-        when(graduationQueryRepository.getAreaRequirementsWithCache(5L, ADMISSION_YEAR))
-                .thenReturn(Collections.emptyList());
-        when(graduationQueryRepository.getAreaRequirementsWithCache(6L, ADMISSION_YEAR))
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 1L, ADMISSION_YEAR))
                 .thenReturn(Collections.emptyList());
 
         assertThatThrownBy(() -> graduationService.getGraduationProgress(STUDENT_ID))
                 .isInstanceOf(CommonException.class)
                 .hasMessage(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.message());
-        verify(departmentRepository).findAllByEstablishedDepartmentName(DEPARTMENT_NAME);
+    }
+
+    @Test
+    @DisplayName("resolver가 예외를 던지면 그대로 전파한다")
+    void getGraduationProgressPropagatesResolverException() {
+        Student student = mockStudent(5L, null);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenThrow(new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND));
+
+        assertThatThrownBy(() -> graduationService.getGraduationProgress(STUDENT_ID))
+                .isInstanceOf(CommonException.class)
+                .hasMessage(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND.message());
     }
 
     @Test
     @DisplayName("복수전공 학과 후보들을 순차적으로 시도하여 졸업요건을 찾는다")
     void getGraduationProgressFallbacksSecondaryMajorCandidates() {
-        Department department = mockDepartment(50L, DEPARTMENT_NAME);
-        Department major = mockDepartment(60L, DEPARTMENT_NAME);
-        Department secondary = mockDepartment(70L, SECONDARY_DEPARTMENT_NAME);
-
-        Student student = mockStudent(department, major, secondary);
+        Student student = mockStudent(60L, 71L);
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
         when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
-
-        List<Department> primarySiblings = List.of(mockDepartment(61L, DEPARTMENT_NAME));
-        when(departmentRepository.findAllByEstablishedDepartmentName(DEPARTMENT_NAME))
-                .thenReturn(primarySiblings);
-        List<Department> secondarySiblings = List.of(mockDepartment(71L, SECONDARY_DEPARTMENT_NAME));
-        when(departmentRepository.findAllByEstablishedDepartmentName(SECONDARY_DEPARTMENT_NAME))
-                .thenReturn(secondarySiblings);
-
-        when(graduationQueryRepository.getDualMajorRequirementsWithCache(60L, 70L, ADMISSION_YEAR))
-                .thenReturn(Collections.emptyList());
-        when(graduationQueryRepository.getDualMajorRequirementsWithCache(60L, 71L, ADMISSION_YEAR))
-                .thenReturn(sampleRequirements());
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(60L, 71L));
 
         List<AreaProgressDto> dualProgress = sampleProgress();
         when(graduationQueryRepository.getDualMajorAreaProgress(STUDENT_ID, 60L, 71L, ADMISSION_YEAR))
@@ -172,34 +119,49 @@ class GraduationServiceTests {
         GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
 
         assertThat(response.getGraduationProgress()).isEqualTo(dualProgress);
-
-        InOrder inOrder = Mockito.inOrder(graduationQueryRepository);
-        inOrder.verify(graduationQueryRepository).getDualMajorRequirementsWithCache(60L, 70L, ADMISSION_YEAR);
-        inOrder.verify(graduationQueryRepository).getDualMajorRequirementsWithCache(60L, 71L, ADMISSION_YEAR);
         verify(graduationQueryRepository).getDualMajorAreaProgress(STUDENT_ID, 60L, 71L, ADMISSION_YEAR);
     }
 
-    private Student mockStudent(Department department, Department major, Department secondaryMajor) {
+    @Test
+    @DisplayName("캐시에 데이터가 있으면 resolver와 repository를 호출하지 않는다")
+    void returnsCachedProgressWhenAvailable() {
+        GraduationProgressResponse cached = new GraduationProgressResponse(sampleProgress());
+
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(cached);
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response).isEqualTo(cached);
+        verifyNoInteractions(studentService, graduationMajorResolver, graduationQueryRepository);
+    }
+
+    private Student mockStudent(Long majorId, Long secondaryId) {
         Student student = mock(Student.class);
         lenient().when(student.isTransferStudent()).thenReturn(false);
-        lenient().when(student.getDepartment()).thenReturn(department);
-        lenient().when(student.getMajor()).thenReturn(major);
-        lenient().when(student.getSecondaryMajor()).thenReturn(secondaryMajor);
+
         AcademicInfo info = AcademicInfo.builder()
                 .admissionYear(ADMISSION_YEAR)
                 .isTransferStudent(false)
                 .build();
         when(student.getAcademicInfo()).thenReturn(info);
-        return student;
-    }
 
-    private Department mockDepartment(Long id, String name) {
+        Department primary = mock(Department.class);
+        lenient().when(primary.getId()).thenReturn(majorId);
+        lenient().when(student.getMajor()).thenReturn(primary);
+
         Department department = mock(Department.class);
-        lenient().when(department.getId()).thenReturn(id);
-        if (name != null) {
-            lenient().when(department.getEstablishedDepartmentName()).thenReturn(name);
+        lenient().when(department.getId()).thenReturn(majorId);
+        lenient().when(student.getDepartment()).thenReturn(department);
+
+        if (secondaryId != null) {
+            Department secondary = mock(Department.class);
+            lenient().when(secondary.getId()).thenReturn(secondaryId);
+            lenient().when(student.getSecondaryMajor()).thenReturn(secondary);
+        } else {
+            lenient().when(student.getSecondaryMajor()).thenReturn(null);
         }
-        return department;
+
+        return student;
     }
 
     private List<AreaProgressDto> sampleProgress() {
@@ -216,7 +178,4 @@ class GraduationServiceTests {
         return List.of(dto);
     }
 
-    private List<AreaRequirementDto> sampleRequirements() {
-        return List.of(new AreaRequirementDto("전핵", 12, null, null));
-    }
 }
