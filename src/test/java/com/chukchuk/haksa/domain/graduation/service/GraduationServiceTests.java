@@ -51,13 +51,14 @@ class GraduationServiceTests {
     private static final UUID STUDENT_ID = UUID.randomUUID();
     private static final int ADMISSION_YEAR = 2022;
     private static final String DEPARTMENT_NAME = "Global Business";
+    private static final String SECONDARY_DEPARTMENT_NAME = "Culture Studies";
 
     @Test
     @DisplayName("전공 학과가 존재하면 전공 학과 ID로 졸업요건을 조회한다")
     void getGraduationProgressUsesMajorDepartmentIdFirst() {
         Department department = mockDepartment(20L, "Another Name");
         Department major = mockDepartment(10L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, major);
+        Student student = mockStudent(department, major, null);
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
         when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
@@ -86,7 +87,7 @@ class GraduationServiceTests {
     @DisplayName("첫 학과에 졸업요건이 없으면 다음 학과로 폴백한다")
     void getGraduationProgressTriesNextDepartmentWhenFirstMisses() {
         Department department = mockDepartment(1L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, null);
+        Student student = mockStudent(department, null, null);
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
         when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
@@ -119,7 +120,7 @@ class GraduationServiceTests {
     @DisplayName("모든 학과에서 졸업요건을 찾지 못하면 예외를 던진다")
     void getGraduationProgressThrowsWhenAllCandidatesFail() {
         Department department = mockDepartment(5L, DEPARTMENT_NAME);
-        Student student = mockStudent(department, null);
+        Student student = mockStudent(department, null, null);
         when(student.getStudentCode()).thenReturn("20221234");
 
         when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
@@ -140,12 +141,50 @@ class GraduationServiceTests {
         verify(departmentRepository).findAllByEstablishedDepartmentName(DEPARTMENT_NAME);
     }
 
-    private Student mockStudent(Department department, Department major) {
+    @Test
+    @DisplayName("복수전공 학과 후보들을 순차적으로 시도하여 졸업요건을 찾는다")
+    void getGraduationProgressFallbacksSecondaryMajorCandidates() {
+        Department department = mockDepartment(50L, DEPARTMENT_NAME);
+        Department major = mockDepartment(60L, DEPARTMENT_NAME);
+        Department secondary = mockDepartment(70L, SECONDARY_DEPARTMENT_NAME);
+
+        Student student = mockStudent(department, major, secondary);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+
+        List<Department> primarySiblings = List.of(mockDepartment(61L, DEPARTMENT_NAME));
+        when(departmentRepository.findAllByEstablishedDepartmentName(DEPARTMENT_NAME))
+                .thenReturn(primarySiblings);
+        List<Department> secondarySiblings = List.of(mockDepartment(71L, SECONDARY_DEPARTMENT_NAME));
+        when(departmentRepository.findAllByEstablishedDepartmentName(SECONDARY_DEPARTMENT_NAME))
+                .thenReturn(secondarySiblings);
+
+        when(graduationQueryRepository.getDualMajorRequirementsWithCache(60L, 70L, ADMISSION_YEAR))
+                .thenReturn(Collections.emptyList());
+        when(graduationQueryRepository.getDualMajorRequirementsWithCache(60L, 71L, ADMISSION_YEAR))
+                .thenReturn(sampleRequirements());
+
+        List<AreaProgressDto> dualProgress = sampleProgress();
+        when(graduationQueryRepository.getDualMajorAreaProgress(STUDENT_ID, 60L, 71L, ADMISSION_YEAR))
+                .thenReturn(dualProgress);
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getGraduationProgress()).isEqualTo(dualProgress);
+
+        InOrder inOrder = Mockito.inOrder(graduationQueryRepository);
+        inOrder.verify(graduationQueryRepository).getDualMajorRequirementsWithCache(60L, 70L, ADMISSION_YEAR);
+        inOrder.verify(graduationQueryRepository).getDualMajorRequirementsWithCache(60L, 71L, ADMISSION_YEAR);
+        verify(graduationQueryRepository).getDualMajorAreaProgress(STUDENT_ID, 60L, 71L, ADMISSION_YEAR);
+    }
+
+    private Student mockStudent(Department department, Department major, Department secondaryMajor) {
         Student student = mock(Student.class);
         lenient().when(student.isTransferStudent()).thenReturn(false);
         lenient().when(student.getDepartment()).thenReturn(department);
         lenient().when(student.getMajor()).thenReturn(major);
-        lenient().when(student.getSecondaryMajor()).thenReturn(null);
+        lenient().when(student.getSecondaryMajor()).thenReturn(secondaryMajor);
         AcademicInfo info = AcademicInfo.builder()
                 .admissionYear(ADMISSION_YEAR)
                 .isTransferStudent(false)
