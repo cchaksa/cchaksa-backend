@@ -74,10 +74,13 @@ public class PortalSyncWorker {
             return;
         }
 
+        log.info("[JOB] portal.job.phase jobId={} phase={}", jobId, SyncPhase.FETCHING);
+
         SyncPhase phase = SyncPhase.FETCHING;
         try {
             PortalData portalData = fetchPortalData(jobId, job.getUserId());
             phase = SyncPhase.SYNCING;
+            log.info("[JOB] portal.job.phase jobId={} phase={}", jobId, SyncPhase.SYNCING);
             transition(jobId, JobStatus.PROCESSING, SyncPhase.SYNCING);
             runPipeline(job, portalData);
             transition(jobId, JobStatus.SUCCESS, SyncPhase.SYNCING);
@@ -162,18 +165,19 @@ public class PortalSyncWorker {
 //    }
 
     private void runPipeline(SyncJob job, PortalData portalData) {
+        log.info("[JOB] portal.job.pipeline jobId={} type={}", job.getId(), job.getJobType());
         if (job.getJobType() == JobType.INITIAL_SYNC) {
-            runInitialSync(job.getUserId(), portalData);
+            runInitialSync(job.getId(), job.getUserId(), portalData);
         } else {
-            runRefreshSync(job.getUserId(), portalData);
+            runRefreshSync(job.getId(), job.getUserId(), portalData);
         }
     }
 
-    private void runInitialSync(UUID userId, PortalData portalData) {
-//        if (skipBecauseAlreadyConnected(userId, portalData)) {
-//            log.info("[JOB] portal.init.skip userId={} reason=already_connected_after_merge", userId);
-//            return;
-//        }
+    private void runInitialSync(Long jobId, UUID userId, PortalData portalData) {
+        if (skipBecauseAlreadyConnected(jobId, userId, portalData)) {
+            log.info("[JOB] portal.init.skip jobId={} userId={} reason=already_connected_after_merge", jobId, userId);
+            return;
+        }
 
         PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
@@ -185,10 +189,10 @@ public class PortalSyncWorker {
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
-        markUserConnected(userId);
+        markUserConnected(jobId, userId);
     }
 
-    private void runRefreshSync(UUID userId, PortalData portalData) {
+    private void runRefreshSync(Long jobId, UUID userId, PortalData portalData) {
         PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
@@ -199,25 +203,31 @@ public class PortalSyncWorker {
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
-        markUserRefreshed(userId);
+        markUserRefreshed(jobId, userId);
     }
 
-    private boolean skipBecauseAlreadyConnected(UUID userId, PortalData portalData) {
+    private boolean skipBecauseAlreadyConnected(Long jobId, UUID userId, PortalData portalData) {
         User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
-        return Boolean.TRUE.equals(mergedUser.getPortalConnected());
+        boolean alreadyConnected = Boolean.TRUE.equals(mergedUser.getPortalConnected());
+        if (alreadyConnected) {
+            log.info("[JOB] portal.job.merged jobId={} userId={} mergedUserId={}", jobId, userId, mergedUser.getId());
+        }
+        return alreadyConnected;
     }
 
-    private void markUserConnected(UUID userId) {
+    private void markUserConnected(Long jobId, UUID userId) {
         User user = userService.getUserById(userId);
         user.markPortalConnected(Instant.now());
         userService.save(user);
         studentService.markReconnectedByUser(user);
+        log.info("[JOB] portal.user.connected jobId={} userId={}", jobId, userId);
     }
 
-    private void markUserRefreshed(UUID userId) {
+    private void markUserRefreshed(Long jobId, UUID userId) {
         User user = userService.getUserById(userId);
         user.updateLastSyncedAt(Instant.now());
         userService.save(user);
         studentService.markReconnectedByUser(user);
+        log.info("[JOB] portal.user.refreshed jobId={} userId={}", jobId, userId);
     }
 }
