@@ -15,4 +15,6 @@ public interface SyncJobRepository extends JpaRepository<SyncJob, Long> {
     Optional<SyncJob> findByIdForUpdate(@Param("id") Long id);
 
     List<SyncJob> findAllByStatusAndCreatedAtBefore(JobStatus status, Instant createdBefore);
+
+    List<SyncJob> findTop5ByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(JobStatus status, Instant createdBefore);
 }

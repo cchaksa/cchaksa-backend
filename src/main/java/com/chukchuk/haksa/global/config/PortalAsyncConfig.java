@@ -15,11 +15,12 @@ public class PortalAsyncConfig {
     @Bean(name = "portalTaskExecutor")
     public TaskExecutor portalTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
+        executor.setCorePoolSize(3);
+        executor.setMaxPoolSize(7);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("portal-sync-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy()); // Backpressure 효과
         executor.initialize();
         return executor;
     }

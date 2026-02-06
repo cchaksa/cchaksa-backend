@@ -24,7 +24,8 @@ public class SyncRetryScheduler {
     public void recoverInitializedJobs() {
         // 생성된 지 5분이 넘은 INITIALIZED Job 찾기
         Instant cutoff = Instant.now().minus(5, ChronoUnit.MINUTES);
-        List<SyncJob> staleJobs = syncJobRepository.findAllByStatusAndCreatedAtBefore(JobStatus.INITIALIZED, cutoff);
+        List<SyncJob> staleJobs = syncJobRepository.findTop5ByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+                JobStatus.INITIALIZED, cutoff);
         if (staleJobs.isEmpty()) {
             return;
         }
