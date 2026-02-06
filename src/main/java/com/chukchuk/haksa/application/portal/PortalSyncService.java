@@ -1,101 +1,67 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
-import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.user.model.User;
-import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
+import com.chukchuk.haksa.domain.syncjob.JobType;
+import com.chukchuk.haksa.domain.syncjob.SyncJob;
+import com.chukchuk.haksa.domain.syncjob.SyncJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
-import com.chukchuk.haksa.global.logging.annotation.LogTime;
-import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
-import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
-import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.UUID;
-
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PortalSyncService {
 
-    private final InitializePortalConnectionService initializePortalConnectionService;
-    private final RefreshPortalConnectionService refreshPortalConnectionService;
-    private final SyncAcademicRecordService syncAcademicRecordService;
-    private final UserService userService;
-    private final StudentService studentService;
+    private final SyncJobRepository syncJobRepository;
+    private final PortalCredentialStore portalCredentialStore;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
-    public ScrapingResponse syncWithPortal(UUID userId, PortalData portalData) {
-        long t0 = LogTime.start();
-
-        // 1. 포털 초기화
-        PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(userId, portalData);
-        if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.sync.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
-        }
-
-        // 2. 학업 이력 동기화
-        SyncAcademicRecordResult sync = syncAcademicRecordService.executeWithPortalData(userId, portalData);
-        if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.sync.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
-            throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
-        }
-
-        // 3. 포털 연결 마킹
-        User user = userService.getUserById(userId);
-        user.markPortalConnected(Instant.now());
-        userService.save(user);
-        studentService.markReconnectedByUser(user);
-
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.sync.done userId={} took_ms={}", userId, tookMs);
-        }
-
-        // 4. 응답 생성
-        return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
+    public ScrapingResponse requestInitialSync(UUID userId) {
+        ensureCredentialsPresent(userId);
+        SyncJob job = syncJobRepository.save(SyncJob.create(userId, JobType.INITIAL_SYNC));
+        publish(job);
+        return pendingResponse(job);
     }
 
     @Transactional
-    public ScrapingResponse refreshFromPortal(UUID userId, PortalData portalData) {
-        long t0 = LogTime.start();
-
-        // 1. 포털 연동 정보 갱신
-        PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(userId, portalData);
-        if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
-            throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
-        }
-
-        // 2. 학업 이력 재동기화
-        SyncAcademicRecordResult sync = syncAcademicRecordService.executeForRefreshPortalData(userId, portalData);
-        if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
-            throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
-        }
-
-        // 3. 마지막 동기화 시간만 업데이트 (포털 연결은 유지)
-        User user = userService.getUserById(userId);
-        user.updateLastSyncedAt(Instant.now());
-        userService.save(user);
-        studentService.markReconnectedByUser(user);
-
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.refresh.done userId={} took_ms={}", userId, tookMs);
-        }
-
-        // 4. 응답 생성
-        return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
+    public ScrapingResponse requestRefreshSync(UUID userId) {
+        ensureCredentialsPresent(userId);
+        SyncJob job = syncJobRepository.save(SyncJob.create(userId, JobType.REFRESH_SYNC));
+        publish(job);
+        return pendingResponse(job);
     }
 
+    public void retry(SyncJob job) {
+        publish(job);
+    }
+
+    // job을 비동기 워커 큐에 보내는 역할
+    private void publish(SyncJob job) {
+        PortalSyncEvent event = new PortalSyncEvent(job.getId(), job.getUserId());
+        eventPublisher.publishEvent(event); // 이벤트를 컨텍스트에 발행
+        log.info("[JOB] portal.job.enqueued jobId={} userId={} type={}", job.getId(), job.getUserId(), job.getJobType());
+    }
+
+    private ScrapingResponse pendingResponse(SyncJob job) {
+        return new ScrapingResponse(String.valueOf(job.getId()), null, job.getStatus().name());
+    }
+
+    // 사용자 포털 계정 정보가 캐시에 존재하는지 Validation, 비동기 워커 작업 최소 가드라인
+    private void ensureCredentialsPresent(UUID userId) {
+        String key = userId.toString();
+        String username = portalCredentialStore.getUsername(key);
+        String password = portalCredentialStore.getPassword(key);
+        if (username == null || password == null) {
+            throw new CommonException(ErrorCode.SESSION_EXPIRED);
+        }
+    }
 }
