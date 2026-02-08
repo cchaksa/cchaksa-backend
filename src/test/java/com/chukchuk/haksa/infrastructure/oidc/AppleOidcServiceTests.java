@@ -8,7 +8,6 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -67,10 +66,10 @@ class AppleOidcServiceTests {
                 .signWith(keyPair.getPrivate(), SignatureAlgorithm.RS256)
                 .compact();
 
-        RestTemplate restTemplate = Mockito.mock(RestTemplate.class);
-        when(restTemplate.getForObject(keysUrl, JsonNode.class)).thenReturn(jwks);
+        OidcJwksClient jwksClient = Mockito.mock(OidcJwksClient.class);
+        when(jwksClient.fetchKeys(Mockito.anyString(), Mockito.eq(keysUrl))).thenReturn(jwks);
 
-        AppleOidcService service = new AppleOidcService(restTemplate);
+        AppleOidcService service = new AppleOidcService(jwksClient);
         ReflectionTestUtils.setField(service, "clientId", clientId);
         ReflectionTestUtils.setField(service, "issuer", issuer);
         ReflectionTestUtils.setField(service, "keysUrl", keysUrl);
