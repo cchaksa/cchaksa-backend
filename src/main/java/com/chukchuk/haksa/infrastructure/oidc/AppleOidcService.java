@@ -11,12 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
@@ -27,7 +27,9 @@ import java.util.Date;
 @Slf4j
 public class AppleOidcService implements OidcService {
 
-    private final RestTemplate restTemplate;
+    private static final String APPLE_CACHE_KEY = "apple";
+
+    private final OidcJwksClient oidcJwksClient;
 
     @Value("${security.apple.client-id}")
     private String clientId;
@@ -41,7 +43,7 @@ public class AppleOidcService implements OidcService {
     @Override
     public Claims verifyIdToken(String idToken, String expectedNonce) {
         try {
-            JsonNode jwks = getPublicKeys();
+            JsonNode jwks = oidcJwksClient.fetchKeys(APPLE_CACHE_KEY, keysUrl);
 
             String[] parts = idToken.split("\\.");
             if (parts.length != 3) {
@@ -71,15 +73,9 @@ public class AppleOidcService implements OidcService {
 
             return claims;
 
-        } catch (TokenException e) {
-            throw e;
         } catch (Exception e) {
             throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
         }
-    }
-
-    private JsonNode getPublicKeys() {
-        return restTemplate.getForObject(keysUrl, JsonNode.class);
     }
 
     private JsonNode findMatchingKey(JsonNode jwks, String kid, String alg) {
@@ -146,8 +142,8 @@ public class AppleOidcService implements OidcService {
             }
 
             return hexString.toString();
-        } catch (Exception e) {
-            throw new TokenException(ErrorCode.TOKEN_HASH_ERROR);
+        } catch (NoSuchAlgorithmException e) {
+            throw new TokenException(ErrorCode.TOKEN_HASH_ERROR, e);
         }
     }
 }

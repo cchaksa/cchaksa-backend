@@ -4,6 +4,7 @@ import com.chukchuk.haksa.global.security.service.OidcProvider;
 import com.chukchuk.haksa.infrastructure.oidc.AppleOidcService;
 import com.chukchuk.haksa.infrastructure.oidc.KakaoOidcService;
 import com.chukchuk.haksa.domain.user.service.OidcService;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
@@ -25,7 +26,7 @@ public class OIDCConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder.build();
     }
 }

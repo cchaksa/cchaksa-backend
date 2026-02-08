@@ -11,12 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
@@ -27,13 +27,16 @@ import java.util.Date;
 @Slf4j
 public class KakaoOidcService implements OidcService {
     private static final String KAKAO_JWKS_URL = "https://kauth.kakao.com/.well-known/jwks.json";
+    private static final String KAKAO_CACHE_KEY = "kakao";
+
+    private final OidcJwksClient oidcJwksClient;
 
     @Value("${security.appKey}")
     private String appKey;
 
     public Claims verifyIdToken(String idToken, String expectedNonce) {
         try {
-            JsonNode jwks = getPublicKey();
+            JsonNode jwks = oidcJwksClient.fetchKeys(KAKAO_CACHE_KEY, KAKAO_JWKS_URL);
 
             String[] parts = idToken.split("\\.");
             if (parts.length != 3) {
@@ -60,16 +63,9 @@ public class KakaoOidcService implements OidcService {
 
             return claims;
 
-        } catch (TokenException e) {
-            throw e;
         } catch (Exception e) {
             throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
         }
-    }
-
-    private JsonNode getPublicKey() {
-        RestTemplate restTemplate = new RestTemplate();
-        return restTemplate.getForObject(KAKAO_JWKS_URL, JsonNode.class);
     }
 
     private PublicKey createPublicKey(JsonNode keyNode) throws Exception{
@@ -137,8 +133,8 @@ public class KakaoOidcService implements OidcService {
             }
 
             return hexString.toString();
-        } catch (Exception e) {
-            throw new TokenException(ErrorCode.TOKEN_HASH_ERROR);
+        } catch (NoSuchAlgorithmException e) {
+            throw new TokenException(ErrorCode.TOKEN_HASH_ERROR, e);
         }
     }
 
