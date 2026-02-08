@@ -1,49 +1,61 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `src/main/java` contains the Spring Boot app (`com.chukchuk.haksa`) organized as `domain`, `application`, `infrastructure`, `global`.
-- `src/main/resources` holds config (`application-*.yml`), logging (`logback-spring.xml`), and API docs (`public/openapi.yaml`).
-- `src/test/java` holds JUnit tests (e.g., `*Tests`); `docker/` has local observability configs.
+## Technology Stack
+- Java 17 (Gradle toolchain)
+- Spring Boot 3.2.5
+- Spring Web (MVC) and Spring WebFlux
+- Spring Security with JWT (jjwt)
+- Spring Data JPA (Hibernate)
+- PostgreSQL
+- Caffeine (local cache)
+- Hibernate Validator / Jakarta Validation
+- OpenAPI via springdoc
+- Observability: Actuator, Sentry, Micrometer + OpenTelemetry
+- Logging: Logback with logstash encoder
 
-## Architecture Overview
-- `domain`: entities + business rules; `application`: use-case orchestration; `infrastructure`: portal client/cache/mappers; `global`: security/logging/error/config.
-- Keep dependencies pointing inward; use interfaces in `domain` (e.g., `domain/portal/PortalCredentialStore`).
-- Portal sync flow: credentials → scrape → initialize/refresh → persistence.
+## Package Structure
+- Base package: `com.chukchuk.haksa`
+- `application`: use-case orchestration and application services
+- `domain`: core models, services, controllers, repositories, wrappers, DTOs
+- `infrastructure`: portal clients, cache, mappers, repositories, DTOs
+- `global`: config, security, logging, exceptions, common response
+- Resources: `src/main/resources` with `application-*.yml`, `logback-spring.xml`, and `public/openapi.yaml`
 
-## Build, Test, and Development Commands
-- `./gradlew build` (compile + tests), `./gradlew test`, `./gradlew bootRun`, `./gradlew clean`.
+## Test Structure
+- Tests live under `src/test/java`
+- JUnit 5 via Spring Boot test starter
+- Example test location: `src/test/java/com/chukchuk/haksa/global/security/cache/AuthTokenCacheTests.java`
+- `tasks.test` uses JUnit Platform
 
-## Coding Style & Naming Conventions
-- Java 17, Spring Boot 3.2.x; 4-space indentation, standard Java formatting.
-- Packages: `com.chukchuk.haksa.<layer>.<feature>`; classes `UpperCamelCase`, fields `lowerCamelCase`.
-- Lombok is used; prefer explicit annotations.
+## Implicit Development Rules (Observed)
+- Java formatting uses 4-space indentation
+- Configuration is environment-specific via `application-local.yml`, `application-dev.yml`, `application-prod.yml`
+- Redis auto-configuration is excluded in `application.yml` (local cache is default)
+- API documentation is served from `src/main/resources/public/openapi.yaml`
+- If the repository guidelines change or new facts are discovered during work, update `AGENTS.md` accordingly
 
-## Testing Guidelines
-- JUnit 5 + Spring Boot test starter; tests named `*Tests`.
-- Add unit tests near the impacted service/domain package; run with `./gradlew test`.
+## Architecture Style
+- Layered architecture with package boundaries: `domain` → `application` → `infrastructure` and shared `global`
+- Spring Boot application entry point at `com.chukchuk.haksa.ChukchukHaksaApplication`
+- Environment profiles: `local`, `dev`, `prod`
 
-## Commit & Pull Request Guidelines
-- Follow `README.md` commit types (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`, etc.).
-- PRs include summary, linked issues, and test results; add API examples for endpoint changes.
+## Policy Layer
 
-## Configuration, Auth, and Cache Notes
-- Use `application-local.yml` for overrides; avoid committing secrets.
-- Cache strategy: `cache.type=local|redis`, `portal.credential.store=local|redis`.
-- Auth cache: `AuthTokenCache` stores token → `UserDetails` for access-token TTL; evict by user on deletion.
+### 1. Absolute Rules (Non-negotiable)
+- Do not commit with failing tests.
+- Do not change existing business logic without explicit context.
+- Do not change public APIs exposed externally without a clear reason.
+- Do not add new dependencies without a clear reason.
+- Do not introduce changes that break transactional integrity.
 
-## Domain Rules & Priorities
-- Graduation requirement analysis is domain-driven; missing or inconsistent data is treated as a domain exception, not a technical error.
-- Portal sync success does not guarantee graduation analysis success (e.g., transfer students, missing requirements).
-- Domain correctness takes priority over API convenience or client expectations.
+### 2. Priorities (When Trade-offs Conflict)
+- Safety > Correctness > Readability > Performance > Abstraction
+- Prefer minimal change over broad refactors.
+- Prefer explicit, readable code over clever code.
+- Prefer consistency with existing style over introducing new patterns.
 
-## Refactoring Guardrails
-- Do not merge domain and infrastructure models.
-- Do not bypass application services to simplify flows.
-- Avoid introducing global transactional boundaries without explicit justification.
-
-## Transaction Boundaries
-- Transactions are managed at the application service level, not in controllers or domain models.
-
-## Agent Notes (type/*)
-- On branch `type/*`, commit messages start with `* ` and are written in Korean.
-  - type: feat, refactor, fix
+### 3. Future-Facing Rules (Direction, Not Hard Requirements Yet)
+- When modifying code without tests, add tests when possible.
+- Move business logic gradually into the domain layer.
+- Gradually reduce transaction scope.
+- Split commits by meaningful units (feature, refactor, test).
