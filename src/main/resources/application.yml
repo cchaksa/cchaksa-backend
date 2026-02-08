@@ -48,13 +48,22 @@ management:
   endpoints:
     web:
       exposure:
+        # 블로그 분석용으로 prometheus와 metrics는 필수라네
         include: "prometheus,health,info,metrics"
   endpoint:
     health:
       show-details: always
   metrics:
     tags:
-      application: ${spring.application.name}
+      # 그라파나에서 서버 여러 대를 띄워도 구분할 수 있게 해줌
+      application: "chukchuk-haksa"
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      minimum-expected-value:
+        http.server.requests: 1ms
+      maximum-expected-value:
+        http.server.requests: 10s
     export:
       prometheus:
         enabled: true
