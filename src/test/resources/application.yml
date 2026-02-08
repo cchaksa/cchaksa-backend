@@ -1,0 +1,40 @@
+spring:
+  profiles:
+    active: test
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          use_get_generated_keys: true
+  autoconfigure:
+    exclude:
+      - io.sentry.spring.boot.jakarta.SentryAutoConfiguration
+
+security:
+  jwt:
+    secret: test-secret-256bit-test-secret-256bit-test-secret-256bit
+    access-expiration: 3600000
+    refresh-expiration: 1209600000
+  appKey: test-app-key
+  apple:
+    client-id: com.example.test
+    issuer: https://appleid.apple.com
+    keys-url: https://appleid.apple.com/auth/keys
+
+crawler:
+  base-url: http://localhost:8081
+
+sentry:
+  enable: false
+
+swagger:
+  server-url: http://localhost:8080
