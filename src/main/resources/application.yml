@@ -41,7 +41,24 @@ sentry:
     minimum-event-level: error
     minimum-breadcrumb-level: info
 
+# ─────────────────────────────────────────
+# 모니터링 및 관리 (Actuator & Metrics)
+# ─────────────────────────────────────────
 management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+  # 기존 tracing 설정 유지
   tracing:
     enabled: true
   health:

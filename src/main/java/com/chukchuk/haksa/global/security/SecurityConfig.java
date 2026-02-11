@@ -54,7 +54,8 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/", "/health", "/error","/auth/kakao", "/sentry-test",
-            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh"
+            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh",
+            "/actuator/prometheus", "/actuator/health", "/actuator/info"
     };
 
     private static final String[] SWAGGER_ENDPOINTS = {
