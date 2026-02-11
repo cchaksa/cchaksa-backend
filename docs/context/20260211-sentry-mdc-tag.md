@@ -18,6 +18,7 @@
 ## 2. Domain Rules (Highest Priority, Required)
 - Rule 1: When graduation requirement data is missing, the domain service must populate MDC keys `student_code`, `admission_year`, `primary_department_id`, `secondary_department_id`, and `major_type` before propagating the exception.
 - Rule 2: Any Sentry capture triggered for `BaseException` or graduation-specific error codes must elevate the above MDC keys, plus `userId` when present, into Sentry tags atomically so that tag filters always reflect the MDC snapshot.
+- Rule 2-1: All other exception handlers that call `Sentry.captureException` (e.g., `EntityNotFoundException`, `RuntimeException`, `Exception`) must also promote `userId` and graduation MDC keys whenever present so every captured event exposes the same tag set.
 - Rule 3: Adding or removing MDC entries must never leak PII beyond the approved fields nor alter the business semantics of graduation flows; tags are purely observational metadata.
 
 - Mutable Rules:
