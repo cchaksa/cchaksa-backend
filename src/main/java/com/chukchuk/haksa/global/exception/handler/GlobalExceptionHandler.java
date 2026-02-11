@@ -5,7 +5,7 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
-import io.sentry.IScope;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcTagBinder;
 import io.sentry.Sentry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -37,24 +37,13 @@ public class GlobalExceptionHandler {
             scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
 
             // MDC → Sentry Tag 승격 (있을 때만)
-            putIfPresent(scope, "student_code");
-            putIfPresent(scope, "admission_year");
-            putIfPresent(scope, "primary_department_id");
-            putIfPresent(scope, "secondary_department_id");
-            putIfPresent(scope, "major_type");
+            SentryMdcTagBinder.bind(scope);
 
             Sentry.captureException(ex);
         });
 
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
-    }
-
-    private void putIfPresent(IScope scope, String key) {
-        String value = MDC.get(key);
-        if (value != null) {
-            scope.setTag(key, value);
-        }
     }
 
     /** 404 */
