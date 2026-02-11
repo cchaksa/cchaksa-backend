@@ -27,6 +27,14 @@
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
             <sendDefaultPii>false</sendDefaultPii>
             <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
+            <mdcTags>
+                <tag>userId</tag>
+                <tag>student_code</tag>
+                <tag>admission_year</tag>
+                <tag>primary_department_id</tag>
+                <tag>secondary_department_id</tag>
+                <tag>major_type</tag>
+            </mdcTags>
         </appender>
 
         <logger name="HTTP" level="INFO"/>
@@ -46,6 +54,14 @@
             <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
             <sendDefaultPii>false</sendDefaultPii>
             <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
+            <mdcTags>
+                <tag>userId</tag>
+                <tag>student_code</tag>
+                <tag>admission_year</tag>
+                <tag>primary_department_id</tag>
+                <tag>secondary_department_id</tag>
+                <tag>major_type</tag>
+            </mdcTags>
         </appender>
 
         <logger name="HTTP" level="INFO"/>
