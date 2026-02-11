@@ -74,7 +74,7 @@ jobs:
                 kill -9 $PID || true
               fi
 
-              nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
+              nohup java -Xms1024m -Xmx1024m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
               sleep 1
               exit 0
             '
