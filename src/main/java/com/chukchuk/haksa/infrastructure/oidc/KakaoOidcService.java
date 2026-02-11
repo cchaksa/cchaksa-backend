@@ -46,10 +46,7 @@ public class KakaoOidcService implements OidcService {
             String headerJson = new String(Base64.getDecoder().decode(parts[0]));
             String kid = new ObjectMapper().readTree(headerJson).get("kid").asText();
 
-            JsonNode keyNode = findMatchingKey(jwks, kid);
-            if (keyNode == null) {
-                throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
-            }
+            JsonNode keyNode = resolveKeyWithFallback(jwks, kid);
 
             PublicKey publicKey = createPublicKey(keyNode);
 
@@ -108,6 +105,21 @@ public class KakaoOidcService implements OidcService {
         if (!hashedNonce.equals(nonce)) {
             throw new TokenException(ErrorCode.TOKEN_INVALID_NONCE);
         }
+    }
+
+    private JsonNode resolveKeyWithFallback(JsonNode jwks, String kid) {
+        JsonNode keyNode = findMatchingKey(jwks, kid);
+        if (keyNode != null) {
+            return keyNode;
+        }
+
+        log.warn("Kakao JWKS key not found in cache, refreshing. kid={}", kid);
+        JsonNode refreshed = oidcJwksClient.refreshKeys(KAKAO_CACHE_KEY, KAKAO_JWKS_URL);
+        keyNode = findMatchingKey(refreshed, kid);
+        if (keyNode == null) {
+            throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
+        }
+        return keyNode;
     }
 
     private JsonNode findMatchingKey(JsonNode jwks, String kid) {

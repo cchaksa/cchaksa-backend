@@ -56,10 +56,7 @@ public class AppleOidcService implements OidcService {
             String kid = header.get("kid").asText();
             String alg = header.get("alg").asText();
 
-            JsonNode keyNode = findMatchingKey(jwks, kid, alg);
-            if (keyNode == null) {
-                throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
-            }
+            JsonNode keyNode = resolveKeyWithFallback(jwks, kid, alg);
 
             PublicKey publicKey = createPublicKey(keyNode);
 
@@ -76,6 +73,21 @@ public class AppleOidcService implements OidcService {
         } catch (Exception e) {
             throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
         }
+    }
+
+    private JsonNode resolveKeyWithFallback(JsonNode jwks, String kid, String alg) {
+        JsonNode keyNode = findMatchingKey(jwks, kid, alg);
+        if (keyNode != null) {
+            return keyNode;
+        }
+
+        log.warn("Apple JWKS key not found in cache, refreshing. kid={}, alg={}", kid, alg);
+        JsonNode refreshedKeys = oidcJwksClient.refreshKeys(APPLE_CACHE_KEY, keysUrl);
+        keyNode = findMatchingKey(refreshedKeys, kid, alg);
+        if (keyNode == null) {
+            throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
+        }
+        return keyNode;
     }
 
     private JsonNode findMatchingKey(JsonNode jwks, String kid, String alg) {
