@@ -19,7 +19,7 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(OIDC_KEYS_CACHE);
         cacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofHours(6))
+                .expireAfterWrite(Duration.ofHours(1))
                 .maximumSize(10));
         return cacheManager;
     }
