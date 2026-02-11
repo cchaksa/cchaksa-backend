@@ -1,73 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <!-- ========== local ========== -->
-    <springProfile name="local">
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level %logger - %msg%n</pattern>
-            </encoder>
-        </appender>
+    <property name="LOG_PATH" value="/var/log/app"/>
+    <property name="LOG_FILE_NAME" value="chukchuk-haksa"/>
 
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/${LOG_FILE_NAME}.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="SENTRY_DEV" class="io.sentry.logback.SentryAppender">
+        <minimumEventLevel>ERROR</minimumEventLevel>
+        <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        <sendDefaultPii>false</sendDefaultPii>
+        <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
+        <mdcTags>
+            <tag>userId</tag>
+            <tag>student_code</tag>
+            <tag>admission_year</tag>
+            <tag>primary_department_id</tag>
+            <tag>secondary_department_id</tag>
+            <tag>major_type</tag>
+        </mdcTags>
+    </appender>
+
+    <appender name="SENTRY_PROD" class="io.sentry.logback.SentryAppender">
+        <minimumEventLevel>ERROR</minimumEventLevel>
+        <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
+        <sendDefaultPii>false</sendDefaultPii>
+        <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
+        <mdcTags>
+            <tag>userId</tag>
+            <tag>student_code</tag>
+            <tag>admission_year</tag>
+            <tag>primary_department_id</tag>
+            <tag>secondary_department_id</tag>
+            <tag>major_type</tag>
+        </mdcTags>
+    </appender>
+
+    <springProfile name="local">
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
 
-    <!-- ========== dev ========== -->
     <springProfile name="dev">
-
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>%d{HH:mm:ss.SSS} %-5level %logger - %msg%n</pattern>
-            </encoder>
-        </appender>
-
-        <appender name="SENTRY_DEV" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
-            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-            <sendDefaultPii>false</sendDefaultPii>
-            <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
-            <mdcTags>
-                <tag>userId</tag>
-                <tag>student_code</tag>
-                <tag>admission_year</tag>
-                <tag>primary_department_id</tag>
-                <tag>secondary_department_id</tag>
-                <tag>major_type</tag>
-            </mdcTags>
-        </appender>
-
+        <logger name="org.springframework.transaction" level="DEBUG"/>
+        <logger name="org.springframework.orm.jpa" level="DEBUG"/>
+        <logger name="com.zaxxer.hikari" level="DEBUG"/>
+        <logger name="com.chukchuk.haksa" level="DEBUG"/>
         <logger name="HTTP" level="INFO"/>
-        <logger name="com.chukchuk.haksa" level="INFO"/>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
             <appender-ref ref="SENTRY_DEV"/>
         </root>
     </springProfile>
 
-    <!-- ========== prod ========== -->
     <springProfile name="prod">
-
-        <appender name="SENTRY_PROD" class="io.sentry.logback.SentryAppender">
-            <minimumEventLevel>ERROR</minimumEventLevel>
-            <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-            <sendDefaultPii>false</sendDefaultPii>
-            <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
-            <mdcTags>
-                <tag>userId</tag>
-                <tag>student_code</tag>
-                <tag>admission_year</tag>
-                <tag>primary_department_id</tag>
-                <tag>secondary_department_id</tag>
-                <tag>major_type</tag>
-            </mdcTags>
-        </appender>
-
-        <logger name="HTTP" level="INFO"/>
+        <logger name="org.springframework.transaction" level="DEBUG"/>
+        <logger name="com.zaxxer.hikari" level="DEBUG"/>
         <logger name="com.chukchuk.haksa" level="INFO"/>
+        <logger name="HTTP" level="INFO"/>
 
         <root level="INFO">
+            <appender-ref ref="FILE"/>
             <appender-ref ref="SENTRY_PROD"/>
         </root>
     </springProfile>

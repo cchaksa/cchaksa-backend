@@ -5,13 +5,14 @@ spring:
     password: ${DEV_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 3
+      maximum-pool-size: 10
       minimum-idle: 1
-      connection-timeout: 20000
+      connection-timeout: 5000
       validation-timeout: 5000
       idle-timeout: 300000     # 5m
       max-lifetime: 900000     # 15m
       keepalive-time: 120000   # 2m
+      pool-name: HikariPool-ChukChuk
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect

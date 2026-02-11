@@ -41,7 +41,26 @@ sentry:
     minimum-event-level: error
     minimum-breadcrumb-level: info
 
+# ─────────────────────────────────────────
+# 모니터링 및 관리 (Actuator & Metrics)
+# ─────────────────────────────────────────
 management:
+  endpoints:
+    web:
+      exposure:
+        # 블로그 분석용으로 prometheus와 metrics는 필수라네
+        include: "prometheus,health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      # 그라파나에서 서버 여러 대를 띄워도 구분할 수 있게 해줌세
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+  # 기존 tracing 설정 유지
   tracing:
     enabled: true
   health:
