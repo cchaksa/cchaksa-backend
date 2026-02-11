@@ -50,6 +50,6 @@ public final class SentryMdcTagBinder {
      * Exposes tag keys for verification (e.g., configuration tests).
      */
     public static List<String> tagKeys() {
-        return Collections.unmodifiableList(TAG_KEYS);
+        return TAG_KEYS;
     }
 }
