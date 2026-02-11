@@ -37,6 +37,7 @@ class OidcJwksClientTests {
     @AfterEach
     void clearCache() {
         cacheManager.getCache("oidcKeys").clear();
+        Mockito.reset(restTemplate);
     }
 
     @Test
@@ -59,6 +60,22 @@ class OidcJwksClientTests {
         verify(restTemplate, times(1)).getForObject("https://kakao", JsonNode.class);
     }
 
+    @Test
+    void refreshKeysUpdatesCacheImmediately() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode refreshed = mapper.readTree("{\"keys\":[{\"kid\":\"new\"}]}");
+
+        when(restTemplate.getForObject("https://apple", JsonNode.class)).thenReturn(refreshed);
+
+        JsonNode refreshResult = client.refreshKeys("apple", "https://apple");
+        assertThat(refreshResult).isEqualTo(refreshed);
+
+        JsonNode cached = client.fetchKeys("apple", "https://apple");
+        assertThat(cached).isEqualTo(refreshed);
+
+        verify(restTemplate, times(1)).getForObject("https://apple", JsonNode.class);
+    }
+
     @Configuration
     @EnableCaching
     static class TestConfig {
@@ -74,8 +91,8 @@ class OidcJwksClientTests {
         }
 
         @Bean
-        OidcJwksClient oidcJwksClient(RestTemplate restTemplate) {
-            return new OidcJwksClient(restTemplate);
+        OidcJwksClient oidcJwksClient(RestTemplate restTemplate, CacheManager cacheManager) {
+            return new OidcJwksClient(restTemplate, cacheManager);
         }
     }
 }
