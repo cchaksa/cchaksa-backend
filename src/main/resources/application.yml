@@ -48,7 +48,6 @@ management:
   endpoints:
     web:
       exposure:
-        # 블로그 분석용으로 prometheus와 metrics는 필수라네
         include: "prometheus,health,info,metrics"
   endpoint:
     health:
