@@ -3,20 +3,16 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
 import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.syncjob.JobStatus;
-import com.chukchuk.haksa.domain.syncjob.JobType;
-import com.chukchuk.haksa.domain.syncjob.SyncJob;
-import com.chukchuk.haksa.domain.syncjob.SyncJobRepository;
-import com.chukchuk.haksa.domain.syncjob.SyncPhase;
+import com.chukchuk.haksa.domain.syncjob.*;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import com.chukchuk.haksa.global.exception.type.CommonException;
-import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
+import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +23,10 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Instant;
 import java.util.UUID;
-
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
 
 @Slf4j
 @Component
@@ -48,6 +44,7 @@ public class PortalSyncWorker {
     private final PlatformTransactionManager transactionManager;
 
     private TransactionTemplate transactionTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 초기화 훅
@@ -108,61 +105,57 @@ public class PortalSyncWorker {
                 .ifPresent(job -> job.updateStatus(status, phase)));
     }
 
-    private PortalData fetchPortalData(Long jobId, UUID userId) {
-        String key = userId.toString();
-        String username = portalCredentialStore.getUsername(key);
-        String password = portalCredentialStore.getPassword(key);
-
-        if (username == null || password == null) {
-            throw new CommonException(ErrorCode.SESSION_EXPIRED);
-        }
-
-        long t0 = LogTime.start();
-        PortalData portalData = portalRepository.fetchPortalData(username, password);
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[JOB] portal.fetch.done jobId={} userId={} took_ms={}", jobId, userId, tookMs);
-        }
-
-        portalCredentialStore.clear(key);
-        return portalData;
-    }
-
-    //    private PortalData fetchPortalData(String userId) {
-//        // 1. [재현] 7초 지연
-//        try { Thread.sleep(7000); } catch (InterruptedException e) { }
+//    private PortalData fetchPortalData(Long jobId, UUID userId) {
+//        String key = userId.toString();
+//        String username = portalCredentialStore.getUsername(key);
+//        String password = portalCredentialStore.getPassword(key);
 //
-//        // 2. [로드] 리소스 폴더의 파일 읽기 (상수 길이 제한 문제 해결)
-//        PortalData originData;
-//        ObjectMapper objectMapper = new ObjectMapper();
-//        try {
-//            // ClassLoader를 통해 리소스를 스트림으로 읽어오네.
-//            InputStream is = getClass().getClassLoader().getResourceAsStream("mock_portal_data.json");
-//            if (is == null) throw new RuntimeException("Mock JSON 파일을 찾을 수 없네!");
-//            originData = objectMapper.readValue(is, PortalData.class);
-//            } catch (IOException e) {
-//            log.error("Failed to load mock data", e);
-//            throw new RuntimeException(e);
-//            }
+//        if (username == null || password == null) {
+//            throw new CommonException(ErrorCode.SESSION_EXPIRED);
+//        }
 //
-//            // 3. [회피] 학번 랜덤화
-//            String uniqueSno = String.valueOf(System.nanoTime()).substring(7, 15);
+//        long t0 = LogTime.start();
+//        PortalData portalData = portalRepository.fetchPortalData(username, password);
+//        long tookMs = LogTime.elapsedMs(t0);
+//        if (tookMs >= SLOW_MS) {
+//            log.info("[JOB] portal.fetch.done jobId={} userId={} took_ms={}", jobId, userId, tookMs);
+//        }
 //
-//            // 4. [교체] Record 불변 객체 새로 생성 (아까 짠 로직 그대로)
-//            PortalStudentInfo origin = originData.student();
-//            PortalStudentInfo randomizedStudent = new PortalStudentInfo(
-//                uniqueSno,
-//                origin.name(),
-//                origin.college(),
-//                origin.department(),
-//                origin.major(),
-//                origin.secondaryMajor(),
-//                origin.status(),
-//                origin.admission(),
-//                origin.academic()
-//                );
-//        return new PortalData(randomizedStudent, originData.academic(), originData.curriculum());
+//        portalCredentialStore.clear(key);
+//        return portalData;
 //    }
+
+        private PortalData fetchPortalData(Long jobId, UUID userId) {
+        // 1. [재현] 7초 지연 (비동기 스레드만 멈추고 커넥션은 없는 상태여야 함)
+        try { Thread.sleep(7000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream("mock_portal_data.json")) {
+                if (is == null) throw new RuntimeException("Mock JSON 파일을 찾을 수 없네!");
+
+                PortalData originData = objectMapper.readValue(is, PortalData.class);
+
+                // 2. [회피] 학번 랜덤화 (유일성 보장 강화)
+                String uniqueSno = String.valueOf(System.nanoTime()).substring(7, 15);
+
+                PortalStudentInfo origin = originData.student();
+                PortalStudentInfo randomizedStudent = new PortalStudentInfo(
+                        uniqueSno, // 랜덤 학번 주입
+                        origin.name(),
+                        origin.college(),
+                        origin.department(),
+                        origin.major(),
+                        origin.secondaryMajor(),
+                        origin.status(),
+                        origin.admission(),
+                        origin.academic()
+                );
+
+                return new PortalData(randomizedStudent, originData.academic(), originData.curriculum());
+            } catch (IOException e) {
+                log.error("[JOB] mock.load.fail jobId={}", jobId, e);
+                throw new RuntimeException("Mock 데이터 로드 실패", e);
+            }
+    }
 
     private void runPipeline(SyncJob job, PortalData portalData) {
         log.info("[JOB] portal.job.pipeline jobId={} type={}", job.getId(), job.getJobType());
@@ -174,10 +167,10 @@ public class PortalSyncWorker {
     }
 
     private void runInitialSync(Long jobId, UUID userId, PortalData portalData) {
-        if (skipBecauseAlreadyConnected(jobId, userId, portalData)) {
-            log.info("[JOB] portal.init.skip jobId={} userId={} reason=already_connected_after_merge", jobId, userId);
-            return;
-        }
+//        if (skipBecauseAlreadyConnected(jobId, userId, portalData)) {
+//            log.info("[JOB] portal.init.skip jobId={} userId={} reason=already_connected_after_merge", jobId, userId);
+//            return;
+//        }
 
         PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(userId, portalData);
         if (!conn.isSuccess()) {
