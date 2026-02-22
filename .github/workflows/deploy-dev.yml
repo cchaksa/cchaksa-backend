@@ -71,7 +71,7 @@ jobs:
               PID=$(sudo lsof -t -i :8080)
               if [ -n "$PID" ]; then
                 echo "Killing Spring Boot on port 8080: $PID"
-                kill -9 $PID || true
+                sudo kill -9 $PID || true
               fi
 
               nohup java -Xms1024m -Xmx1024m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
