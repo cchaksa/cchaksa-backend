@@ -20,7 +20,7 @@
 - Rule 1: Tests must verify existing behavior as-is; feature work must not change business logic.
 - Rule 2: Every controller in scope must have at least one success-path integration test and at least one exception-path integration test (or explicit not-applicable note in test code comments when no controlled exception branch exists).
 - Rule 3: Unit tests must focus on API-relevant branching/exception boundaries and must not duplicate integration assertions unnecessarily.
-- Rule 4: For core API-related services touched in this branch (especially social sign-in and user merge/delete flows), unit tests must cover all identifiable public-method branches (success, not-found, existing/non-existing linkage, and representative failure branches).
+- Rule 4: All concrete `*Service` classes under `src/main/java/**/service` must have unit tests covering identifiable public-method branches (success, not-found, existing/non-existing linkage, cache hit/miss fallback, and representative failure branches). Interface-only services are excluded.
 
 - Mutable Rules:
   - The exact number of test cases per endpoint can grow as edge cases are discovered.
@@ -184,4 +184,37 @@
 - Layer: API integration test
 - Path: src/test/java/com/chukchuk/haksa/domain/user/service/UserServiceUnitTests.java
 - Description: Unit tests for user merge/deletion/sign-in token issuance behaviors.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/department/service/DepartmentServiceUnitTests.java
+- Description: Unit tests for department get-or-create behavior.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/course/service/CourseServiceUnitTests.java
+- Description: Unit tests for course get-or-create behavior.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/professor/service/ProfessorServiceUnitTests.java
+- Description: Unit tests for professor get-or-create behavior.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/global/security/service/CustomUserDetailsServiceUnitTests.java
+- Description: Unit tests for user-details loading success/failure paths.
+- Layer: Global unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/academic/record/service/StudentCourseServiceUnitTests.java
+- Description: Unit tests for student-course DTO mapping including nullable fallback defaults.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/academic/record/service/AcademicRecordServiceUnitTests.java
+- Description: Unit tests for semester+course aggregation and major/liberal classification.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/academic/record/service/SemesterAcademicRecordServiceUnitTests.java
+- Description: Unit tests for semester-grade retrieval, cache fallback, and empty-data exceptions.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/academic/record/service/StudentAcademicRecordServiceUnitTests.java
+- Description: Unit tests for academic summary cache paths and graduation-credit calculations (single/dual major).
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/auth/service/RefreshTokenServiceUnitTests.java
+- Description: Unit tests for refresh token save/reissue/find/cleanup flows and exception branches.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/course/service/CourseOfferingServiceUnitTests.java
+- Description: Unit tests for offering reuse/creation branches and offering map lookup.
+- Layer: Domain unit test
+- Path: src/test/java/com/chukchuk/haksa/domain/student/service/StudentServiceUnitTests.java
+- Description: Unit tests for student lookup/profile/reset/reconnect/update flows and exception branches.
 - Layer: Domain unit test
