@@ -81,6 +81,34 @@ class StudentServiceUnitTests {
     }
 
     @Test
+    @DisplayName("학생 컨텍스트가 필요할 때 userId로 studentId를 조회한다")
+    void getRequiredStudentIdByUserId_success() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("u@example.com").profileNickname("u").build();
+        Student student = org.mockito.Mockito.mock(Student.class);
+        user.setStudent(student);
+        when(userService.getUserById(userId)).thenReturn(user);
+        when(student.getId()).thenReturn(studentId);
+
+        UUID found = studentService.getRequiredStudentIdByUserId(userId);
+
+        assertThat(found).isEqualTo(studentId);
+    }
+
+    @Test
+    @DisplayName("학생 컨텍스트가 없으면 USER_NOT_CONNECTED 예외를 던진다")
+    void getRequiredStudentIdByUserId_notConnected_throws() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("u@example.com").profileNickname("u").build();
+        when(userService.getUserById(userId)).thenReturn(user);
+
+        assertThatThrownBy(() -> studentService.getRequiredStudentIdByUserId(userId))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.USER_NOT_CONNECTED.code()));
+    }
+
+    @Test
     @DisplayName("재연동 마킹 시 학생을 조회해 markReconnected 후 저장한다")
     void markReconnectedByUser_success() {
         User user = User.builder().id(UUID.randomUUID()).email("u@example.com").profileNickname("u").build();
