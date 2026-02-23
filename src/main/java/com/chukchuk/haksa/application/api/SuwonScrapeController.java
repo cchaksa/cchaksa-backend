@@ -65,16 +65,17 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     ) {
         long t0 = LogTime.start();
         String userId = userDetails.getUsername();
+        UUID principalId = userDetails.getId();
 
         // 포털 연동 여부 사전 체크 - 조건 위반만 WARN
-        if (userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+        if (userService.getUserById(principalId).getPortalConnected()) {
             log.warn("[BIZ] portal.start skipped userId={} reason=already_connected", userId);
             throw new CommonException(ErrorCode.USER_ALREADY_CONNECTED);
         }
 
         PortalData portalData = fetchPortalData(userId);
         // 기존 User 탐색 및 병합 로직
-        User useUser = userService.tryMergeWithExistingUser(UUID.fromString(userId), portalData.student().studentCode());
+        User useUser = userService.tryMergeWithExistingUser(principalId, portalData.student().studentCode());
         if (useUser.getPortalConnected()) {
             log.info("[BIZ] portal.sync.skipped mergedUserId={} reason=already_connected", useUser.getId());
             Student useStudent = useUser.getStudent();
@@ -93,7 +94,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         }
 
         String useUserId = useUser.getId().toString();
-        ScrapingResponse response = portalSyncService.syncWithPortal(UUID.fromString(useUserId), portalData);
+        ScrapingResponse response = portalSyncService.syncWithPortal(useUser.getId(), portalData);
 
         // 재연동 시 Redis 캐시 초기화
         portalCredentialStore.clear(useUserId);
@@ -114,19 +115,20 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     ) {
         long t0 = LogTime.start();
         String userId = userDetails.getUsername();
+        UUID principalId = userDetails.getId();
 
         // 포털 연동 여부 사전 체크
-        if (!userService.getUserById(UUID.fromString(userId)).getPortalConnected()) {
+        if (!userService.getUserById(principalId).getPortalConnected()) {
             log.warn("[BIZ] portal.refresh.skipped userId={} reason=not_connected", userId);
             throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
         }
 
         PortalData portalData = fetchPortalData(userId);
 
-        ScrapingResponse response = portalSyncService.refreshFromPortal(UUID.fromString(userId), portalData);
+        ScrapingResponse response = portalSyncService.refreshFromPortal(principalId, portalData);
 
         // 캐시 데이터 초기화
-        UUID studentId = studentService.getRequiredStudentIdByUserId(UUID.fromString(userId));
+        UUID studentId = studentService.getRequiredStudentIdByUserId(principalId);
         academicCache.deleteAllByStudentId(studentId);
         portalCredentialStore.clear(userId);
 
