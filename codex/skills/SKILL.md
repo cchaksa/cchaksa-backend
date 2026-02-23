@@ -21,7 +21,7 @@ The following priority order is absolute.
 1. `codex/skills/SKILL.md` (this document)
 2. `codex/skills/*` sub-skill documents
    - `WORKFLOW.md`
-   - `context.md`
+   - `CONTEXT.md`
    - `DOMAIN.md`
    - `APPLICATION.md`
    - `INFRASTRUCTURE.md`

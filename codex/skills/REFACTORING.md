@@ -23,9 +23,9 @@ If invariants are unclear, stop and ask with questioning rules.
 
 ## 3. Execution Sequence
 
-1. Record refactoring Context (scope, invariants, excluded changes)
+1. Record refactoring Context (Phase 1: scope, invariants, excluded changes)
 2. Add/adjust characterization tests when coverage is weak
-3. Refactor in small reversible units
+3. Refactor in small reversible units following `WORKFLOW.md` layer order
 4. Run full impacted tests after each unit
 5. Run `./gradlew test` before commit
 

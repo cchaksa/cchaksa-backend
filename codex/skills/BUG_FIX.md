@@ -23,10 +23,10 @@ If reproduction is missing, first create a minimal reproducible condition.
 
 ## 3. Execution Sequence
 
-1. Create bug Context with: symptom, expected/actual, scope, hypothesis
+1. Create bug Context (Phase 1) with: symptom, expected/actual, scope, hypothesis
 2. Reproduce with a failing test (or deterministic failing check)
 3. Identify root cause
-4. Apply minimal safe fix
+4. Apply minimal safe fix following `WORKFLOW.md` order (Phase 2-6)
 5. Add regression test
 6. Run `./gradlew test` (and targeted integration tests if needed)
 

@@ -14,7 +14,7 @@ Use this skill when the user requests new behavior or extension of existing beha
 ## 2. Required Inputs
 
 - Approved Context document (`docs/context/<id>.md` or equivalent)
-- Domain rules and exception policy from `context.md`
+- Domain rules and exception policy from `CONTEXT.md`
 - Affected layer list (domain/application/infrastructure/global/controller)
 
 Without Context, stop and follow questioning rules.
