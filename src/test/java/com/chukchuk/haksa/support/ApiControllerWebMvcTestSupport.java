@@ -20,14 +20,17 @@ public abstract class ApiControllerWebMvcTestSupport {
     @MockBean
     protected JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
-    protected void authenticate(UUID userId, UUID studentId) {
+    protected void authenticate(UUID userId, UUID ignoredStudentId) {
+        authenticate(userId);
+    }
+
+    protected void authenticate(UUID userId) {
         CustomUserDetails principal = new CustomUserDetails(
                 userId,
                 "test@example.com",
                 "tester",
                 null,
-                false,
-                studentId
+                false
         );
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
