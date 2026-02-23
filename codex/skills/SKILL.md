@@ -21,12 +21,16 @@ The following priority order is absolute.
 1. `codex/skills/SKILL.md` (this document)
 2. `codex/skills/*` sub-skill documents
    - `WORKFLOW.md`
-   - `CONTEXT.md`
+   - `context.md`
    - `DOMAIN.md`
    - `APPLICATION.md`
    - `INFRASTRUCTURE.md`
    - `GLOBAL.md`
    - `TESTING.md`
+   - `FEATURE_DEVELOPMENT.md`
+   - `REFACTORING.md`
+   - `BUG_FIX.md`
+   - `ISSUE_ANALYSIS.md`
 3. `AGENTS.md` (project constitution, read-only)
 
 Lower-level documents must not violate higher-level documents.
@@ -134,3 +138,25 @@ Layer access rules:
 - Steps requiring human intervention must be explicit.
 - Codex should become increasingly executor-oriented,  
   while design responsibility remains with humans.
+
+---
+
+## 12. Intent Routing (Automatic Skill Selection)
+
+For every user command, Codex must select one primary execution skill before making changes.
+
+Primary routing order:
+1. `ISSUE_ANALYSIS.md`
+2. `BUG_FIX.md`
+3. `REFACTORING.md`
+4. `FEATURE_DEVELOPMENT.md`
+
+Routing by intent:
+- Use `ISSUE_ANALYSIS.md` when the user asks to investigate cause, impact, uncertainty, or options.
+- Use `BUG_FIX.md` when the user asks to fix a defect, error, failing test, or production issue.
+- Use `REFACTORING.md` when the user asks to improve structure/readability/duplication while preserving behavior.
+- Use `FEATURE_DEVELOPMENT.md` when the user asks to add or extend behavior.
+
+If multiple intents appear in one request:
+- Execute in this order: analysis -> fix/refactor/feature.
+- If order is unclear, apply Section 6 Questioning Rules before execution.
