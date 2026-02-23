@@ -7,6 +7,7 @@ import com.chukchuk.haksa.application.portal.PortalSyncService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
 import com.chukchuk.haksa.domain.student.model.Student;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
@@ -44,6 +45,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
     private final AcademicCache academicCache;
     private final PortalSyncService portalSyncService;
     private final UserService userService;
+    private final StudentService studentService;
 
     @PostMapping("/login")
     public ResponseEntity<SuccessResponse<PortalLoginResponse>> login(
@@ -124,7 +126,7 @@ public class SuwonScrapeController implements SuwonScrapeControllerDocs {
         ScrapingResponse response = portalSyncService.refreshFromPortal(UUID.fromString(userId), portalData);
 
         // 캐시 데이터 초기화
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(UUID.fromString(userId));
         academicCache.deleteAllByStudentId(studentId);
         portalCredentialStore.clear(userId);
 

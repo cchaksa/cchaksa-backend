@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.graduation.controller;
 
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.service.GraduationService;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.support.ApiControllerWebMvcTestSupport;
@@ -31,12 +32,16 @@ class GraduationControllerApiIntegrationTest extends ApiControllerWebMvcTestSupp
     @MockBean
     private GraduationService graduationService;
 
+    @MockBean
+    private StudentService studentService;
+
     @Test
     @DisplayName("graduation progress 조회 성공 시 성공 응답을 반환한다")
     void getGraduationProgress_success() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(graduationService.getGraduationProgress(studentId))
                 .thenReturn(new GraduationProgressResponse(List.of()));
@@ -52,6 +57,7 @@ class GraduationControllerApiIntegrationTest extends ApiControllerWebMvcTestSupp
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(graduationService.getGraduationProgress(studentId))
                 .thenThrow(new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND));

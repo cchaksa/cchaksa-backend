@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.academic.record.controller;
 import com.chukchuk.haksa.domain.academic.record.controller.docs.SemesterControllerDocs;
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordService;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
@@ -27,13 +28,14 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class SemesterController implements SemesterControllerDocs {
 
     private final SemesterAcademicRecordService semesterAcademicRecordService;
+    private final StudentService studentService;
 
     @GetMapping
     public ResponseEntity<SuccessResponse<List<StudentSemesterInfoResponse>>> getSemesterRecord(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         long t0 = LogTime.start();
 
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         List<StudentSemesterInfoResponse> response = semesterAcademicRecordService.getSemestersByStudentId(studentId);
 
@@ -51,7 +53,7 @@ public class SemesterController implements SemesterControllerDocs {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         long t0 = LogTime.start();
 
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         List<SemesterSummaryResponse> response = semesterAcademicRecordService.getAllSemesterGrades(studentId);
 

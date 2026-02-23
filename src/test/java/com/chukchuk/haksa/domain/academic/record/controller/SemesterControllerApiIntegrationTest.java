@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.academic.record.controller;
 
 import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordService;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.support.ApiControllerWebMvcTestSupport;
@@ -31,12 +32,16 @@ class SemesterControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppor
     @MockBean
     private SemesterAcademicRecordService semesterAcademicRecordService;
 
+    @MockBean
+    private StudentService studentService;
+
     @Test
     @DisplayName("semester 목록 조회 성공 시 성공 응답을 반환한다")
     void getSemesterRecord_success() throws Exception {
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(semesterAcademicRecordService.getSemestersByStudentId(studentId))
                 .thenReturn(List.of(new StudentSemesterDto.StudentSemesterInfoResponse(2024, 10)));
@@ -53,6 +58,7 @@ class SemesterControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppor
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(semesterAcademicRecordService.getAllSemesterGrades(studentId))
                 .thenThrow(new EntityNotFoundException(ErrorCode.SEMESTER_RECORD_EMPTY));

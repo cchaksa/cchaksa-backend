@@ -36,6 +36,7 @@ class StudentControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(studentService.getStudentProfile(studentId)).thenReturn(
                 new StudentDto.StudentProfileResponse(
@@ -65,6 +66,7 @@ class StudentControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         mockMvc.perform(post("/api/student/target-gpa")
                         .param("targetGpa", "5.1"))
