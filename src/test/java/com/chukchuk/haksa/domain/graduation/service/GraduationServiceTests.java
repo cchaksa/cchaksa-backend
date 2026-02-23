@@ -135,15 +135,86 @@ class GraduationServiceTests {
         verifyNoInteractions(studentService, graduationMajorResolver, graduationQueryRepository);
     }
 
+    @Test
+    @DisplayName("편입생이면 TRANSFER_STUDENT_UNSUPPORTED 예외를 던진다")
+    void getGraduationProgressThrowsForTransferStudent() {
+        Student student = mockStudent(10L, null, ADMISSION_YEAR, true);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+
+        assertThatThrownBy(() -> graduationService.getGraduationProgress(STUDENT_ID))
+                .isInstanceOf(CommonException.class)
+                .hasMessage(ErrorCode.TRANSFER_STUDENT_UNSUPPORTED.message());
+
+        verifyNoInteractions(graduationMajorResolver, graduationQueryRepository);
+    }
+
+    @Test
+    @DisplayName("입학년도 2025 + 특정 학과는 특이 졸업요건 플래그를 true로 반환한다")
+    void marksDifferentGraduationRequirementForSpecialCase() {
+        int specialYear = 2025;
+        Student student = mockStudent(30L, null, specialYear, false);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, specialYear))
+                .thenReturn(new MajorResolutionResult(30L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 30L, specialYear))
+                .thenReturn(sampleProgress());
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.isHasDifferentGraduationRequirement()).isTrue();
+    }
+
+    @Test
+    @DisplayName("캐시 조회 예외가 나도 DB 조회로 정상 응답한다")
+    void getGraduationProgressCacheGetFailureFallsBack() {
+        Student student = mockStudent(10L, null);
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenThrow(new RuntimeException("cache get fail"));
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
+                .thenReturn(sampleProgress());
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getGraduationProgress()).isNotEmpty();
+    }
+
+    @Test
+    @DisplayName("캐시 저장 예외가 나도 최종 응답은 정상 반환한다")
+    void getGraduationProgressCacheSetFailureStillReturns() {
+        Student student = mockStudent(10L, null);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
+                .thenReturn(sampleProgress());
+        doThrow(new RuntimeException("cache set fail"))
+                .when(academicCache).setGraduationProgress(eq(STUDENT_ID), any(GraduationProgressResponse.class));
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getGraduationProgress()).hasSize(1);
+    }
+
     private Student mockStudent(Long majorId, Long secondaryId) {
+        return mockStudent(majorId, secondaryId, ADMISSION_YEAR, false);
+    }
+
+    private Student mockStudent(Long majorId, Long secondaryId, int admissionYear, boolean transferStudent) {
         Student student = mock(Student.class);
-        lenient().when(student.isTransferStudent()).thenReturn(false);
+        lenient().when(student.isTransferStudent()).thenReturn(transferStudent);
 
         AcademicInfo info = AcademicInfo.builder()
-                .admissionYear(ADMISSION_YEAR)
-                .isTransferStudent(false)
+                .admissionYear(admissionYear)
+                .isTransferStudent(transferStudent)
                 .build();
-        when(student.getAcademicInfo()).thenReturn(info);
+        lenient().when(student.getAcademicInfo()).thenReturn(info);
 
         Department primary = mock(Department.class);
         lenient().when(primary.getId()).thenReturn(majorId);
