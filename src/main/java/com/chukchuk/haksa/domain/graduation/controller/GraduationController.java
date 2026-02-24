@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.graduation.controller;
 import com.chukchuk.haksa.domain.graduation.controller.docs.GraduationControllerDocs;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.graduation.service.GraduationService;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
@@ -25,13 +26,14 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class GraduationController implements GraduationControllerDocs {
 
     private final GraduationService graduationService;
+    private final StudentService studentService;
 
     @GetMapping("/progress")
     public ResponseEntity<SuccessResponse<GraduationProgressResponse>> getGraduationProgress(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+        @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
         GraduationProgressResponse response = graduationService.getGraduationProgress(studentId);
         long tookMS = LogTime.elapsedMs(t0);
         if (tookMS >= SLOW_MS) {

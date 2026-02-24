@@ -3,6 +3,7 @@ package com.chukchuk.haksa.application.api;
 import com.chukchuk.haksa.application.portal.PortalSyncService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
+import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.infrastructure.portal.repository.PortalRepository;
@@ -46,6 +47,9 @@ class SuwonScrapeControllerApiIntegrationTest extends ApiControllerWebMvcTestSup
 
     @MockBean
     private UserService userService;
+
+    @MockBean
+    private StudentService studentService;
 
     @Test
     @DisplayName("portal login 성공 시 성공 응답을 반환한다")

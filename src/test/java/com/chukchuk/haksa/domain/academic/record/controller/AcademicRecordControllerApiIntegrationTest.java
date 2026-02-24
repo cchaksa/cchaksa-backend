@@ -45,6 +45,7 @@ class AcademicRecordControllerApiIntegrationTest extends ApiControllerWebMvcTest
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(academicRecordService.getAcademicRecord(studentId, 2024, 1))
                 .thenReturn(new AcademicRecordResponse(
@@ -65,6 +66,7 @@ class AcademicRecordControllerApiIntegrationTest extends ApiControllerWebMvcTest
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
+        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(studentAcademicRecordService.getAcademicSummary(studentId))
                 .thenThrow(new EntityNotFoundException(ErrorCode.STUDENT_ACADEMIC_RECORD_NOT_FOUND));
