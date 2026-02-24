@@ -37,6 +37,20 @@ public class StudentService {
         return user.getStudent();
     }
 
+    public UUID getRequiredStudentIdByUserId(UUID userId) {
+        Student student = getStudentByUserId(userId);
+        if (student == null) {
+            throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
+        }
+
+        UUID studentId = student.getId();
+        if (studentId == null) {
+            throw new EntityNotFoundException(ErrorCode.STUDENT_NOT_FOUND);
+        }
+
+        return studentId;
+    }
+
     @Transactional
     public void markReconnectedByUser(User user) {
         Student student = studentRepository.findByUser(user)

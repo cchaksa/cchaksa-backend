@@ -32,6 +32,12 @@
 - Configuration is environment-specific via `application-local.yml`, `application-dev.yml`, `application-prod.yml`
 - Redis auto-configuration is excluded in `application.yml` (local cache is default)
 - API documentation is served from `src/main/resources/public/openapi.yaml`
+- Project-local Codex skills are managed under `codex/skills`
+- Primary intent routing uses these task skills:
+  - `FEATURE_DEVELOPMENT.md`
+  - `REFACTORING.md`
+  - `BUG_FIX.md`
+  - `ISSUE_ANALYSIS.md`
 - If the repository guidelines change or new facts are discovered during work, update `AGENTS.md` accordingly
 
 ## Architecture Style
