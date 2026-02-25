@@ -27,6 +27,10 @@ security:
     access-expiration: ${JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
   appKey: ${APP_KEY}
+  apple:
+    client-id: ${APPLE_CLIENT_ID}
+    issuer: ${APPLE_ISSUER:https://appleid.apple.com}
+    keys-url: ${APPLE_KEYS_URL:https://appleid.apple.com/auth/keys}
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}

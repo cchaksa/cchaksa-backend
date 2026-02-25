@@ -37,7 +37,7 @@ public interface UserControllerDocs {
 
     @Operation(
             summary = "회원 가입 및 로그인",
-            description = "사용자가 카카오 소셜 로그인으로 회원가입 및 로그인을 진행합니다.",
+            description = "사용자가 OIDC 소셜 로그인으로 회원가입 및 로그인을 진행합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "회원가입/로그인 성공",
                             content = @Content(schema = @Schema(implementation = SignInApiResponse.class))),

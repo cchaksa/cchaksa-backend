@@ -25,28 +25,38 @@ import java.util.Date;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class KakaoOidcService implements OidcService {
-    private static final String KAKAO_JWKS_URL = "https://kauth.kakao.com/.well-known/jwks.json";
-    private static final String KAKAO_CACHE_KEY = "kakao";
+public class AppleOidcService implements OidcService {
+
+    private static final String APPLE_CACHE_KEY = "apple";
 
     private final OidcJwksClient oidcJwksClient;
 
-    @Value("${security.appKey}")
-    private String appKey;
+    @Value("${security.apple.client-id}")
+    private String clientId;
 
+    @Value("${security.apple.issuer}")
+    private String issuer;
+
+    @Value("${security.apple.keys-url}")
+    private String keysUrl;
+
+    @Override
     public Claims verifyIdToken(String idToken, String expectedNonce) {
         try {
-            JsonNode jwks = oidcJwksClient.fetchKeys(KAKAO_CACHE_KEY, KAKAO_JWKS_URL);
+            JsonNode jwks = oidcJwksClient.fetchKeys(APPLE_CACHE_KEY, keysUrl);
 
             String[] parts = idToken.split("\\.");
             if (parts.length != 3) {
                 throw new TokenException(ErrorCode.TOKEN_INVALID_FORMAT);
             }
 
-            String headerJson = new String(Base64.getDecoder().decode(parts[0]));
-            String kid = new ObjectMapper().readTree(headerJson).get("kid").asText();
+            String headerJson = new String(Base64.getUrlDecoder().decode(parts[0]), StandardCharsets.UTF_8);
+            JsonNode header = new ObjectMapper().readTree(headerJson);
 
-            JsonNode keyNode = resolveKeyWithFallback(jwks, kid);
+            String kid = header.get("kid").asText();
+            String alg = header.get("alg").asText();
+
+            JsonNode keyNode = resolveKeyWithFallback(jwks, kid, alg);
 
             PublicKey publicKey = createPublicKey(keyNode);
 
@@ -65,12 +75,36 @@ public class KakaoOidcService implements OidcService {
         }
     }
 
-    private PublicKey createPublicKey(JsonNode keyNode) throws Exception{
-        // RSA 키 파라미터 추출
+    private JsonNode resolveKeyWithFallback(JsonNode jwks, String kid, String alg) {
+        JsonNode keyNode = findMatchingKey(jwks, kid, alg);
+        if (keyNode != null) {
+            return keyNode;
+        }
+
+        log.warn("Apple JWKS key not found in cache, refreshing. kid={}, alg={}", kid, alg);
+        JsonNode refreshedKeys = oidcJwksClient.refreshKeys(APPLE_CACHE_KEY, keysUrl);
+        keyNode = findMatchingKey(refreshedKeys, kid, alg);
+        if (keyNode == null) {
+            throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
+        }
+        return keyNode;
+    }
+
+    private JsonNode findMatchingKey(JsonNode jwks, String kid, String alg) {
+        for (JsonNode key : jwks.get("keys")) {
+            boolean kidMatches = key.get("kid").asText().equals(kid);
+            boolean algMatches = key.has("alg") && key.get("alg").asText().equals(alg);
+            if (kidMatches && algMatches) {
+                return key;
+            }
+        }
+        return null;
+    }
+
+    private PublicKey createPublicKey(JsonNode keyNode) throws Exception {
         BigInteger modulus = new BigInteger(1, Base64.getUrlDecoder().decode(keyNode.get("n").asText()));
         BigInteger exponent = new BigInteger(1, Base64.getUrlDecoder().decode(keyNode.get("e").asText()));
 
-        // RSA 공개키 생성
         RSAPublicKeySpec spec = new RSAPublicKeySpec(modulus, exponent);
         KeyFactory factory = KeyFactory.getInstance("RSA");
         return factory.generatePublic(spec);
@@ -82,17 +116,17 @@ public class KakaoOidcService implements OidcService {
             throw new TokenException(ErrorCode.TOKEN_EXPIRED);
         }
 
-        if (!"https://kauth.kakao.com".equals(claims.getIssuer())) {
+        if (!issuer.equals(claims.getIssuer())) {
             throw new TokenException(ErrorCode.TOKEN_INVALID_ISS);
         }
 
         Object audClaim = claims.get("aud");
         if (audClaim instanceof String) {
-            if (!appKey.equals(audClaim)) {
+            if (!clientId.equals(audClaim)) {
                 throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
             }
         } else if (audClaim instanceof java.util.List) {
-            if (!((java.util.List<?>) audClaim).contains(appKey)) {
+            if (!((java.util.List<?>) audClaim).contains(clientId)) {
                 throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
             }
         } else {
@@ -105,31 +139,6 @@ public class KakaoOidcService implements OidcService {
         if (!hashedNonce.equals(nonce)) {
             throw new TokenException(ErrorCode.TOKEN_INVALID_NONCE);
         }
-    }
-
-    private JsonNode resolveKeyWithFallback(JsonNode jwks, String kid) {
-        JsonNode keyNode = findMatchingKey(jwks, kid);
-        if (keyNode != null) {
-            return keyNode;
-        }
-
-        log.warn("Kakao JWKS key not found in cache, refreshing. kid={}", kid);
-        JsonNode refreshed = oidcJwksClient.refreshKeys(KAKAO_CACHE_KEY, KAKAO_JWKS_URL);
-        keyNode = findMatchingKey(refreshed, kid);
-        if (keyNode == null) {
-            throw new TokenException(ErrorCode.TOKEN_NO_MATCHING_KEY);
-        }
-        return keyNode;
-    }
-
-    private JsonNode findMatchingKey(JsonNode jwks, String kid) {
-        // 일치하는 공개키가 있다면 반환
-        for (JsonNode key : jwks.get("keys")) {
-            if (key.get("kid").asText().equals(kid)) {
-                return key;
-            }
-        }
-        return null;
     }
 
     private String hashSHA256(String input) {
@@ -149,5 +158,4 @@ public class KakaoOidcService implements OidcService {
             throw new TokenException(ErrorCode.TOKEN_HASH_ERROR, e);
         }
     }
-
 }
