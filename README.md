@@ -54,6 +54,15 @@
 
 ---
 
+## 배포 환경 변수 (OIDC)
+
+- `APP_KEY`: 카카오 OIDC `aud` 검증에 사용하는 기본 키(REST API 키)
+- `APP_NATIVE_KEY`: 안드로이드 OIDC `aud` 검증에 사용하는 네이티브 앱 키 (선택)
+
+> GitHub Actions 배포 시 `dev/prod` 저장소 secrets에 `APP_NATIVE_KEY`를 함께 등록해야 합니다.
+
+---
+
 ## 기술 스택
 
 ### Back-end
