@@ -31,6 +31,7 @@ jobs:
           JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
           JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
           APP_KEY: ${{ secrets.APP_KEY }}
+          APP_NATIVE_KEY: ${{ secrets.APP_NATIVE_KEY }}
           CRAWLER_BASE_URL: ${{ secrets.CRAWLER_BASE_URL }}
           REDIS_ENCRYPT_KEY: ${{ secrets.REDIS_ENCRYPT_KEY }}
           LOCAL_DB_URL: ${{ secrets.LOCAL_DB_URL }}
