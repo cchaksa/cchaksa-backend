@@ -26,7 +26,9 @@ repositories {
 dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework:spring-webflux'
+    implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot3:2.1.4'
+    implementation 'com.amazonaws:aws-lambda-java-core:1.4.0'
 
     // Validator
     implementation 'org.hibernate.validator:hibernate-validator'
@@ -70,4 +72,20 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('lambdaZip', Zip) {
+    group = 'build'
+    description = 'Assembles a Lambda deployment zip with classes at the root and dependencies under lib/.'
+    dependsOn tasks.named('classes')
+
+    archiveFileName = 'haksa-lambda.zip'
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+
+    from(sourceSets.main.output)
+    into('lib') {
+        from(configurations.runtimeClasspath) {
+            exclude 'spring-boot-devtools-*.jar'
+        }
+    }
 }

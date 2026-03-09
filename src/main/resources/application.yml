@@ -5,6 +5,9 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   profiles:
     active: local
+    group:
+      develop-shadow:
+        - dev
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
