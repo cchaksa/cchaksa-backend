@@ -33,6 +33,7 @@
 - Redis auto-configuration is excluded in `application.yml` (local cache is default)
 - API documentation is served from `src/main/resources/public/openapi.yaml`
 - Project-local Codex skills are managed under `codex/skills`
+- Before starting work, read all files under `codex` and reflect their rules during execution
 - Primary intent routing uses these task skills:
   - `FEATURE_DEVELOPMENT.md`
   - `REFACTORING.md`
