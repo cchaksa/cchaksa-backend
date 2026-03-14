@@ -13,10 +13,10 @@ jobs:
       LAMBDA_ARTIFACT_BUCKET: ${{ vars.DEV_LAMBDA_ARTIFACT_BUCKET }}
 
     steps:
-      - name: Checkout dev branch
+      - name: Checkout source branch
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: ${{ github.ref }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
