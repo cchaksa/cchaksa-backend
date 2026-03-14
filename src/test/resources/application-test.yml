@@ -19,6 +19,14 @@ security:
 crawler:
   base-url: https://example.com
 
+scraping:
+  mode: async
+  job:
+    queue-url: https://sqs.ap-northeast-2.amazonaws.com/000000000000/test-queue
+  callback:
+    hmac-secret: test-callback-secret
+    allowed-skew-seconds: 300
+
 sentry:
   dsn: ""
   environment: test

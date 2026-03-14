@@ -35,6 +35,14 @@ security:
 crawler:
   base-url: ${CRAWLER_BASE_URL}
 
+scraping:
+  mode: ${SCRAPING_MODE:async}
+  job:
+    queue-url: ${SCRAPING_JOB_QUEUE_URL:}
+  callback:
+    hmac-secret: ${SCRAPING_CALLBACK_HMAC_SECRET:}
+    allowed-skew-seconds: ${SCRAPING_CALLBACK_ALLOWED_SKEW_SECONDS:300}
+
 springdoc:
   api-docs:
     enabled: true
