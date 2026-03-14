@@ -1,2 +1,4 @@
 scraping:
   mode: async
+  scheduler:
+    enabled: false

@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Instant;
 import java.util.List;
@@ -38,6 +40,12 @@ class ScrapeJobOutboxDispatcherUnitTests {
     @Mock
     private ScrapeJobPublisher scrapeJobPublisher;
 
+    @Mock
+    private TransactionOperations transactionOperations;
+
+    @Mock
+    private Environment environment;
+
     @Test
     @DisplayName("publish 성공 시 outbox를 SENT로 전이한다")
     void dispatchEligibleOutboxes_marksSent() {
@@ -47,7 +55,9 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobRepository,
                 scrapeJobPublisher,
                 properties,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                transactionOperations,
+                environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
@@ -55,8 +65,10 @@ class ScrapeJobOutboxDispatcherUnitTests {
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenReturn("msg-1");
+        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
-        dispatcher.dispatchEligibleOutboxes();
+        dispatcher.dispatchOnce(outbox.getOutboxId());
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
         assertThat(outbox.getQueueMessageId()).isEqualTo("msg-1");
@@ -71,7 +83,9 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobRepository,
                 scrapeJobPublisher,
                 properties,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                transactionOperations,
+                environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
@@ -79,8 +93,10 @@ class ScrapeJobOutboxDispatcherUnitTests {
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(SdkClientException.create("temporary failure"));
+        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
-        dispatcher.dispatchEligibleOutboxes();
+        dispatcher.dispatchOnce(outbox.getOutboxId());
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.RETRYABLE_FAILED);
         assertThat(outbox.getNextAttemptAt()).isNotNull();
@@ -96,7 +112,9 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobRepository,
                 scrapeJobPublisher,
                 properties,
-                new SimpleMeterRegistry()
+                new SimpleMeterRegistry(),
+                transactionOperations,
+                environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
@@ -104,12 +122,35 @@ class ScrapeJobOutboxDispatcherUnitTests {
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(new IllegalStateException("missing queue-url"));
+        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
-        dispatcher.dispatchEligibleOutboxes();
+        dispatcher.dispatchOnce(outbox.getOutboxId());
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.DEAD);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("SCRAPE_JOB_ENQUEUE_FAILED");
+    }
+
+    @Test
+    @DisplayName("connection 획득 실패는 one-shot dispatch 예외로 노출한다")
+    void dispatchOnce_throwsWhenConnectionAcquisitionFails() {
+        ScrapingProperties properties = scrapingProperties();
+        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
+                scrapeJobOutboxRepository,
+                scrapeJobRepository,
+                scrapeJobPublisher,
+                properties,
+                new SimpleMeterRegistry(),
+                transactionOperations,
+                environment
+        );
+
+        when(transactionOperations.execute(any())).thenThrow(new org.springframework.transaction.CannotCreateTransactionException("db down"));
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"develop-shadow"});
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> dispatcher.dispatchOnce("outbox-1"))
+                .isInstanceOf(org.springframework.transaction.CannotCreateTransactionException.class);
     }
 
     private static ScrapingProperties scrapingProperties() {

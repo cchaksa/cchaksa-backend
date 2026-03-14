@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -33,6 +35,7 @@ public class PortalLinkJobService {
     private final ScrapeJobRepository scrapeJobRepository;
     private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
     private final UserService userService;
+    private final ScrapeJobOutboxDispatcher scrapeJobOutboxDispatcher;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Transactional
@@ -74,7 +77,8 @@ public class PortalLinkJobService {
                     )),
                     requestedAt
             );
-            scrapeJobOutboxRepository.save(outbox);
+            ScrapeJobOutbox savedOutbox = scrapeJobOutboxRepository.save(outbox);
+            scheduleDispatchAfterCommit(savedJob, savedOutbox);
             log.info("[BIZ] scrape.job.accepted jobId={} userId={} portalType={} operationType={} idempotencyKey={}",
                     savedJob.getJobId(), userId, request.portal_type(), operationType, idempotencyKey);
             return toAcceptedResponse(savedJob);
@@ -166,5 +170,32 @@ public class PortalLinkJobService {
                 "accepted",
                 "/portal/link/jobs/" + job.getJobId()
         );
+    }
+
+    private void scheduleDispatchAfterCommit(ScrapeJob job, ScrapeJobOutbox outbox) {
+        Runnable dispatchAction = () -> {
+            log.info("[BIZ] scrape.outbox.dispatch.after_commit.start jobId={} outboxId={} portalType={} idempotencyKey={}",
+                    job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey());
+            try {
+                int dispatchedCount = scrapeJobOutboxDispatcher.dispatchOnce(outbox.getOutboxId());
+                log.info("[BIZ] scrape.outbox.dispatch.after_commit.end jobId={} outboxId={} portalType={} idempotencyKey={} dispatchedCount={}",
+                        job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey(), dispatchedCount);
+            } catch (RuntimeException exception) {
+                log.error("[BIZ] scrape.outbox.dispatch.after_commit.fail jobId={} outboxId={} portalType={} idempotencyKey={}",
+                        job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey(), exception);
+            }
+        };
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    dispatchAction.run();
+                }
+            });
+            return;
+        }
+
+        dispatchAction.run();
     }
 }

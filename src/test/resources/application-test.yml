@@ -26,6 +26,8 @@ scraping:
   callback:
     hmac-secret: test-callback-secret
     allowed-skew-seconds: 300
+  scheduler:
+    enabled: true
   publisher:
     enabled: true
     fixed-delay-ms: 1000
