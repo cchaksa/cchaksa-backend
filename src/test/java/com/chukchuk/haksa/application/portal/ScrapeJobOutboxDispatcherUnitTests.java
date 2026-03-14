@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -63,6 +64,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenReturn("msg-1");
         when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
@@ -91,6 +93,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(SdkClientException.create("temporary failure"));
         when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
@@ -120,6 +123,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(new IllegalStateException("missing queue-url"));
         when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
@@ -151,6 +155,49 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> dispatcher.dispatchOnce("outbox-1"))
                 .isInstanceOf(org.springframework.transaction.CannotCreateTransactionException.class);
+    }
+
+    @Test
+    @DisplayName("preferred outbox는 배치에 없어도 직접 조회해 즉시 publish 한다")
+    void dispatchOnce_publishesPreferredOutboxEvenWhenNotInBatchWindow() {
+        ScrapingProperties properties = scrapingProperties();
+        properties.getPublisher().setBatchSize(1);
+        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
+                scrapeJobOutboxRepository,
+                scrapeJobRepository,
+                scrapeJobPublisher,
+                properties,
+                new SimpleMeterRegistry(),
+                transactionOperations,
+                environment
+        );
+        ScrapeJob preferredJob = queuedJob();
+        ScrapeJobOutbox preferredOutbox = ScrapeJobOutbox.createPending(
+                preferredJob.getJobId(),
+                "{\"job_id\":\"" + preferredJob.getJobId() + "\"}",
+                Instant.now()
+        );
+        ScrapeJob otherJob = queuedJob();
+        ScrapeJobOutbox otherOutbox = ScrapeJobOutbox.createPending(
+                otherJob.getJobId(),
+                "{\"job_id\":\"" + otherJob.getJobId() + "\"}",
+                Instant.now()
+        );
+
+        when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(otherOutbox));
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(preferredOutbox.getOutboxId()), any(), any()))
+                .thenReturn(Optional.of(preferredOutbox));
+        when(scrapeJobRepository.findForUpdateByJobId(preferredJob.getJobId())).thenReturn(Optional.of(preferredJob));
+        when(scrapeJobPublisher.publish(preferredOutbox.getPayloadJson())).thenReturn("msg-preferred");
+        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"develop-shadow"});
+
+        int dispatchedCount = dispatcher.dispatchOnce(preferredOutbox.getOutboxId());
+
+        assertThat(dispatchedCount).isEqualTo(1);
+        assertThat(preferredOutbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
+        verify(scrapeJobPublisher).publish(preferredOutbox.getPayloadJson());
+        verify(scrapeJobRepository, never()).findForUpdateByJobId(otherJob.getJobId());
     }
 
     private static ScrapingProperties scrapingProperties() {

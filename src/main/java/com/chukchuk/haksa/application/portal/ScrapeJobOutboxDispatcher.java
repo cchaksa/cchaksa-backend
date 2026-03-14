@@ -87,9 +87,11 @@ public class ScrapeJobOutboxDispatcher {
 
                 int dispatched = 0;
                 if (preferredOutboxId != null) {
-                    Optional<ScrapeJobOutbox> preferred = outboxes.stream()
-                            .filter(candidate -> preferredOutboxId.equals(candidate.getOutboxId()))
-                            .findFirst();
+                    Optional<ScrapeJobOutbox> preferred = scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
+                            preferredOutboxId,
+                            PUBLISHABLE_STATUSES,
+                            now
+                    );
                     if (preferred.isPresent()) {
                         dispatchSingle(preferred.get(), now, trigger);
                         dispatched++;

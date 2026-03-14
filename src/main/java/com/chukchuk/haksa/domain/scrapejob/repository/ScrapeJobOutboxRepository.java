@@ -25,6 +25,20 @@ public interface ScrapeJobOutboxRepository extends JpaRepository<ScrapeJobOutbox
     @Query("""
             select outbox
             from ScrapeJobOutbox outbox
+            where outbox.outboxId = :outboxId
+              and outbox.status in :statuses
+              and outbox.nextAttemptAt <= :now
+            """)
+    Optional<ScrapeJobOutbox> findPublishTargetForUpdateByOutboxId(
+            @Param("outboxId") String outboxId,
+            @Param("statuses") Collection<ScrapeJobOutboxStatus> statuses,
+            @Param("now") Instant now
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select outbox
+            from ScrapeJobOutbox outbox
             where outbox.status in :statuses
               and outbox.nextAttemptAt <= :now
             order by outbox.createdAt asc
