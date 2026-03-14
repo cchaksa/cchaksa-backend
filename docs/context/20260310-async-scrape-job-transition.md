@@ -17,7 +17,7 @@
     - 스크래핑 worker 구현 자체
     - 프론트엔드 polling UI 구현
     - 운영 환경 즉시 cutover
-- Expected Impact: 백엔드는 요청 즉시 수락하고 job 상태를 관리하며, 결과 반영은 callback을 통해 비동기로 수행한다. 기존 동기 경로는 병행 유지되어 shadow 검증과 rollback이 가능해진다.
+- Expected Impact: 백엔드는 요청 즉시 수락하고 job 상태를 관리하며, 결과 반영은 callback을 통해 비동기로 수행한다. 기존 동기 HTTP 진입 엔드포인트는 비활성화되고, 스크래핑 워커와의 연동은 SQS + callback 계약으로 고정된다.
 - Stakeholder Confirmation: Requirement provided by requester on 2026-03-10 for "스크래핑 연동을 기존 동기 HTTP 호출 방식에서 완전 비동기 job 기반 방식으로 전환" with parallel operation safety.
 
 ## 2. Domain Rules (Highest Priority, Required)
@@ -27,7 +27,7 @@
 - Rule 4: 동일 `job_id` callback이 중복 도착해도 최종 반영은 한 번만 이뤄져야 하며, 중복 callback은 안전하게 무시되거나 `409`로 처리되어야 한다.
 - Rule 5: callback 검증은 raw body 기준 `HMAC-SHA256`으로 수행하며, canonical string은 `${timestamp}.${rawBody}`를 사용한다.
 - Rule 6: job 조회 API는 사용자 본인 job만 조회 가능해야 하며 내부 에러 상세나 민감한 payload를 외부에 그대로 노출하면 안 된다.
-- Rule 7: 비동기 경로는 `develop-shadow` 또는 명시적 설정(`scraping.mode=async`)에서만 활성화 가능해야 하며, 기존 `dev/prod`의 동기 경로는 즉시 제거하지 않는다.
+- Rule 7: 비동기 경로는 `develop-shadow` 또는 명시적 설정(`scraping.mode=async`)으로 제어하며, 외부 진입 엔드포인트는 `/portal/link` 계열만 사용한다. 기존 `/api/suwon-scrape/*` 엔드포인트는 비활성화한다.
 - Rule 8: 백엔드는 worker와 합의된 표준 에러 코드를 저장할 수 있어야 하며, 프론트에는 필요한 범위만 노출한다.
 
 - Mutable Rules:
@@ -94,10 +94,10 @@
 ## 5. API List (Optional / Required When Present)
 - Endpoint: `/portal/link`
   - Method: `POST`
-  - Request DTO: 포털 연동/스크래핑 요청 DTO (기존 요청 의미 유지, 응답 계약만 비동기형으로 전환)
+  - Request DTO: `portal_type`, `username`, `password`
   - Response DTO: `job_id`, `status`, `polling_endpoint`, 선택적 안내 메시지
   - Authorization: 사용자 인증 필요
-  - Idempotency: 동일 요청의 재호출은 별도 신규 job 생성 가능, 단 같은 `job_id` 재사용은 없음
+  - Idempotency: `Idempotency-Key` 헤더 기준으로 동일 사용자 + 동일 key + 동일 payload면 같은 `job_id`를 재사용한다.
 
 - Endpoint: `/portal/link/jobs/{job_id}`
   - Method: `GET`
@@ -186,20 +186,26 @@
 - Path: docs/context/20260310-async-scrape-job-transition.md
   - Description: 스크래핑 비동기 job 전환 작업을 위한 Context 문서
   - Layer: Context documentation
+- Path: build.gradle
+  - Description: SQS SDK 의존성 추가
+  - Layer: Build config
 - Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJob.java
   - Description: 스크래핑 job 상태를 저장하는 도메인 모델/엔티티
   - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobStatus.java
   - Description: `queued`, `running`, `succeeded`, `failed` 상태 enum
   - Layer: Domain
-- Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobErrorCode.java
-  - Description: worker와 백엔드가 공유하는 job 실패 코드 enum
+- Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobOperationType.java
+  - Description: 초기 연동과 재연동 분기용 operation type enum
   - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/repository/ScrapeJobRepository.java
   - Description: job 조회/저장 인터페이스
   - Layer: Domain
+- Path: src/main/java/com/chukchuk/haksa/domain/portal/dto/PortalLinkDto.java
+  - Description: 비동기 스크래핑 요청/조회/callback DTO
+  - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/application/portal/PortalLinkJobService.java
-  - Description: 요청 수락, job 생성, 경로 분기를 담당하는 application service
+  - Description: 요청 수락, idempotency, job 생성과 enqueue를 담당하는 application service
   - Layer: Application
 - Path: src/main/java/com/chukchuk/haksa/application/portal/PortalLinkJobQueryService.java
   - Description: 사용자 job 상태 조회 service
@@ -207,18 +213,27 @@
 - Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeResultCallbackService.java
   - Description: callback 검증 이후 상태 전이와 최종 저장을 담당하는 service
   - Layer: Application
-- Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapingRequestPort.java
-  - Description: 동기/비동기 스크래핑 요청 전략을 분리하는 port
+- Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeJobMessage.java
+  - Description: SQS message body 계약 DTO
+  - Layer: Application
+- Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeJobPublisher.java
+  - Description: job 발행 포트
   - Layer: Application
 - Path: src/main/java/com/chukchuk/haksa/infrastructure/scrapejob/SqsScrapeJobPublisher.java
   - Description: 비동기 경로에서 SQS 메시지를 발행하는 구현체
   - Layer: Infrastructure
-- Path: src/main/java/com/chukchuk/haksa/infrastructure/scrapejob/LegacyScraperHttpClientAdapter.java
-  - Description: 기존 동기 HTTP 호출을 유지하는 legacy adapter
-  - Layer: Infrastructure
 - Path: src/main/java/com/chukchuk/haksa/infrastructure/security/HmacSignatureVerifier.java
   - Description: raw body 기반 HMAC-SHA256 검증 구현
   - Layer: Infrastructure
+- Path: src/main/java/com/chukchuk/haksa/global/config/ScrapingProperties.java
+  - Description: scraping 관련 설정 프로퍼티 바인딩
+  - Layer: Global config
+- Path: src/main/java/com/chukchuk/haksa/global/exception/code/ErrorCode.java
+  - Description: scrape job / callback 관련 에러 코드 추가
+  - Layer: Global config
+- Path: src/main/java/com/chukchuk/haksa/global/security/SecurityConfig.java
+  - Description: 내부 callback endpoint 공개 경로 허용
+  - Layer: Global config
 - Path: src/main/java/com/chukchuk/haksa/domain/portal/controller/PortalLinkController.java
   - Description: 비동기 수락 응답을 반환하는 스크래핑 요청 controller
   - Layer: API/Controller
@@ -234,15 +249,30 @@
 - Path: src/main/resources/application-develop-shadow.yml
   - Description: shadow 환경에서 async 경로를 활성화하는 설정
   - Layer: Global config
+- Path: src/test/resources/application-test.yml
+  - Description: scrape callback/queue 테스트 설정 추가
+  - Layer: Test config
+- Path: src/test/java/com/chukchuk/haksa/application/portal/PortalLinkJobServiceUnitTests.java
+  - Description: idempotency와 enqueue 실패 롤백 보장 검증
+  - Layer: Test
+- Path: src/test/java/com/chukchuk/haksa/application/portal/ScrapeResultCallbackServiceUnitTests.java
+  - Description: callback HMAC, 성공/실패/중복 처리 검증
+  - Layer: Test
 - Path: src/test/java/com/chukchuk/haksa/domain/portal/controller/PortalLinkControllerApiIntegrationTest.java
-  - Description: 요청 수락 응답과 권한 정책 검증
+  - Description: 요청 수락 응답 검증
   - Layer: Test
 - Path: src/test/java/com/chukchuk/haksa/domain/portal/controller/PortalJobQueryControllerApiIntegrationTest.java
   - Description: 상태 조회와 타 사용자 접근 차단 검증
   - Layer: Test
 - Path: src/test/java/com/chukchuk/haksa/domain/portal/controller/InternalScrapeResultControllerApiIntegrationTest.java
-  - Description: callback HMAC, 성공/실패/중복 처리 검증
+  - Description: callback controller의 raw body 전달 검증
   - Layer: Test
-- Path: src/test/java/com/chukchuk/haksa/application/portal/PortalLinkJobServiceUnitTests.java
-  - Description: sync/async 경로 분기와 job 생성/enqueue 검증
+- Path: src/main/java/com/chukchuk/haksa/application/api/SuwonScrapeController.java
+  - Description: 기존 동기 HTTP 스크래핑 엔드포인트 제거
+  - Layer: API/Controller
+- Path: src/main/java/com/chukchuk/haksa/application/api/docs/SuwonScrapeControllerDocs.java
+  - Description: 기존 동기 스크래핑 API 문서 제거
+  - Layer: API docs
+- Path: src/test/java/com/chukchuk/haksa/application/api/SuwonScrapeControllerApiIntegrationTest.java
+  - Description: 기존 동기 스크래핑 API 테스트 제거
   - Layer: Test
