@@ -31,6 +31,20 @@ class HmacSignatureVerifierUnitTests {
     }
 
     @Test
+    @DisplayName("hex 형태 secret이어도 원문 UTF-8 secret으로 만든 signature를 허용한다")
+    void verify_acceptsUtf8SignatureWhenSecretLooksHex() throws Exception {
+        String secret = "a89f20be2f4a38ee011f98d6e7ef1290fd100e82ca4605ea923c81ba80a0d35ed64ad6746f6e159cd59d1864e60cfbb8cdbdf98c79d163c8526916f9beed3a6e";
+        String timestamp = Instant.now().toString();
+        String rawBody = "{\"job_id\":\"job-1\",\"status\":\"failed\"}";
+        String signature = signBase64(secret.getBytes(StandardCharsets.UTF_8), timestamp + "." + rawBody);
+
+        HmacSignatureVerifier verifier = new HmacSignatureVerifier(secret, 300);
+
+        assertThatCode(() -> verifier.verify(timestamp, rawBody, signature))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
     @DisplayName("sha256= prefix가 붙은 signature도 검증한다")
     void verify_acceptsPrefixedSignature() throws Exception {
         String secret = "test-callback-secret";
@@ -53,6 +67,23 @@ class HmacSignatureVerifierUnitTests {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.reason()).isEqualTo(HmacSignatureVerifier.VerificationFailureReason.MISSING_TIMESTAMP);
+    }
+
+    @Test
+    @DisplayName("diagnostics는 signature mismatch 시 비교 정보를 제공한다")
+    void diagnostics_exposesSignatureComparisonHints() {
+        HmacSignatureVerifier verifier = new HmacSignatureVerifier("test-callback-secret", 300);
+
+        HmacSignatureVerifier.VerificationDiagnostics diagnostics = verifier.diagnostics(
+                String.valueOf(Instant.now().toEpochMilli()),
+                "{\"job_id\":\"job-1\"}",
+                "invalid-signature"
+        );
+
+        assertThat(diagnostics.reason()).isNotEqualTo(HmacSignatureVerifier.VerificationFailureReason.OK);
+        assertThat(diagnostics.actualSignatureEncoding()).isNotBlank();
+        assertThat(diagnostics.rawBodyHash()).isNotBlank();
+        assertThat(diagnostics.expectedUtf8SignatureHash()).isNotBlank();
     }
 
     private static String signHex(String secretHex, String canonicalString) throws Exception {
