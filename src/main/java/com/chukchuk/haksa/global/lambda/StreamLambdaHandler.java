@@ -1,9 +1,11 @@
 package com.chukchuk.haksa.global.lambda;
 
 import com.amazonaws.serverless.exceptions.ContainerInitializationException;
+import com.amazonaws.serverless.proxy.InitializationWrapper;
 import com.amazonaws.serverless.proxy.model.AwsProxyResponse;
 import com.amazonaws.serverless.proxy.model.HttpApiV2ProxyRequest;
 import com.amazonaws.serverless.proxy.spring.SpringBootLambdaContainerHandler;
+import com.amazonaws.serverless.proxy.spring.SpringBootProxyHandlerBuilder;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.chukchuk.haksa.ChukchukHaksaApplication;
@@ -19,10 +21,13 @@ public class StreamLambdaHandler implements RequestStreamHandler {
     static {
         System.setProperty("spring.main.web-application-type", "servlet");
         try {
-            HANDLER = SpringBootLambdaContainerHandler.getHttpApiV2ProxyHandler(
-                    ChukchukHaksaApplication.class,
-                    LambdaProfiles.resolveActiveProfiles()
-            );
+            HANDLER = new SpringBootProxyHandlerBuilder<HttpApiV2ProxyRequest>()
+                    .defaultHttpApiV2Proxy()
+                    .initializationWrapper(new InitializationWrapper())
+                    .servletApplication()
+                    .springBootApplication(ChukchukHaksaApplication.class)
+                    .profiles(LambdaProfiles.resolveActiveProfiles())
+                    .buildAndInitialize();
         } catch (ContainerInitializationException e) {
             throw new IllegalStateException("Could not initialize Spring Boot application", e);
         }
