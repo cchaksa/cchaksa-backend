@@ -70,7 +70,7 @@ public class PortalLinkJobService {
                             userId.toString(),
                             request.portal_type(),
                             new ScrapeJobMessage.RequestPayload(request.username(), request.password()),
-                            requestedAt
+                            requestedAt.toString()
                     )),
                     requestedAt
             );

@@ -2,8 +2,6 @@ package com.chukchuk.haksa.application.portal;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.time.Instant;
-
 public record ScrapeJobMessage(
         @JsonProperty("job_id")
         String job_id,
@@ -14,7 +12,7 @@ public record ScrapeJobMessage(
         @JsonProperty("request_payload")
         RequestPayload request_payload,
         @JsonProperty("requested_at")
-        Instant requested_at
+        String requested_at
 ) {
 
     public record RequestPayload(

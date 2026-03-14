@@ -54,8 +54,9 @@ public class ScrapeResultCallbackService {
         try {
             hmacSignatureVerifier.verify(timestamp, rawBody, signature);
         } catch (CommonException exception) {
-            log.warn("[BIZ] scrape.job.callback.invalid_signature jobId={} signatureValid=false rawBodyHash={}",
-                    hintedJobId, bodyHash);
+            HmacSignatureVerifier.VerificationResult result = hmacSignatureVerifier.inspect(timestamp, rawBody, signature);
+            log.warn("[BIZ] scrape.job.callback.invalid_signature jobId={} signatureValid=false reason={} timestamp={} rawBodyHash={}",
+                    hintedJobId, result.reason(), timestamp, bodyHash);
             throw exception;
         }
 

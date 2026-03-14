@@ -10,6 +10,8 @@ import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +43,7 @@ class PortalLinkJobServiceUnitTests {
 
     @Test
     @DisplayName("새 idempotency key 요청이면 job과 outbox를 함께 저장한다")
-    void acceptLinkJob_createsJobAndOutbox() {
+    void acceptLinkJob_createsJobAndOutbox() throws Exception {
         UUID userId = UUID.randomUUID();
         PortalLinkJobService service = new PortalLinkJobService(scrapeJobRepository, scrapeJobOutboxRepository, userService);
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
@@ -59,6 +61,9 @@ class PortalLinkJobServiceUnitTests {
         verify(scrapeJobOutboxRepository).save(captor.capture());
         assertThat(captor.getValue().getJobId()).isEqualTo(response.job_id());
         assertThat(captor.getValue().getPayloadJson()).contains("\"job_id\"");
+        JsonNode payload = new ObjectMapper().readTree(captor.getValue().getPayloadJson());
+        assertThat(payload.path("requested_at").isTextual()).isTrue();
+        assertThat(payload.path("requested_at").asText()).contains("T");
     }
 
     @Test
