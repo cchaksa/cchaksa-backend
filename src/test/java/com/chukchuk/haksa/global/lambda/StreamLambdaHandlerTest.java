@@ -16,8 +16,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
@@ -79,6 +82,24 @@ class StreamLambdaHandlerTest {
     }
 
     @Test
+    void swaggerBundleResponsePreservesOriginalBytes() throws Exception {
+        AwsProxyResponse response = invoke("/swagger-ui/swagger-ui-bundle.js", "GET", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(200);
+        assertThat(response.isBase64Encoded()).isTrue();
+        assertThat(decodedBody(response)).isEqualTo(classpathResource("META-INF/resources/webjars/swagger-ui/5.2.0/swagger-ui-bundle.js"));
+    }
+
+    @Test
+    void swaggerStandalonePresetResponsePreservesOriginalBytes() throws Exception {
+        AwsProxyResponse response = invoke("/swagger-ui/swagger-ui-standalone-preset.js", "GET", null);
+
+        assertThat(response.getStatusCode()).isEqualTo(200);
+        assertThat(response.isBase64Encoded()).isTrue();
+        assertThat(decodedBody(response)).isEqualTo(classpathResource("META-INF/resources/webjars/swagger-ui/5.2.0/swagger-ui-standalone-preset.js"));
+    }
+
+    @Test
     void missingPathRespondsWithErrorBody() throws Exception {
         AwsProxyResponse response = invoke("/definitely-missing-path", "GET", null);
 
@@ -136,6 +157,20 @@ class StreamLambdaHandlerTest {
         Field field = StreamLambdaHandler.class.getDeclaredField("HANDLER");
         field.setAccessible(true);
         return (SpringBootLambdaContainerHandler<?, ?>) field.get(null);
+    }
+
+    private String decodedBody(AwsProxyResponse response) {
+        if (response.isBase64Encoded()) {
+            return new String(Base64.getDecoder().decode(response.getBody()), StandardCharsets.UTF_8);
+        }
+        return response.getBody();
+    }
+
+    private String classpathResource(String resourcePath) throws Exception {
+        try (InputStream inputStream = StreamLambdaHandlerTest.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            assertThat(inputStream).isNotNull();
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static class DummyContext implements Context {

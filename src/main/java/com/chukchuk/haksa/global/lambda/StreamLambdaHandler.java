@@ -28,6 +28,14 @@ public class StreamLambdaHandler implements RequestStreamHandler {
                     .springBootApplication(ChukchukHaksaApplication.class)
                     .profiles(LambdaProfiles.resolveActiveProfiles())
                     .buildAndInitialize();
+            HANDLER.getContainerConfig().addBinaryContentTypes(
+                    "text/javascript",
+                    "application/javascript",
+                    "text/css",
+                    "image/png",
+                    "image/svg+xml",
+                    "font/woff2"
+            );
         } catch (ContainerInitializationException e) {
             throw new IllegalStateException("Could not initialize Spring Boot application", e);
         }
