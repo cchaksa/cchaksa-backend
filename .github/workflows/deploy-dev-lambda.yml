@@ -64,7 +64,36 @@ jobs:
             --publish \
             --query 'Version' \
             --output text)
-          aws lambda wait function-updated --function-name "${LAMBDA_FUNCTION_NAME}"
+
+          for attempt in $(seq 1 30); do
+            STATE=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'State' \
+              --output text)
+            LAST_UPDATE_STATUS=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'LastUpdateStatus' \
+              --output text)
+
+            if [ "${STATE}" = "Active" ] && [ "${LAST_UPDATE_STATUS}" = "Successful" ]; then
+              break
+            fi
+
+            if [ "${STATE}" = "Failed" ] || [ "${LAST_UPDATE_STATUS}" = "Failed" ]; then
+              echo "Published version ${NEW_VERSION} failed to become active." >&2
+              exit 1
+            fi
+
+            if [ "${attempt}" -eq 30 ]; then
+              echo "Timed out waiting for published version ${NEW_VERSION} to become active." >&2
+              exit 1
+            fi
+
+            sleep 2
+          done
+
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Update alias to new version
