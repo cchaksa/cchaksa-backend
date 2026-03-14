@@ -13,8 +13,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
-import org.springframework.data.domain.Pageable;
-import org.springframework.transaction.support.TransactionOperations;
 
 import java.time.Instant;
 import java.util.List;
@@ -42,9 +40,6 @@ class ScrapeJobOutboxDispatcherUnitTests {
     private ScrapeJobPublisher scrapeJobPublisher;
 
     @Mock
-    private TransactionOperations transactionOperations;
-
-    @Mock
     private Environment environment;
 
     @Test
@@ -57,17 +52,14 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobPublisher,
                 properties,
                 new SimpleMeterRegistry(),
-                transactionOperations,
                 environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
-        when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenReturn("msg-1");
-        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         dispatcher.dispatchOnce(outbox.getOutboxId());
@@ -86,17 +78,14 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobPublisher,
                 properties,
                 new SimpleMeterRegistry(),
-                transactionOperations,
                 environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
-        when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(SdkClientException.create("temporary failure"));
-        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         dispatcher.dispatchOnce(outbox.getOutboxId());
@@ -116,17 +105,14 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobPublisher,
                 properties,
                 new SimpleMeterRegistry(),
-                transactionOperations,
                 environment
         );
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
-        when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(outbox));
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(new IllegalStateException("missing queue-url"));
-        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         dispatcher.dispatchOnce(outbox.getOutboxId());
@@ -137,8 +123,8 @@ class ScrapeJobOutboxDispatcherUnitTests {
     }
 
     @Test
-    @DisplayName("connection 획득 실패는 one-shot dispatch 예외로 노출한다")
-    void dispatchOnce_throwsWhenConnectionAcquisitionFails() {
+    @DisplayName("조회 예외는 one-shot dispatch 예외로 노출한다")
+    void dispatchOnce_throwsWhenLookupFails() {
         ScrapingProperties properties = scrapingProperties();
         ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
                 scrapeJobOutboxRepository,
@@ -146,15 +132,15 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobPublisher,
                 properties,
                 new SimpleMeterRegistry(),
-                transactionOperations,
                 environment
         );
 
-        when(transactionOperations.execute(any())).thenThrow(new org.springframework.transaction.CannotCreateTransactionException("db down"));
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq("outbox-1"), any(), any()))
+                .thenThrow(new org.springframework.dao.InvalidDataAccessApiUsageException("tx required"));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"develop-shadow"});
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> dispatcher.dispatchOnce("outbox-1"))
-                .isInstanceOf(org.springframework.transaction.CannotCreateTransactionException.class);
+                .isInstanceOf(org.springframework.dao.InvalidDataAccessApiUsageException.class);
     }
 
     @Test
@@ -168,7 +154,6 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 scrapeJobPublisher,
                 properties,
                 new SimpleMeterRegistry(),
-                transactionOperations,
                 environment
         );
         ScrapeJob preferredJob = queuedJob();
@@ -184,12 +169,10 @@ class ScrapeJobOutboxDispatcherUnitTests {
                 Instant.now()
         );
 
-        when(scrapeJobOutboxRepository.findPublishTargetsForUpdate(any(), any(), any(Pageable.class))).thenReturn(List.of(otherOutbox));
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(preferredOutbox.getOutboxId()), any(), any()))
                 .thenReturn(Optional.of(preferredOutbox));
         when(scrapeJobRepository.findForUpdateByJobId(preferredJob.getJobId())).thenReturn(Optional.of(preferredJob));
         when(scrapeJobPublisher.publish(preferredOutbox.getPayloadJson())).thenReturn("msg-preferred");
-        when(transactionOperations.execute(any())).thenAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"develop-shadow"});
 
         int dispatchedCount = dispatcher.dispatchOnce(preferredOutbox.getOutboxId());

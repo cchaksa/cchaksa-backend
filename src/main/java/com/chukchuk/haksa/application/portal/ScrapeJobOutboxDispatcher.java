@@ -17,7 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.CannotCreateTransactionException;
-import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.sqs.model.SqsException;
 
@@ -41,7 +42,6 @@ public class ScrapeJobOutboxDispatcher {
     private final ScrapeJobPublisher scrapeJobPublisher;
     private final ScrapingProperties scrapingProperties;
     private final MeterRegistry meterRegistry;
-    private final TransactionOperations transactionOperations;
     private final Environment environment;
 
     @PostConstruct
@@ -53,15 +53,17 @@ public class ScrapeJobOutboxDispatcher {
     }
 
     @Scheduled(fixedDelayString = "${scraping.publisher.fixed-delay-ms:10000}")
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatchEligibleOutboxes() {
-        dispatchBatch("scheduled", null);
+        dispatchBatch("scheduled");
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int dispatchOnce(String preferredOutboxId) {
-        return dispatchBatch("after_commit", preferredOutboxId);
+        return dispatchPreferredOutbox("after_commit", preferredOutboxId);
     }
 
-    private int dispatchBatch(String trigger, String preferredOutboxId) {
+    private int dispatchPreferredOutbox(String trigger, String preferredOutboxId) {
         if (!scrapingProperties.getPublisher().isEnabled()) {
             log.info("[BIZ] scrape.outbox.dispatch.skip trigger={} reason=publisher_disabled preferredOutboxId={}",
                     trigger, preferredOutboxId);
@@ -74,47 +76,66 @@ public class ScrapeJobOutboxDispatcher {
                 trigger, preferredOutboxId, batchSize, now, String.join(",", environment.getActiveProfiles()));
 
         try {
-            Integer dispatchedCount = transactionOperations.execute(status -> {
-                log.info("[BIZ] scrape.outbox.dispatch.db_lookup.start trigger={} preferredOutboxId={} batchSize={}",
-                        trigger, preferredOutboxId, batchSize);
-                List<ScrapeJobOutbox> outboxes = scrapeJobOutboxRepository.findPublishTargetsForUpdate(
-                        PUBLISHABLE_STATUSES,
-                        now,
-                        PageRequest.of(0, batchSize)
-                );
-                log.info("[BIZ] scrape.outbox.dispatch.db_lookup.success trigger={} preferredOutboxId={} foundCount={}",
-                        trigger, preferredOutboxId, outboxes.size());
+            log.info("[BIZ] scrape.outbox.dispatch.db_lookup.start trigger={} preferredOutboxId={} batchSize={}",
+                    trigger, preferredOutboxId, batchSize);
+            Optional<ScrapeJobOutbox> preferred = scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
+                    preferredOutboxId,
+                    PUBLISHABLE_STATUSES,
+                    now
+            );
+            if (preferred.isEmpty()) {
+                log.info("[BIZ] scrape.outbox.dispatch.preferred_missing trigger={} preferredOutboxId={} foundCount=0",
+                        trigger, preferredOutboxId);
+                log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId={} dispatchedCount=0",
+                        trigger, preferredOutboxId);
+                return 0;
+            }
 
-                int dispatched = 0;
-                if (preferredOutboxId != null) {
-                    Optional<ScrapeJobOutbox> preferred = scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
-                            preferredOutboxId,
-                            PUBLISHABLE_STATUSES,
-                            now
-                    );
-                    if (preferred.isPresent()) {
-                        dispatchSingle(preferred.get(), now, trigger);
-                        dispatched++;
-                    } else {
-                        log.info("[BIZ] scrape.outbox.dispatch.preferred_missing trigger={} preferredOutboxId={} foundCount={}",
-                                trigger, preferredOutboxId, outboxes.size());
-                    }
-                    return dispatched;
-                }
-
-                for (ScrapeJobOutbox outbox : outboxes) {
-                    dispatchSingle(outbox, now, trigger);
-                    dispatched++;
-                }
-                return dispatched;
-            });
-
-            int result = dispatchedCount == null ? 0 : dispatchedCount;
+            log.info("[BIZ] scrape.outbox.dispatch.db_lookup.success trigger={} preferredOutboxId={} foundCount=1",
+                    trigger, preferredOutboxId);
+            dispatchSingle(preferred.get(), now, trigger);
             log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId={} dispatchedCount={}",
-                    trigger, preferredOutboxId, result);
-            return result;
+                    trigger, preferredOutboxId, 1);
+            return 1;
         } catch (RuntimeException exception) {
             logDispatchFailure(trigger, preferredOutboxId, batchSize, now, exception);
+            throw exception;
+        }
+    }
+
+    private int dispatchBatch(String trigger) {
+        if (!scrapingProperties.getPublisher().isEnabled()) {
+            log.info("[BIZ] scrape.outbox.dispatch.skip trigger={} reason=publisher_disabled preferredOutboxId=null", trigger);
+            return 0;
+        }
+
+        Instant now = Instant.now();
+        int batchSize = scrapingProperties.getPublisher().getBatchSize();
+        log.info("[BIZ] scrape.outbox.dispatch.start trigger={} preferredOutboxId=null batchSize={} now={} activeProfiles={}",
+                trigger, batchSize, now, String.join(",", environment.getActiveProfiles()));
+
+        try {
+            log.info("[BIZ] scrape.outbox.dispatch.db_lookup.start trigger={} preferredOutboxId=null batchSize={}",
+                    trigger, batchSize);
+            List<ScrapeJobOutbox> outboxes = scrapeJobOutboxRepository.findPublishTargetsForUpdate(
+                    PUBLISHABLE_STATUSES,
+                    now,
+                    PageRequest.of(0, batchSize)
+            );
+            log.info("[BIZ] scrape.outbox.dispatch.db_lookup.success trigger={} preferredOutboxId=null foundCount={}",
+                    trigger, outboxes.size());
+
+            int dispatched = 0;
+            for (ScrapeJobOutbox outbox : outboxes) {
+                dispatchSingle(outbox, now, trigger);
+                dispatched++;
+            }
+
+            log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId=null dispatchedCount={}",
+                    trigger, dispatched);
+            return dispatched;
+        } catch (RuntimeException exception) {
+            logDispatchFailure(trigger, null, batchSize, now, exception);
             throw exception;
         }
     }
