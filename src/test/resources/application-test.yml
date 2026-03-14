@@ -26,6 +26,20 @@ scraping:
   callback:
     hmac-secret: test-callback-secret
     allowed-skew-seconds: 300
+  publisher:
+    enabled: true
+    fixed-delay-ms: 1000
+    batch-size: 10
+    max-attempts: 3
+    initial-backoff-seconds: 1
+    max-backoff-seconds: 10
+    api-call-timeout-seconds: 5
+    api-call-attempt-timeout-seconds: 2
+  stale:
+    enabled: true
+    fixed-delay-ms: 1000
+    timeout-seconds: 60
+    batch-size: 10
 
 sentry:
   dsn: ""

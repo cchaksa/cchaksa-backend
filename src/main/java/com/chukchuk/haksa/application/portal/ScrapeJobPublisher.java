@@ -2,5 +2,5 @@ package com.chukchuk.haksa.application.portal;
 
 public interface ScrapeJobPublisher {
 
-    String publish(ScrapeJobMessage message);
+    String publish(String payloadJson);
 }

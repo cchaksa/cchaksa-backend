@@ -12,6 +12,8 @@ public enum ErrorCode {
     INVALID_CALLBACK_SIGNATURE("C08", "유효하지 않은 내부 콜백 서명입니다.", HttpStatus.UNAUTHORIZED),
     UNSUPPORTED_PORTAL_TYPE("C09", "지원하지 않는 포털 타입입니다.", HttpStatus.BAD_REQUEST),
     SCRAPE_JOB_ENQUEUE_FAILED("C10", "스크래핑 작업 큐 등록에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    CALLBACK_TIMEOUT("C11", "스크래핑 결과 콜백이 시간 내 도착하지 않았습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SCRAPE_JOB_OUTBOX_DEAD("C12", "스크래핑 작업 전송이 중단되었습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
