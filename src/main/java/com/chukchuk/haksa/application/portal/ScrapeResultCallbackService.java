@@ -17,7 +17,10 @@ import com.chukchuk.haksa.infrastructure.portal.mapper.PortalDataMapper;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +32,7 @@ import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -70,7 +74,7 @@ public class ScrapeResultCallbackService {
             throw exception;
         }
 
-        PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody);
+        PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody, bodyHash);
         ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(request.job_id())
                 .orElseThrow(() -> {
                     log.warn("[BIZ] scrape.job.callback.job_not_found jobId={} signatureValid=true rawBodyHash={}",
@@ -87,7 +91,7 @@ public class ScrapeResultCallbackService {
         String normalizedStatus = normalize(request.status());
 
         if ("succeeded".equals(normalizedStatus)) {
-            handleSucceeded(job, request, finishedAt);
+            handleSucceeded(job, request, finishedAt, bodyHash);
             return;
         }
 
@@ -102,20 +106,25 @@ public class ScrapeResultCallbackService {
         throw new CommonException(ErrorCode.INVALID_ARGUMENT);
     }
 
-    private PortalLinkDto.ScrapeResultCallbackRequest parseRequest(String rawBody) {
+    private PortalLinkDto.ScrapeResultCallbackRequest parseRequest(String rawBody, String bodyHash) {
         try {
             return objectMapper.readValue(rawBody, PortalLinkDto.ScrapeResultCallbackRequest.class);
         } catch (JsonProcessingException e) {
+            log.warn("[BIZ] scrape.job.callback.invalid_payload stage=request_parse rawBodyHash={} message={}",
+                    bodyHash, e.getOriginalMessage());
             throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
         }
     }
 
-    private void handleSucceeded(ScrapeJob job, PortalLinkDto.ScrapeResultCallbackRequest request, Instant finishedAt) {
+    private void handleSucceeded(ScrapeJob job, PortalLinkDto.ScrapeResultCallbackRequest request, Instant finishedAt, String bodyHash) {
         try {
             if (request.result_payload() == null || request.result_payload().isNull()) {
+                log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_missing jobId={} rawBodyHash={}",
+                        job.getJobId(), bodyHash);
                 throw new CommonException(ErrorCode.INVALID_ARGUMENT);
             }
-            RawPortalData rawPortalData = objectMapper.treeToValue(request.result_payload(), RawPortalData.class);
+            JsonNode normalizedPayload = normalizeNodeKeys(request.result_payload());
+            RawPortalData rawPortalData = objectMapper.treeToValue(normalizedPayload, RawPortalData.class);
             PortalData portalData = PortalDataMapper.toPortalData(rawPortalData);
 
             if (job.getOperationType() == ScrapeJobOperationType.LINK) {
@@ -124,7 +133,7 @@ public class ScrapeResultCallbackService {
                 applyRefresh(job, portalData);
             }
 
-            job.markSucceeded(writeJson(request.result_payload()), finishedAt);
+            job.markSucceeded(writeJson(normalizedPayload), finishedAt);
             recordQueuedAge(job, finishedAt);
             log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
         } catch (BaseException | IllegalArgumentException e) {
@@ -133,6 +142,8 @@ public class ScrapeResultCallbackService {
             log.warn("[BIZ] scrape.job.business_fail jobId={} operationType={} message={}",
                     job.getJobId(), job.getOperationType(), e.getMessage());
         } catch (JsonProcessingException e) {
+            log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_mapping jobId={} rawBodyHash={} resultPayloadKeys={} message={}",
+                    job.getJobId(), bodyHash, topLevelFieldNames(request.result_payload()), e.getOriginalMessage());
             throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
         }
     }
@@ -190,5 +201,63 @@ public class ScrapeResultCallbackService {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    private JsonNode normalizeNodeKeys(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return node;
+        }
+        if (node.isArray()) {
+            ArrayNode arrayNode = objectMapper.createArrayNode();
+            for (JsonNode element : node) {
+                arrayNode.add(normalizeNodeKeys(element));
+            }
+            return arrayNode;
+        }
+        if (!node.isObject()) {
+            return node;
+        }
+
+        ObjectNode normalized = objectMapper.createObjectNode();
+        Iterator<String> fieldNames = node.fieldNames();
+        while (fieldNames.hasNext()) {
+            String fieldName = fieldNames.next();
+            normalized.set(toCamelCase(fieldName), normalizeNodeKeys(node.get(fieldName)));
+        }
+        return normalized;
+    }
+
+    private String toCamelCase(String value) {
+        if (value == null || value.isBlank() || !value.contains("_")) {
+            return value;
+        }
+
+        StringBuilder builder = new StringBuilder(value.length());
+        boolean upperNext = false;
+        for (char ch : value.toCharArray()) {
+            if (ch == '_') {
+                upperNext = true;
+                continue;
+            }
+            builder.append(upperNext ? Character.toUpperCase(ch) : ch);
+            upperNext = false;
+        }
+        return builder.toString();
+    }
+
+    private String topLevelFieldNames(JsonNode node) {
+        if (node == null || !node.isObject()) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        Iterator<String> fieldNames = node.fieldNames();
+        while (fieldNames.hasNext()) {
+            if (builder.length() > 0) {
+                builder.append(',');
+            }
+            builder.append(fieldNames.next());
+        }
+        return builder.toString();
     }
 }

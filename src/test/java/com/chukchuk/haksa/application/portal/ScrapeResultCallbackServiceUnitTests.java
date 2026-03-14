@@ -203,6 +203,42 @@ class ScrapeResultCallbackServiceUnitTests {
         verify(academicCache).deleteAllByStudentId(studentId);
     }
 
+    @Test
+    @DisplayName("성공 callback의 result_payload가 snake_case여도 성공 처리한다")
+    void handleCallback_acceptsSnakeCaseResultPayload() {
+        ScrapeResultCallbackService service = createService();
+        UUID userId = UUID.randomUUID();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = ScrapeJob.createQueued(
+                userId,
+                "suwon",
+                ScrapeJobOperationType.LINK,
+                "idem-1",
+                "fingerprint",
+                "{\"username\":\"17019013\",\"password\":\"pw\"}"
+        );
+        String rawBody = """
+                {
+                  "job_id":"%s",
+                  "status":"succeeded",
+                  "result_payload":{
+                    "student":{"sno":"17019013","stud_nm":"홍길동","univ_cd":"01","univ_nm":"수원대학교","dpmj_cd":"D1","dpmj_nm":"컴퓨터학부","mjor_cd":"M1","mjor_nm":"컴퓨터학과","the2_mjor_cd":null,"the2_mjor_nm":null,"scrg_stat_nm":"재학","ensc_year":"2021","ensc_smr_cd":"10","ensc_dvcd":"신입","stud_grde":4,"fac_smr_cnt":8},
+                    "semesters":[{"semester":"2024-10","courses":[{"subjt_cd":"C101","subjt_nm":"자료구조","ltr_prfs_nm":"김교수","estb_dpmj_nm":"컴퓨터학부","point":3,"cret_grd_cd":"A+","refac_year_smr":"-","timt_smry_cn":"월1-2","fac_dvnm":"전공","clt_terr_nm":"0영역","clt_terr_cd":"0","subjt_estb_smr_cd":"10","subjt_estb_year_smr":"2024-10","dicl_no":"01","gain_pont":"95","cret_del_cd":null,"cret_del_nm":null}]}],
+                    "academic_records":{"list_smr_cret_sum_tab_year_smr":[{"cret_gain_year":"2024","cret_smr_cd":"10","gain_point":"18","appl_point":"18","gain_avmk":"4.2","gain_tavg_pont":"95","dpmj_ordp":"1/100"}],"select_smr_cret_sum_tab_sj_total":{"gain_point":"120","appl_point":"130","gain_avmk":"3.8","gain_tavg_pont":"90"}}
+                  },
+                  "finished_at":"2026-03-14T10:01:00Z"
+                }
+                """.formatted(job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
+
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+
+        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
+        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+    }
+
     private ScrapeResultCallbackService createService() {
         return new ScrapeResultCallbackService(
                 scrapeJobRepository,
