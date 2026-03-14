@@ -18,12 +18,17 @@ import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -38,14 +43,29 @@ public class ScrapeResultCallbackService {
     private final StudentService studentService;
     private final AcademicCache academicCache;
     private final HmacSignatureVerifier hmacSignatureVerifier;
+    private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Transactional
     public void handleCallback(String rawBody, String timestamp, String signature) {
-        hmacSignatureVerifier.verify(timestamp, rawBody, signature);
+        String bodyHash = hashRawBody(rawBody);
+        String hintedJobId = extractJobId(rawBody);
+
+        try {
+            hmacSignatureVerifier.verify(timestamp, rawBody, signature);
+        } catch (CommonException exception) {
+            log.warn("[BIZ] scrape.job.callback.invalid_signature jobId={} signatureValid=false rawBodyHash={}",
+                    hintedJobId, bodyHash);
+            throw exception;
+        }
+
         PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody);
         ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(request.job_id())
-                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND));
+                .orElseThrow(() -> {
+                    log.warn("[BIZ] scrape.job.callback.job_not_found jobId={} signatureValid=true rawBodyHash={}",
+                            request.job_id(), bodyHash);
+                    return new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND);
+                });
 
         if (job.isCompleted()) {
             log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={}", job.getJobId(), job.getStatus());
@@ -62,6 +82,7 @@ public class ScrapeResultCallbackService {
 
         if ("failed".equals(normalizedStatus)) {
             job.markFailed(request.error_code(), request.error_message(), request.retryable(), finishedAt);
+            recordQueuedAge(job, finishedAt);
             log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={}",
                     job.getJobId(), request.error_code(), request.retryable());
             return;
@@ -93,9 +114,11 @@ public class ScrapeResultCallbackService {
             }
 
             job.markSucceeded(writeJson(request.result_payload()), finishedAt);
+            recordQueuedAge(job, finishedAt);
             log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
+            recordQueuedAge(job, finishedAt);
             log.warn("[BIZ] scrape.job.business_fail jobId={} operationType={} message={}",
                     job.getJobId(), job.getOperationType(), e.getMessage());
         } catch (JsonProcessingException e) {
@@ -131,5 +154,30 @@ public class ScrapeResultCallbackService {
 
     private String normalize(String status) {
         return status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private void recordQueuedAge(ScrapeJob job, Instant finishedAt) {
+        if (job.getCreatedAt() == null) {
+            return;
+        }
+        double queuedAgeSeconds = Duration.between(job.getCreatedAt(), finishedAt).toMillis() / 1000.0;
+        meterRegistry.summary("scrape.job.queued.age.seconds").record(queuedAgeSeconds);
+    }
+
+    private String extractJobId(String rawBody) {
+        try {
+            return objectMapper.readTree(rawBody).path("job_id").asText("");
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String hashRawBody(String rawBody) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawBody.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ignored) {
+            return "";
+        }
     }
 }

@@ -29,6 +29,8 @@
 - Rule 6: job 조회 API는 사용자 본인 job만 조회 가능해야 하며 내부 에러 상세나 민감한 payload를 외부에 그대로 노출하면 안 된다.
 - Rule 7: 비동기 경로는 `develop-shadow` 또는 명시적 설정(`scraping.mode=async`)으로 제어하며, 외부 진입 엔드포인트는 `/portal/link` 계열만 사용한다. 기존 `/api/suwon-scrape/*` 엔드포인트는 비활성화한다.
 - Rule 8: 백엔드는 worker와 합의된 표준 에러 코드를 저장할 수 있어야 하며, 프론트에는 필요한 범위만 노출한다.
+- Rule 9: 요청 수락 경계는 `job + outbox` DB commit까지이며, 실제 SQS publish는 outbox publisher가 비동기로 수행한다.
+- Rule 10: `queued` 상태는 외부적으로 유지하되 내부 전송 상태는 outbox status로 분리해 관리한다.
 
 - Mutable Rules:
   - job payload 저장 포맷(JSON string, JSONB, DTO 직렬화)은 구현 중 조정 가능하다.
@@ -49,8 +51,9 @@
   - Steps:
     1. 백엔드가 요청 payload를 검증한다.
     2. job row를 `queued` 상태로 생성한다.
-    3. SQS에 `job_id`, `user_id`, `portal_type`, 요청 식별 payload, `requested_at`을 발행한다.
+    3. 같은 트랜잭션 안에서 outbox row를 함께 저장한다.
     4. API는 즉시 `accepted` 응답과 polling endpoint를 반환한다.
+    5. 별도 publisher가 outbox를 읽어 SQS에 `job_id`, `user_id`, `portal_type`, 요청 식별 payload, `requested_at`을 발행한다.
   - Expected Result: 사용자는 즉시 `job_id`를 받고, 이후 상태 조회 API로 진행 상황을 확인할 수 있다.
 
 - Scenario Name: 성공 callback 수신 후 최종 반영
@@ -72,6 +75,10 @@
   - Condition: 이미 `succeeded` 또는 `failed`로 완료된 동일 `job_id`에 대해 callback이 다시 도착한다.
   - Expected Behavior: 추가 반영 없이 안전하게 무시하거나 `409`를 반환하며, worker는 이를 성공 의미로 취급할 수 있어야 한다.
 
+- Scenario Name: outbox 전송 실패 또는 callback 지연
+  - Condition: SQS publish가 반복 실패하거나, publish 후 callback이 일정 시간 도착하지 않는다.
+  - Expected Behavior: outbox는 retry 또는 dead로 관리되고, 일정 기준을 넘으면 job은 `failed`와 적절한 내부 에러 코드로 확정된다.
+
 - Scenario Name: 타 사용자 job 조회
   - Condition: 사용자가 자신의 것이 아닌 `job_id`를 조회한다.
   - Expected Behavior: 권한 오류 또는 not found 정책 중 하나로 차단되며, 타 사용자 job 존재 여부를 유추할 수 있는 정보는 노출하지 않는다.
@@ -82,9 +89,9 @@
 
 ## 4. Transaction and Consistency Policy (Required)
 - Transaction Start Point: 스크래핑 요청은 API 수신 후 job 생성 시점, callback 처리는 callback 수신 후 job 조회 및 상태 전이 시점에 시작한다.
-- Transaction End Point: 요청 수락은 job 생성과 enqueue 성공이 논리적으로 확정된 시점, callback은 상태 전이와 엔티티 저장이 함께 완료된 시점에 종료한다.
+- Transaction End Point: 요청 수락은 job 생성과 outbox 저장이 함께 commit된 시점, callback은 상태 전이와 엔티티 저장이 함께 완료된 시점에 종료한다.
 - Atomicity Scope:
-  - 요청 API는 "accepted 응답을 내보낼 수 있는가"를 하나의 논리 단위로 본다.
+  - 요청 API는 "job과 outbox가 함께 저장되었는가"를 하나의 논리 단위로 본다.
   - callback 성공 처리에서는 상태 전이와 최종 엔티티 반영이 원자적으로 보장되어야 한다.
   - 완료된 job의 중복 callback은 상태와 최종 저장을 다시 변경하지 않아야 한다.
 - Eventual Consistency Allowed:
@@ -153,8 +160,14 @@
 - Error Code: `CALLBACK_TIMEOUT`
   - Condition: worker 관점에서 callback 호출 시간 초과
   - Message Convention: worker/백엔드 공통 코드 체계 유지
-  - Handling Layer: worker 측 재시도 및 백엔드 재수신 계약
+  - Handling Layer: worker 측 재시도 및 백엔드 stale reconciler
   - User Exposure: 직접 노출 대상 아님
+
+- Error Code: `SCRAPE_JOB_ENQUEUE_FAILED`
+  - Condition: outbox publish가 반복 실패하거나 전송 불가능 상태로 확정됨
+  - Message Convention: enqueue 경계 실패임을 식별 가능해야 함
+  - Handling Layer: outbox publisher / reconciler
+  - User Exposure: 상태 조회에서 제한적으로 노출 가능
 
 - Error Code: `CALLBACK_5XX`
   - Condition: worker가 백엔드 callback API에서 5xx를 받음
@@ -198,8 +211,17 @@
 - Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobOperationType.java
   - Description: 초기 연동과 재연동 분기용 operation type enum
   - Layer: Domain
+- Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobOutbox.java
+  - Description: 전송 정합성을 위한 outbox 엔티티
+  - Layer: Domain
+- Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/model/ScrapeJobOutboxStatus.java
+  - Description: outbox 내부 전송 상태 enum
+  - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/repository/ScrapeJobRepository.java
   - Description: job 조회/저장 인터페이스
+  - Layer: Domain
+- Path: src/main/java/com/chukchuk/haksa/domain/scrapejob/repository/ScrapeJobOutboxRepository.java
+  - Description: outbox 조회/저장 인터페이스
   - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/domain/portal/dto/PortalLinkDto.java
   - Description: 비동기 스크래핑 요청/조회/callback DTO
@@ -219,6 +241,12 @@
 - Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeJobPublisher.java
   - Description: job 발행 포트
   - Layer: Application
+- Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeJobOutboxDispatcher.java
+  - Description: outbox를 읽어 SQS publish와 retry/dead 처리를 담당하는 scheduler
+  - Layer: Application
+- Path: src/main/java/com/chukchuk/haksa/application/portal/ScrapeJobStaleReconciler.java
+  - Description: callback 지연 job을 timeout으로 실패 확정하는 scheduler
+  - Layer: Application
 - Path: src/main/java/com/chukchuk/haksa/infrastructure/scrapejob/SqsScrapeJobPublisher.java
   - Description: 비동기 경로에서 SQS 메시지를 발행하는 구현체
   - Layer: Infrastructure
@@ -228,6 +256,9 @@
 - Path: src/main/java/com/chukchuk/haksa/global/config/ScrapingProperties.java
   - Description: scraping 관련 설정 프로퍼티 바인딩
   - Layer: Global config
+- Path: src/main/java/com/chukchuk/haksa/ChukchukHaksaApplication.java
+  - Description: scheduler 실행을 위한 scheduling 활성화
+  - Layer: Application bootstrap
 - Path: src/main/java/com/chukchuk/haksa/global/exception/code/ErrorCode.java
   - Description: scrape job / callback 관련 에러 코드 추가
   - Layer: Global config
@@ -249,6 +280,9 @@
 - Path: src/main/resources/application-develop-shadow.yml
   - Description: shadow 환경에서 async 경로를 활성화하는 설정
   - Layer: Global config
+- Path: docs/sql/20260314-scrape-job-outbox-ddl.sql
+  - Description: prod용 outbox 테이블/인덱스 DDL artifact
+  - Layer: Documentation
 - Path: src/test/resources/application-test.yml
   - Description: scrape callback/queue 테스트 설정 추가
   - Layer: Test config
@@ -257,6 +291,12 @@
   - Layer: Test
 - Path: src/test/java/com/chukchuk/haksa/application/portal/ScrapeResultCallbackServiceUnitTests.java
   - Description: callback HMAC, 성공/실패/중복 처리 검증
+  - Layer: Test
+- Path: src/test/java/com/chukchuk/haksa/application/portal/ScrapeJobOutboxDispatcherUnitTests.java
+  - Description: outbox publish success/retry/dead 처리 검증
+  - Layer: Test
+- Path: src/test/java/com/chukchuk/haksa/application/portal/ScrapeJobStaleReconcilerUnitTests.java
+  - Description: stale queued job timeout 처리 검증
   - Layer: Test
 - Path: src/test/java/com/chukchuk/haksa/domain/portal/controller/PortalLinkControllerApiIntegrationTest.java
   - Description: 요청 수락 응답 검증

@@ -10,6 +10,7 @@ import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -209,7 +210,8 @@ class ScrapeResultCallbackServiceUnitTests {
                 userService,
                 studentService,
                 academicCache,
-                new HmacSignatureVerifier("test-callback-secret", 300)
+                new HmacSignatureVerifier("test-callback-secret", 300),
+                new SimpleMeterRegistry()
         );
     }
 
