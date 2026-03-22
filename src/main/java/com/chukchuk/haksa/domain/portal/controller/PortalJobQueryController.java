@@ -27,4 +27,13 @@ public class PortalJobQueryController {
         PortalLinkDto.JobStatusResponse response = portalLinkJobQueryService.getJobStatus(userDetails.getId(), jobId);
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
+
+    @GetMapping("/{jobId}/summary")
+    public ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String jobId
+    ) {
+        PortalLinkDto.JobSummaryResponse response = portalLinkJobQueryService.getJobSummary(userDetails.getId(), jobId);
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
 }
