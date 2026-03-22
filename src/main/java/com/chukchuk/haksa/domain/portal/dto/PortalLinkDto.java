@@ -55,6 +55,28 @@ public class PortalLinkDto {
             Instant finished_at
     ) {}
 
+    @Schema(description = "스크래핑 job 요약 응답")
+    public record JobSummaryResponse(
+            @JsonProperty("job_id")
+            String job_id,
+            String status,
+            @JsonProperty("studentInfo")
+            StudentInfoSummary studentInfo,
+            @JsonProperty("finished_at")
+            Instant finished_at
+    ) {}
+
+    @Schema(description = "포털 학생 요약 정보")
+    public record StudentInfoSummary(
+            String name,
+            String school,
+            String majorName,
+            String studentCode,
+            int gradeLevel,
+            String status,
+            int completedSemesterType
+    ) {}
+
     public record ScrapeResultCallbackRequest(
             @JsonProperty("job_id")
             String job_id,

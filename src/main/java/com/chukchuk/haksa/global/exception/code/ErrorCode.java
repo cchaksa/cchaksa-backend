@@ -14,6 +14,8 @@ public enum ErrorCode {
     SCRAPE_JOB_ENQUEUE_FAILED("C10", "스크래핑 작업 큐 등록에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     CALLBACK_TIMEOUT("C11", "스크래핑 결과 콜백이 시간 내 도착하지 않았습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     SCRAPE_JOB_OUTBOX_DEAD("C12", "스크래핑 작업 전송이 중단되었습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SCRAPE_JOB_NOT_COMPLETED("C13", "스크래핑 작업이 아직 완료되지 않았습니다.", HttpStatus.CONFLICT),
+    SCRAPE_JOB_FAILED_RESULT("C14", "스크래핑 작업이 실패 상태입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
