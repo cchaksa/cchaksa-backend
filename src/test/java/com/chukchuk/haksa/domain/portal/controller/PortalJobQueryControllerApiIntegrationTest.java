@@ -68,4 +68,33 @@ class PortalJobQueryControllerApiIntegrationTest extends ApiControllerWebMvcTest
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value(ErrorCode.SCRAPE_JOB_NOT_FOUND.code()));
     }
+
+    @Test
+    @DisplayName("완료된 job 요약 조회 시 학생 요약 정보를 반환한다")
+    void getJobSummary_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        PortalLinkDto.StudentInfoSummary studentInfo = new PortalLinkDto.StudentInfoSummary(
+                "홍길동",
+                "수원대학교",
+                "소프트웨어학과",
+                "17019013",
+                2,
+                "재학",
+                1
+        );
+        when(portalLinkJobQueryService.getJobSummary(eq(userId), eq("job-3")))
+                .thenReturn(new PortalLinkDto.JobSummaryResponse(
+                        "job-3",
+                        "succeeded",
+                        studentInfo,
+                        Instant.parse("2026-03-14T10:10:00Z")
+                ));
+
+        mockMvc.perform(get("/portal/link/jobs/job-3/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.job_id").value("job-3"))
+                .andExpect(jsonPath("$.data.studentInfo.name").value("홍길동"))
+                .andExpect(jsonPath("$.data.studentInfo.majorName").value("소프트웨어학과"));
+    }
 }
