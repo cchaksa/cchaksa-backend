@@ -5,6 +5,9 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   profiles:
     active: local
+    group:
+      develop-shadow:
+        - dev
   jackson:
     time-zone: Asia/Seoul
     date-format: yyyy-MM-dd HH:mm:ss
@@ -27,6 +30,7 @@ security:
     access-expiration: ${JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
   appKey: ${APP_KEY}
+  nativeAppKey: ${APP_NATIVE_KEY:}
   apple:
     client-id: ${APPLE_CLIENT_ID}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
@@ -34,6 +38,30 @@ security:
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}
+
+scraping:
+  mode: ${SCRAPING_MODE:async}
+  job:
+    queue-url: ${SCRAPING_JOB_QUEUE_URL:}
+  callback:
+    hmac-secret: ${SCRAPING_CALLBACK_HMAC_SECRET:}
+    allowed-skew-seconds: ${SCRAPING_CALLBACK_ALLOWED_SKEW_SECONDS:300}
+  scheduler:
+    enabled: ${SCRAPING_SCHEDULER_ENABLED:true}
+  publisher:
+    enabled: ${SCRAPING_PUBLISHER_ENABLED:true}
+    fixed-delay-ms: ${SCRAPING_PUBLISHER_FIXED_DELAY_MS:10000}
+    batch-size: ${SCRAPING_PUBLISHER_BATCH_SIZE:20}
+    max-attempts: ${SCRAPING_PUBLISHER_MAX_ATTEMPTS:5}
+    initial-backoff-seconds: ${SCRAPING_PUBLISHER_INITIAL_BACKOFF_SECONDS:5}
+    max-backoff-seconds: ${SCRAPING_PUBLISHER_MAX_BACKOFF_SECONDS:300}
+    api-call-timeout-seconds: ${SCRAPING_PUBLISHER_API_CALL_TIMEOUT_SECONDS:10}
+    api-call-attempt-timeout-seconds: ${SCRAPING_PUBLISHER_API_CALL_ATTEMPT_TIMEOUT_SECONDS:5}
+  stale:
+    enabled: ${SCRAPING_STALE_ENABLED:true}
+    fixed-delay-ms: ${SCRAPING_STALE_FIXED_DELAY_MS:60000}
+    timeout-seconds: ${SCRAPING_STALE_TIMEOUT_SECONDS:600}
+    batch-size: ${SCRAPING_STALE_BATCH_SIZE:20}
 
 springdoc:
   api-docs:
@@ -45,7 +73,24 @@ sentry:
     minimum-event-level: error
     minimum-breadcrumb-level: info
 
+# ─────────────────────────────────────────
+# 모니터링 및 관리 (Actuator & Metrics)
+# ─────────────────────────────────────────
 management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info,metrics"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+  # 기존 tracing 설정 유지
   tracing:
     enabled: true
   health:

@@ -20,6 +20,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.Date;
 
 @Service
@@ -33,6 +36,9 @@ public class KakaoOidcService implements OidcService {
 
     @Value("${security.appKey}")
     private String appKey;
+
+    @Value("${security.nativeAppKey:}")
+    private String nativeAppKey;
 
     public Claims verifyIdToken(String idToken, String expectedNonce) {
         try {
@@ -86,18 +92,7 @@ public class KakaoOidcService implements OidcService {
             throw new TokenException(ErrorCode.TOKEN_INVALID_ISS);
         }
 
-        Object audClaim = claims.get("aud");
-        if (audClaim instanceof String) {
-            if (!appKey.equals(audClaim)) {
-                throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
-            }
-        } else if (audClaim instanceof java.util.List) {
-            if (!((java.util.List<?>) audClaim).contains(appKey)) {
-                throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
-            }
-        } else {
-            throw new TokenException(ErrorCode.TOKEN_INVALID_AUD_FORMAT);
-        }
+        validateAudience(claims.get("aud"));
 
         String hashedNonce = hashSHA256(expectedNonce);
         String nonce = claims.get("nonce", String.class);
@@ -130,6 +125,49 @@ public class KakaoOidcService implements OidcService {
             }
         }
         return null;
+    }
+
+    private void validateAudience(Object audClaim) {
+        Set<String> allowedAudiences = resolveAllowedAudiences();
+
+        if (audClaim instanceof String aud) {
+            if (!allowedAudiences.contains(aud)) {
+                throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
+            }
+            return;
+        }
+
+        if (audClaim instanceof List<?> audiences) {
+            boolean matched = audiences.stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .anyMatch(allowedAudiences::contains);
+
+            if (!matched) {
+                throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
+            }
+            return;
+        }
+
+        throw new TokenException(ErrorCode.TOKEN_INVALID_AUD_FORMAT);
+    }
+
+    private Set<String> resolveAllowedAudiences() {
+        Set<String> allowedAudiences = new LinkedHashSet<>();
+        addIfPresent(allowedAudiences, appKey);
+        addIfPresent(allowedAudiences, nativeAppKey);
+        return allowedAudiences;
+    }
+
+    private void addIfPresent(Set<String> targets, String value) {
+        if (value == null) {
+            return;
+        }
+
+        String normalized = value.trim();
+        if (!normalized.isEmpty()) {
+            targets.add(normalized);
+        }
     }
 
     private String hashSHA256(String input) {

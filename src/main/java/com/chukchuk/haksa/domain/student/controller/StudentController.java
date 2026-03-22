@@ -30,10 +30,10 @@ public class StudentController implements StudentControllerDocs {
     @PostMapping("/target-gpa")
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setTargetGpa(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam(required = false) Double targetGpa
+        @RequestParam(required = false) Double targetGpa
     ) {
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         studentService.setStudentTargetGpa(studentId, targetGpa);
 
@@ -52,7 +52,7 @@ public class StudentController implements StudentControllerDocs {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         StudentProfileResponse response = studentService.getStudentProfile(studentId);
 
@@ -69,7 +69,7 @@ public class StudentController implements StudentControllerDocs {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
         studentService.resetBy(studentId);
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {

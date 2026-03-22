@@ -39,7 +39,7 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
             @RequestParam Integer semester) {
 
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         AcademicRecordResponse response = academicRecordService.getAcademicRecord(studentId, year, semester);
 
@@ -56,7 +56,7 @@ public class AcademicRecordController implements AcademicRecordControllerDocs {
             @AuthenticationPrincipal CustomUserDetails userDetails) {
 
         long t0 = LogTime.start();
-        UUID studentId = userDetails.getStudentId();
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
         AcademicSummaryResponse response = studentAcademicRecordService.getAcademicSummary(studentId);
 

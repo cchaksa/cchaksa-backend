@@ -5,7 +5,7 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
-import io.sentry.IScope;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcTagBinder;
 import io.sentry.Sentry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -37,24 +37,13 @@ public class GlobalExceptionHandler {
             scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
 
             // MDC → Sentry Tag 승격 (있을 때만)
-            putIfPresent(scope, "student_code");
-            putIfPresent(scope, "admission_year");
-            putIfPresent(scope, "primary_department_id");
-            putIfPresent(scope, "secondary_department_id");
-            putIfPresent(scope, "major_type");
+            SentryMdcTagBinder.bind(scope);
 
             Sentry.captureException(ex);
         });
 
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
-    }
-
-    private void putIfPresent(IScope scope, String key) {
-        String value = MDC.get(key);
-        if (value != null) {
-            scope.setTag(key, value);
-        }
     }
 
     /** 404 */
@@ -91,6 +80,7 @@ public class GlobalExceptionHandler {
             scope.setTag("error.code", ex.getCode());
             scope.setFingerprint(List.of("ENTITY_NOT_FOUND", ex.getCode()));
             scope.setLevel(io.sentry.SentryLevel.WARNING);
+            SentryMdcTagBinder.bind(scope);
             Sentry.captureException(ex);
         });
 
@@ -101,7 +91,10 @@ public class GlobalExceptionHandler {
     /** 예상 못한 서버 오류 → Sentry 단일 캡처 */
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntime(RuntimeException ex, HttpServletRequest req) {
-        Sentry.captureException(ex); // 중복 방지: log.error는 메시지만
+        Sentry.withScope(scope -> {
+            SentryMdcTagBinder.bind(scope);
+            Sentry.captureException(ex);
+        }); // 중복 방지: log.error는 메시지만
         log.error("[RuntimeException] ctx={}", ctx(req));
         return ResponseEntity.internalServerError()
                 .body(ErrorResponse.of("INTERNAL_ERROR", "서버 오류가 발생했습니다.", null));
@@ -110,7 +103,10 @@ public class GlobalExceptionHandler {
     /** 최후 보루 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAny(Exception ex, HttpServletRequest req) {
-        Sentry.captureException(ex);
+        Sentry.withScope(scope -> {
+            SentryMdcTagBinder.bind(scope);
+            Sentry.captureException(ex);
+        });
         log.error("[Unhandled] type={} ctx={}", ex.getClass().getSimpleName(), ctx(req));
         return ResponseEntity.internalServerError()
                 .body(ErrorResponse.of("E-UNHANDLED", "서버 오류가 발생했습니다.", null));

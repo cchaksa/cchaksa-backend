@@ -5,6 +5,24 @@ All phases are executed sequentially and must stop immediately on failure.
 
 ---
 
+## Phase 0: Intent Routing
+- Purpose: Select the primary execution skill from the user command before work starts.
+- Inputs: User command, current codebase context.
+- Output: One selected skill document:
+  - `FEATURE_DEVELOPMENT.md`
+  - `REFACTORING.md`
+  - `BUG_FIX.md`
+  - `ISSUE_ANALYSIS.md`
+- Completion criteria:
+  - [ ] Primary intent selected and documented in working notes
+  - [ ] If ambiguous, questioning rules applied before execution
+  - [ ] Selected skill guardrails identified
+
+On failure:
+- Do not proceed to the next phase.
+
+---
+
 ## Phase 1: Context Creation
 - Purpose: Fix feature requirements into an executable Context.
 - Inputs: User request, existing Context records, reference information from `AGENTS.md`.

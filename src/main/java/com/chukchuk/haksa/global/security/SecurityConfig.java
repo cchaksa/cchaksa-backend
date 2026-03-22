@@ -54,7 +54,9 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/", "/health", "/error","/auth/kakao", "/sentry-test",
-            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh"
+            "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh",
+            "/internal/scrape-results",
+            "/actuator/prometheus", "/actuator/health", "/actuator/info"
     };
 
     private static final String[] SWAGGER_ENDPOINTS = {
@@ -93,7 +95,8 @@ public class SecurityConfig {
                 "https://cchaksa.com",
                 "https://dv.cchaksa.com",
                 "https://*.cchaksa.com",
-                "https://api.cchaksa.com"
+                "https://api.cchaksa.com",
+                "http://localhost:3000"
         ));
         c.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         c.setAllowedHeaders(List.of("*"));

@@ -1,4 +1,4 @@
-name: Deploy to Prod EC2
+name: Deploy to Dev EC2 (Rollback)
 
 on:
   workflow_dispatch:
@@ -8,11 +8,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # main 브랜치 최신 HEAD 고정
-      - name: Checkout main branch
+      - name: Checkout dev branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: dev
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -31,6 +30,7 @@ jobs:
           JWT_ACCESS_EXPIRATION: ${{ secrets.JWT_ACCESS_EXPIRATION }}
           JWT_REFRESH_EXPIRATION: ${{ secrets.JWT_REFRESH_EXPIRATION }}
           APP_KEY: ${{ secrets.APP_KEY }}
+          APP_NATIVE_KEY: ${{ secrets.APP_NATIVE_KEY }}
           CRAWLER_BASE_URL: ${{ secrets.CRAWLER_BASE_URL }}
           REDIS_ENCRYPT_KEY: ${{ secrets.REDIS_ENCRYPT_KEY }}
           LOCAL_DB_URL: ${{ secrets.LOCAL_DB_URL }}
@@ -45,22 +45,22 @@ jobs:
           JAR_PATH=$(find build/libs -name "*.jar" | head -n 1)
           cp "$JAR_PATH" deploy/app.jar
 
-      - name: Copy app.jar to Prod EC2
+      - name: Copy app.jar to Dev EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.PROD_EC2_HOST }}
-          username: ${{ secrets.PROD_EC2_USER }}
-          key: ${{ secrets.PROD_EC2_KEY }}
+          host: ${{ secrets.DEV_EC2_HOST }}
+          username: ${{ secrets.DEV_EC2_USER }}
+          key: ${{ secrets.DEV_EC2_KEY }}
           source: "deploy/app.jar"
           target: "/home/ubuntu/app"
           strip_components: 1
 
-      - name: Restart Prod server
+      - name: Restart Dev server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.PROD_EC2_HOST }}
-          username: ${{ secrets.PROD_EC2_USER }}
-          key: ${{ secrets.PROD_EC2_KEY }}
+          host: ${{ secrets.DEV_EC2_HOST }}
+          username: ${{ secrets.DEV_EC2_USER }}
+          key: ${{ secrets.DEV_EC2_KEY }}
           script: |
             bash -c '
               set +e
@@ -71,10 +71,10 @@ jobs:
               PID=$(sudo lsof -t -i :8080)
               if [ -n "$PID" ]; then
                 echo "Killing Spring Boot on port 8080: $PID"
-                kill -9 $PID || true
+                sudo kill -9 $PID || true
               fi
 
-              nohup java -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
+              nohup java -Xms1024m -Xmx1024m -XX:+UseG1GC -XX:MaxMetaspaceSize=256m -jar app.jar --spring.profiles.active=$SPRING_PROFILES_ACTIVE > app.log 2>&1 &
               sleep 1
               exit 0
             '

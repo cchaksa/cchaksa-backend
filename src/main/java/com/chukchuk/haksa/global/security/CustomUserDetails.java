@@ -19,7 +19,6 @@ public class CustomUserDetails implements UserDetails {
     private final String profileNickname;
     private final String profileImage;
     private final boolean isDeleted;
-    private final UUID studentId;
 
     public CustomUserDetails(User user) {
         this.id = user.getId();
@@ -27,7 +26,6 @@ public class CustomUserDetails implements UserDetails {
         this.profileNickname = user.getProfileNickname();
         this.profileImage = user.getProfileImage();
         this.isDeleted = user.getIsDeleted();
-        this.studentId = user.getStudent() != null ? user.getStudent().getId() : null;
     }
 
     @Override
