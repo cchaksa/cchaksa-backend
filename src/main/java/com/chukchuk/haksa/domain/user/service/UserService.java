@@ -50,7 +50,7 @@ public class UserService {
 
     @Transactional
     public AuthDto.SignInTokenResponse signIn(UserDto.SignInRequest signInRequest) {
-        OidcProvider provider = OidcProvider.KAKAO; // TODO: 실제 요청에서 provider 추춮
+        OidcProvider provider = signInRequest.provider();
         log.info("[BIZ] users.signin.verify.start provider={}", provider);
         Claims claims = verifyToken(provider, signInRequest);
         log.info("[BIZ] users.signin.verify.success provider={} subject={}", provider, claims.getSubject());

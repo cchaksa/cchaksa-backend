@@ -27,6 +27,7 @@ dependencies {
     // Web
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework:spring-webflux'
+    implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'com.amazonaws.serverless:aws-serverless-java-container-springboot3:2.1.4'
     implementation 'com.amazonaws:aws-lambda-java-core:1.4.0'
 
