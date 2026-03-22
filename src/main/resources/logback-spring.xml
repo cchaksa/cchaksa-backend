@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
-    <property name="LOG_PATH" value="/var/log/app"/>
-    <property name="LOG_FILE_NAME" value="chukchuk-haksa"/>
+    <springProperty scope="context" name="LOG_PATH" source="LOG_PATH" defaultValue="/var/log/app"/>
+    <springProperty scope="context" name="LOG_FILE_NAME" source="LOG_FILE_NAME" defaultValue="chukchuk-haksa"/>
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
