@@ -25,13 +25,13 @@
 - 수동 생성 시에도 동일한 구조를 따라야 하며, 템플릿은 `codex/skills/templates/*.md`에 있다.
 
 ## 5. 기존 Context 마이그레이션
-1. 기존 `docs/context/<file>.md`를 복사해 새 폴더 `docs/specs/<date-slug>`를 만든다.
+1. 기존 `docs/context/<file>.md`를 복사해 새 폴더 `docs/specs/<YYYYMMDD-slug>`를 만든다.
 2. 본문은 `spec.md`에 붙여 넣고 템플릿 형식에 맞춰 정리한다.
 3. 마이그레이션 사실을 `clarify.md` 상단에 `> Legacy context migrated on 2026-03-27` 형태로 기록한다.
 4. `plan.md`와 `tasks.md`를 채워 현재 상태를 반영한다.
 5. `docs/context/<file>.md`에는 다음 한 줄만 남겨 앞으로 참조가 새 폴더로 이동했음을 알린다.
    ```markdown
-   > Moved to `docs/specs/<date-slug>` on 2026-03-27.
+   > Moved to `docs/specs/<YYYYMMDD-slug>` on 2026-03-27.
    ```
 6. 모든 소비자가 새 경로를 사용하기 시작하면 Context 파일을 삭제한다.
 

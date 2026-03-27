@@ -113,8 +113,8 @@ Layer access rules:
 
 - All work must be done on a branch.
   Example: `feat/20260327-auth-studentid-separation`
-- Each branch must have exactly one matching `docs/specs/<date-slug>` directory.
-- Commit messages must include the branch number.
+- Each branch must have exactly one matching `docs/specs/<YYYYMMDD-slug>` directory.
+- Commit messages must include the branch identifier.
 - Commit messages must be written in Korean.
   - Format: `{branch} {type}: {message}`
     - Example: `20260327-auth-studentid-separation feat: 게시판 기능 개발`
