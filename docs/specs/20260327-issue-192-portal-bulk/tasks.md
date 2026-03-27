@@ -13,6 +13,7 @@
 |------|---------|--------|------|
 | 1 | `./gradlew test` | PASS | 2026-03-27 |
 | 2 | `./gradlew test` | PASS | 2026-03-28 |
+| 3 | `./gradlew test` | PASS | 2026-03-28 |
 
 ## Notes
 - Observation: batch 속성 적용 후 실제 성능 로그 비교 필요.
