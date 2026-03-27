@@ -22,12 +22,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CourseOfferingServiceUnitTests {
@@ -54,16 +53,27 @@ class CourseOfferingServiceUnitTests {
     @DisplayName("동일 분반 강의가 이미 존재하면 기존 강의를 반환한다")
     void getOrCreateOffering_whenExists_returnsExisting() {
         CreateOfferingCommand cmd = command(10L, 20L, 30L, 101);
-        CourseOffering existing = org.mockito.Mockito.mock(CourseOffering.class);
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(10L);
+        when(professor.getId()).thenReturn(20L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn("01");
+        when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
+        when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                10L, 2024, 1, "01", 20L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.of(existing));
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(10L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
         assertThat(result).isSameAs(existing);
-        verify(courseOfferingRepository, never()).save(any(CourseOffering.class));
+        verify(courseOfferingRepository, never()).saveAll(any());
         verify(courseRepository, never()).getReferenceById(any(Long.class));
     }
 
@@ -76,14 +86,14 @@ class CourseOfferingServiceUnitTests {
         Department department = new Department("CS", "컴퓨터학과");
         LiberalArtsAreaCode areaCode = org.mockito.Mockito.mock(LiberalArtsAreaCode.class);
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                11L, 2024, 1, "01", 21L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.empty());
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(11L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
         when(courseRepository.getReferenceById(11L)).thenReturn(course);
         when(professorRepository.getReferenceById(21L)).thenReturn(professor);
         when(departmentRepository.getReferenceById(31L)).thenReturn(department);
         when(liberalArtsAreaCodeRepository.getReferenceById(202)).thenReturn(areaCode);
-        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
@@ -101,12 +111,12 @@ class CourseOfferingServiceUnitTests {
         Course course = new Course("MAT201", "선형대수");
         Professor professor = new Professor("김교수");
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                12L, 2024, 1, "01", 22L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.empty());
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(12L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
         when(courseRepository.getReferenceById(12L)).thenReturn(course);
         when(professorRepository.getReferenceById(22L)).thenReturn(professor);
-        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
