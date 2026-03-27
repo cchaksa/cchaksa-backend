@@ -18,6 +18,14 @@ spring:
   web:
     resources:
       add-mappings: false
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
 
 server:
   port: 8080

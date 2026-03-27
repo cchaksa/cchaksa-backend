@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
@@ -77,15 +78,18 @@ public class SyncAcademicRecordService {
     }
 
     private SyncStats sync(UUID userId, PortalData portalData, boolean isInitial) {
+        long totalStartNs = System.nanoTime();
         Student student = studentService.getStudentByUserId(userId);
         UUID studentId = student.getId();
 
+        long academicStartNs = System.nanoTime();
         AcademicRecord academicRecord = AcademicRecordMapperFromPortal.fromPortalAcademicData(studentId, portalData.academic());
         if (isInitial) {
             academicRecordRepository.insertAllAcademicRecords(academicRecord, student);
         } else {
             academicRecordRepository.updateChangedAcademicRecords(academicRecord, student);
         }
+        long academicMs = elapsedMs(academicStartNs);
 
         // 1) 포털 수강 기록 수집
         List<CourseEnrollment> newEnrollments =
@@ -124,10 +128,6 @@ public class SyncAcademicRecordService {
                 .filter(Objects::nonNull)
                 .toList();
 
-        if (!toUpdate.isEmpty()) {
-            studentCourseRepository.saveAll(toUpdate);
-        }
-
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         List<StudentCourse> newStudentCourses = newEnrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
@@ -143,21 +143,30 @@ public class SyncAcademicRecordService {
                 .filter(Objects::nonNull)
                 .toList();
 
+        long insertMs = 0L;
         newStudentCourses.forEach(student::addStudentCourse);
         if (!newStudentCourses.isEmpty()) {
+            long insertStartNs = System.nanoTime();
             studentCourseRepository.saveAll(newStudentCourses);
+            insertMs = elapsedMs(insertStartNs);
         }
 
         // (삭제) 이전 수강기록 마킹 로직: 포털 값이 진실이므로 더 이상 사용 안 함
         // existingEnrollments.stream() ... markDeletedForRetake()
 
         // 4) 포털에 없는 offeringId는 제거 (기존 로직 유지)
+        long deleteStartNs = System.nanoTime();
         int removed = removeDeletedEnrollments(student, newEnrollments, existingEnrollments);
+        long deleteMs = elapsedMs(deleteStartNs);
 
         SyncStats stats = new SyncStats();
         stats.inserted += newStudentCourses.size();
         stats.updated  += toUpdate.size();
         stats.deleted += removed;
+
+        long totalMs = elapsedMs(totalStartNs);
+        log.info("[PERF] portal.sync studentId={} academic_ms={} insert_ms={} delete_ms={} total_ms={} ins_cnt={} upd_cnt={} del_cnt={}",
+                studentId, academicMs, insertMs, deleteMs, totalMs, newStudentCourses.size(), toUpdate.size(), removed);
         return stats;
     }
 
@@ -262,7 +271,7 @@ public class SyncAcademicRecordService {
         return map;
     }
 
-    private int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments, List<StudentCourse> existingEnrollments) {
+    int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments, List<StudentCourse> existingEnrollments) {
         //  새로운 수강 기록의 offeringId 목록 추출
         Set<Long> newOfferingIds = newEnrollments.stream()
                 .map(CourseEnrollment::getOfferingId)
@@ -275,7 +284,13 @@ public class SyncAcademicRecordService {
 
         //  제거
         if (!toRemove.isEmpty()) {
-            studentCourseRepository.deleteAll(toRemove);
+            List<Long> ids = toRemove.stream()
+                    .map(StudentCourse::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+            if (!ids.isEmpty()) {
+                studentCourseRepository.deleteAllByIdInBatch(ids);
+            }
         }
 
         return toRemove.size();
@@ -404,4 +419,8 @@ public class SyncAcademicRecordService {
     }
 
     private static class SyncStats { int inserted, updated, deleted; }
+
+    private long elapsedMs(long startNs) {
+        return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+    }
 }

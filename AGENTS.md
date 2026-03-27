@@ -54,6 +54,7 @@
 - Lite 경로: Scope < 1 day & 외부 API/계약 수정 없음 & 도메인 영향이 제한적일 때만 허용하며 `spec-lite.md`만 작성한다.
 - Lite로 시작했다가 조건을 벗어나면 즉시 Standard 구조로 승격해 네 개 파일을 채운다.
 - 브랜치명과 `docs/specs` 폴더명은 1:1 매핑한다(`YYYYMMDD-slug`).
+- Spec/Lite 문서 작성 후에는 담당자 승인(“OK to implement”)을 명시적으로 받은 뒤에만 Phase 2(구현)로 진행한다. 승인 근거는 `clarify.md`나 spec에 기록한다.
 
 ### 1. Absolute Rules (Non-negotiable)
 - Do not commit with failing tests.

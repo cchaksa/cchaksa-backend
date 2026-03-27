@@ -43,6 +43,7 @@ Lower-level documents must not violate higher-level documents.
 - Standard: `spec.md`, `clarify.md`, `plan.md`, `tasks.md` 4개 파일이 모두 있어야 Phase 1이 완료된다.
 - Lite: Scope < 1 day 및 API 미변경 조건에서만 `spec-lite.md` 단일 파일로 시작할 수 있으며, 조건을 벗어나면 즉시 Standard로 승격한다.
 - 명세에 없는 요구사항은 존재하지 않는 것으로 취급한다. 모호점이 생기면 `clarify.md`에 기록하고 해결 후에만 다음 Phase로 이동한다.
+- Spec/Lite가 작성된 뒤에는 담당자의 승인(“OK to implement”)을 받고 해당 근거를 명시한 후에만 Phase 2로 넘어갈 수 있다.
 
 ---
 
