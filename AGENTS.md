@@ -73,3 +73,7 @@
 - Move business logic gradually into the domain layer.
 - Gradually reduce transaction scope.
 - Split commits by meaningful units (feature, refactor, test).
+
+### Git Branch Naming
+- 모든 작업 브랜치는 사용자가 지정한 GitHub Issue 번호와 1:1로 매핑되며, 브랜치명은 항상 `feat/{github-issue-number}` 형식을 따른다. (예: `feat/123`)
+- 만약 이슈 번호가 제공되지 않았다면 작업을 시작하기 전에 사용자에게 이슈 번호를 물어보고 기록한다.

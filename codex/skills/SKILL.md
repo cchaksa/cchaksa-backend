@@ -112,7 +112,7 @@ Layer access rules:
 ## 9. Git Rules
 
 - All work must be done on a branch.
-  Example: `feat/20260327-auth-studentid-separation`
+- Branch names must always follow `feat/{github-issue-number}` (e.g., `feat/123`) and map 1:1 to the user-specified GitHub Issue number. If the issue number has not been provided, stop and ask the user for it before creating or switching branches.
 - Each branch must have exactly one matching `docs/specs/<YYYYMMDD-slug>` directory.
 - Commit messages must include the branch identifier.
 - Commit messages must be written in Korean.
