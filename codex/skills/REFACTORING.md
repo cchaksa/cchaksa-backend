@@ -13,21 +13,21 @@ Use this skill when the user requests structural improvement without changing be
 
 ## 2. Required Inputs
 
-- Refactoring scope and non-goals
+- Spec Bundle (또는 Lite) 안에 Refactoring scope/non-goal/invariants를 기록
 - Behavior invariants (what must not change)
 - Existing tests covering the impacted flow
 
-If invariants are unclear, stop and ask with questioning rules.
+If invariants are unclear, stop and ask with questioning rules, documenting the open items in `clarify.md`.
 
 ---
 
 ## 3. Execution Sequence
 
-1. Record refactoring Context (Phase 1: scope, invariants, excluded changes)
+1. Record refactoring Context (Phase 1: scope, invariants, excluded changes) inside the spec bundle
 2. Add/adjust characterization tests when coverage is weak
 3. Refactor in small reversible units following `WORKFLOW.md` layer order
 4. Run full impacted tests after each unit
-5. Run `./gradlew test` before commit
+5. Run `./gradlew test` before commit and record the command/result in `tasks.md`
 
 ---
 

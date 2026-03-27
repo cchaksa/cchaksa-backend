@@ -23,18 +23,30 @@ On failure:
 
 ---
 
-## Phase 1: Context Creation
-- Purpose: Fix feature requirements into an executable Context.
-- Inputs: User request, existing Context records, reference information from `AGENTS.md`.
-- Output: `docs/context/<feature>.md` or an equivalent Context artifact.
+## Phase 1: Spec Bundle Creation
+- Purpose: Fix feature requirements into the Spec Kit–style bundle before coding.
+- Inputs: User request, prior specs in `docs/specs`, reference information from `AGENTS.md`.
+- Output: `docs/specs/<YYYYMMDD-slug>/` containing `spec.md`, `clarify.md`, `plan.md`, `tasks.md` (or `spec-lite.md` when eligible).
+- Sequence:
+  1. Create the directory via `./scripts/new-spec.sh <YYYYMMDD-slug>` (or `--lite`).
+  2. Populate `spec.md` fully using the template from `codex/skills/templates/SPEC.md`.
+  3. Capture every question/decision in `clarify.md`.
+  4. Draft architecture/test plan inside `plan.md`.
+  5. Break work into executable units plus test commands inside `tasks.md`.
 - Completion criteria:
-  - [ ] All Context template items completed
-  - [ ] Stakeholder confirmation memo recorded
-  - [ ] Context change ready for commit
+  - [ ] Spec, clarify, plan, tasks are complete and reviewed (Lite: `spec-lite.md` filled + Lite conditions logged).
+  - [ ] Stakeholder confirmation memo recorded in `spec.md`.
+  - [ ] Tasks include the intended Gradle/test commands.
 
 On failure:
 - Do not proceed to the next phase.
-- Return questions according to the questioning rules.
+- Return questions according to the questioning rules and append them to `clarify.md`.
+
+### Phase 1.5: Lite Fast-Track
+- 사용 조건: Scope < 1 day, 외부 API 계약/스키마 영향 없음, 트랜잭션 영향 미미.
+- 산출물: `spec-lite.md` 하나. Lite 조건과 만료 시점(예: “테스트 케이스 3개 이하”)을 명시한다.
+- 업그레이드: 조건을 벗어나면 즉시 Standard 템플릿 4개를 생성하고 기존 내용을 이관한다. Lite 상태에서는 Phase 2로 넘어갈 수 없다.
+- In-flight migration: 기존 `docs/context/*.md`로 시작한 작업은 Phase 1 종료 전에 `docs/specs/<date-slug>`로 복사하고, 원본 파일에는 “Moved to ...” 스텁만 남긴다.
 
 ---
 

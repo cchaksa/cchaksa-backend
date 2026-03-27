@@ -39,6 +39,7 @@
   - `REFACTORING.md`
   - `BUG_FIX.md`
   - `ISSUE_ANALYSIS.md`
+- 모든 Context 산출물은 `docs/specs/<YYYYMMDD-slug>/` 아래 Spec Kit 하이브리드 구조(Standard 또는 Lite)를 따른다.
 - If the repository guidelines change or new facts are discovered during work, update `AGENTS.md` accordingly
 
 ## Architecture Style
@@ -47,6 +48,12 @@
 - Environment profiles: `local`, `dev`, `prod`
 
 ## Policy Layer
+
+### Spec Bundle Rules
+- Standard 경로: `spec.md`, `clarify.md`, `plan.md`, `tasks.md`를 모두 작성하고 Phase 1 종료 전에 승인받는다.
+- Lite 경로: Scope < 1 day & 외부 API/계약 수정 없음 & 도메인 영향이 제한적일 때만 허용하며 `spec-lite.md`만 작성한다.
+- Lite로 시작했다가 조건을 벗어나면 즉시 Standard 구조로 승격해 네 개 파일을 채운다.
+- 브랜치명과 `docs/specs` 폴더명은 1:1 매핑한다(`YYYYMMDD-slug`).
 
 ### 1. Absolute Rules (Non-negotiable)
 - Do not commit with failing tests.
