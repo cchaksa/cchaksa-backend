@@ -6,6 +6,8 @@ import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.repository.AcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
+import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRepository;
+import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRow;
 import com.chukchuk.haksa.domain.course.dto.CreateOfferingCommand;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -19,7 +21,6 @@ import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.mapper.AcademicRecordMapperFromPortal;
-import com.chukchuk.haksa.infrastructure.portal.mapper.StudentCourseMapper;
 import com.chukchuk.haksa.infrastructure.portal.model.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class SyncAcademicRecordService {
     private final CourseOfferingService courseOfferingService;
     private final ProfessorService professorService;
     private final CourseService courseService;
+    private final StudentCourseBulkRepository studentCourseBulkRepository;
     private static final String DEFAULT_PROFESSOR_NAME = "미확인 교수";
 
     @Transactional
@@ -129,7 +131,7 @@ public class SyncAcademicRecordService {
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         long offeringMappingStartNs = System.nanoTime();
-        List<StudentCourse> newStudentCourses = newEnrollments.stream()
+        List<StudentCourseBulkRow> newStudentCourses = newEnrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
@@ -137,18 +139,16 @@ public class SyncAcademicRecordService {
                         log.error("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
                         return null;
                     }
-                    // Mapper가 isRetakeDeleted/grade/score 등을 세팅해야 함
-                    return StudentCourseMapper.toEntity(e, student, off);
+                    return StudentCourseBulkRow.from(e);
                 })
                 .filter(Objects::nonNull)
                 .toList();
         offeringFetchMs += elapsedMs(offeringMappingStartNs);
 
         long insertMs = 0L;
-        newStudentCourses.forEach(student::addStudentCourse);
         if (!newStudentCourses.isEmpty()) {
             long insertStartNs = System.nanoTime();
-            studentCourseRepository.saveAll(newStudentCourses);
+            studentCourseBulkRepository.insertAll(newStudentCourses);
             insertMs = elapsedMs(insertStartNs);
         }
 
