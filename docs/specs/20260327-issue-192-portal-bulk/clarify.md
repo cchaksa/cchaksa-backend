@@ -10,6 +10,7 @@
 |---|----------|--------|------|
 | 1 | Hibernate JDBC batch 설정을 전역으로 적용한다. | Bulk insert/delete가 주요 병목으로 지목되었기 때문 | 2026-03-27 |
 | 2 | 수강 이력 삭제는 `deleteAllByIdInBatch`로 대체하고, 업데이트는 dirty checking에 맡긴다. | JPA가 동일 트랜잭션에서 관리 중이므로 별도 saveAll 불필요 | 2026-03-27 |
+| 3 | 포털 성적 데이터 병합 시에는 과목/연도/학기 단위로 기존 offering 정보를 재사용하고, 누락된 평가/이수구분 값은 안전하게 기본 처리한다. | 신규 key 추가 후 academic-only entry가 별도 커맨드로 생성되면서 NullPointerException이 발생했기 때문 | 2026-03-28 |
 
 ## Risks / Unknowns
 - Item: 실제 지연 원인이 batch 외 다른 I/O(예: Course/Professor getOrCreate)일 가능성

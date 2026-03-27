@@ -96,6 +96,9 @@ public class CourseOfferingService {
             liberalArtsAreaCode = liberalArtsAreaCodeRepository.getReferenceById(cmd.areaCode());
         }
 
+        EvaluationType evaluationType = resolveEvaluationType(cmd.evaluationType());
+        FacultyDivision facultyDivision = resolveFacultyDivision(cmd.facultyDivisionName());
+
         return new CourseOffering(
                 cmd.subjectEstablishmentSemester(),
                 cmd.isVideoLecture(),
@@ -106,13 +109,27 @@ public class CourseOfferingService {
                 cmd.scheduleSummary(),
                 cmd.originalAreaCode(),
                 cmd.points(),
-                EvaluationType.valueOf(cmd.evaluationType()),
-                FacultyDivision.valueOf(cmd.facultyDivisionName()),
+                evaluationType,
+                facultyDivision,
                 course,
                 professor,
                 department,
                 liberalArtsAreaCode
         );
+    }
+
+    private EvaluationType resolveEvaluationType(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return EvaluationType.UNKNOWN;
+        }
+        return EvaluationType.valueOf(rawValue);
+    }
+
+    private FacultyDivision resolveFacultyDivision(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return null;
+        }
+        return FacultyDivision.valueOf(rawValue);
     }
 
     public record CourseOfferingKey(

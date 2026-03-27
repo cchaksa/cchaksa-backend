@@ -278,40 +278,67 @@ public class SyncAcademicRecordService {
             PortalAcademicData academicData
     ) {
         Map<OfferingKey, MergedOfferingAcademic> map = new HashMap<>();
+        Map<SimpleOfferingKey, OfferingKey> simpleKeyIndex = new HashMap<>();
 
         // 1. offerings 삽입
-        for (OfferingInfo offering : curriculumData.offerings()) {
-            PortalOfferingCreationData converted = toCreationData(offering);
-            map.put(toOfferingKey(converted), new MergedOfferingAcademic(converted, null));
+        if (curriculumData.offerings() != null) {
+            for (OfferingInfo offering : curriculumData.offerings()) {
+                PortalOfferingCreationData converted = toCreationData(offering);
+                OfferingKey key = toOfferingKey(converted);
+                map.put(key, new MergedOfferingAcademic(converted, null));
+                simpleKeyIndex.put(toSimpleKey(converted), key);
+            }
         }
 
         // 2. academicData로 병합
-        for (SemesterCourseInfo semester : academicData.semesters()) {
-            int year = semester.year();
-            int semesterNum = semester.semester();
+        if (academicData.semesters() != null) {
+            for (SemesterCourseInfo semester : academicData.semesters()) {
+                int year = semester.year();
+                int semesterNum = semester.semester();
 
-            for (CourseInfo course : semester.courses()) {
-                PortalOfferingCreationData inferredOffering = new PortalOfferingCreationData();
-                inferredOffering.setCourseCode(course.code());
-                inferredOffering.setYear(year);
-                inferredOffering.setSemester(semesterNum);
-                inferredOffering.setProfessorName(course.professor());
-                inferredOffering.setScheduleSummary(course.schedule());
-                inferredOffering.setPoints(course.credits());
-                inferredOffering.setSubjectEstablishmentSemester(course.establishmentSemester());
-                OfferingKey key = toOfferingKey(inferredOffering);
-                PortalCourseInfo convertedCourse = toPortalCourseInfo(course);
+                if (semester.courses() == null) {
+                    continue;
+                }
 
-                if (map.containsKey(key)) {
-                    PortalOfferingCreationData existingOffering = map.get(key).getOffering();
-                    map.put(key, new MergedOfferingAcademic(existingOffering, convertedCourse));
-                } else {
-                    map.put(key, new MergedOfferingAcademic(inferredOffering, convertedCourse));
+                for (CourseInfo course : semester.courses()) {
+                    if (course.code() == null) {
+                        continue;
+                    }
+                    SimpleOfferingKey simpleKey = new SimpleOfferingKey(course.code(), year, semesterNum);
+                    PortalCourseInfo convertedCourse = toPortalCourseInfo(course);
+                    OfferingKey matchedKey = simpleKeyIndex.get(simpleKey);
+
+                    if (matchedKey != null && map.containsKey(matchedKey)) {
+                        PortalOfferingCreationData existingOffering = map.get(matchedKey).getOffering();
+                        map.put(matchedKey, new MergedOfferingAcademic(existingOffering, convertedCourse));
+                        continue;
+                    }
+
+                    PortalOfferingCreationData inferredOffering = createInferredOffering(course, year, semesterNum);
+                    OfferingKey inferredKey = toOfferingKey(inferredOffering);
+                    map.put(inferredKey, new MergedOfferingAcademic(inferredOffering, convertedCourse));
+                    simpleKeyIndex.put(simpleKey, inferredKey);
                 }
             }
         }
 
         return map;
+    }
+
+    private SimpleOfferingKey toSimpleKey(PortalOfferingCreationData data) {
+        return new SimpleOfferingKey(data.getCourseCode(), data.getYear(), data.getSemester());
+    }
+
+    private PortalOfferingCreationData createInferredOffering(CourseInfo course, int year, int semesterNum) {
+        PortalOfferingCreationData inferredOffering = new PortalOfferingCreationData();
+        inferredOffering.setCourseCode(course.code());
+        inferredOffering.setYear(year);
+        inferredOffering.setSemester(semesterNum);
+        inferredOffering.setProfessorName(course.professor());
+        inferredOffering.setScheduleSummary(course.schedule());
+        inferredOffering.setPoints(course.credits());
+        inferredOffering.setSubjectEstablishmentSemester(course.establishmentSemester());
+        return inferredOffering;
     }
 
     int removeDeletedEnrollments(Student student, List<CourseEnrollment> newEnrollments, List<StudentCourse> existingEnrollments) {
@@ -474,6 +501,12 @@ public class SyncAcademicRecordService {
             long curriculumMergeMs,
             long courseGetOrCreateMs,
             long offeringFetchMs
+    ) {}
+
+    private record SimpleOfferingKey(
+            String courseCode,
+            int year,
+            int semester
     ) {}
 
     private long elapsedMs(long startNs) {

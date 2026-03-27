@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.course.service;
 import com.chukchuk.haksa.domain.course.dto.CreateOfferingCommand;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
+import com.chukchuk.haksa.domain.course.model.EvaluationType;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.model.LiberalArtsAreaCode;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
@@ -138,6 +139,43 @@ class CourseOfferingServiceUnitTests {
         Map<Long, CourseOffering> map = courseOfferingService.getOfferingMapByIds(List.of(1L, 2L));
 
         assertThat(map).containsEntry(1L, first).containsEntry(2L, second);
+    }
+
+    @Test
+    @DisplayName("평가 방식/이수구분 값이 없으면 안전한 기본값으로 저장한다")
+    void getOrCreateOffering_whenEnumFieldsMissing_usesSafeDefaults() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                13L,
+                2024,
+                1,
+                "02",
+                23L,
+                null,
+                "화 1-2",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                3,
+                "소프트웨어학과"
+        );
+
+        Course course = new Course("SWE201", "SW공학");
+        Professor professor = new Professor("이교수");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(13L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
+        when(courseRepository.getReferenceById(13L)).thenReturn(course);
+        when(professorRepository.getReferenceById(23L)).thenReturn(professor);
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result.getEvaluationTypeCode()).isEqualTo(EvaluationType.UNKNOWN);
+        assertThat(result.getFacultyDivisionName()).isNull();
     }
 
     private CreateOfferingCommand command(Long courseId, Long professorId, Long departmentId, Integer areaCode) {
