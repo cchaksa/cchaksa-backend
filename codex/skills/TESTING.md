@@ -22,6 +22,7 @@ This document defines the standards Codex must follow when writing tests.
 - Do not over-depend on implementation details.
 - Make failure causes explicit.
 - Include tests directly tied to changed functionality.
+- `docs/specs/<date-slug>/tasks.md` must list every planned test/Gradle command and record actual execution results (timestamp + outcome).
 
 ---
 
