@@ -92,15 +92,18 @@ public class SyncAcademicRecordService {
         long academicMs = elapsedMs(academicStartNs);
 
         // 1) 포털 수강 기록 수집
-        List<CourseEnrollment> newEnrollments =
+        CurriculumProcessingResult processingResult =
                 processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
+        List<CourseEnrollment> newEnrollments = processingResult.enrollments();
 
         List<Long> offeringIds = newEnrollments.stream()
                 .map(e -> (long) e.getOfferingId())
                 .distinct()
                 .toList();
 
+        long offeringFetchStartNs = System.nanoTime();
         Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
+        long offeringFetchMs = elapsedMs(offeringFetchStartNs);
 
         // 2) 기존 수강 기록
         List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
@@ -129,6 +132,7 @@ public class SyncAcademicRecordService {
                 .toList();
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
+        long offeringMappingStartNs = System.nanoTime();
         List<StudentCourse> newStudentCourses = newEnrollments.stream()
                 .filter(e -> !existingOfferingIds.contains((long) e.getOfferingId()))
                 .map(e -> {
@@ -142,6 +146,7 @@ public class SyncAcademicRecordService {
                 })
                 .filter(Objects::nonNull)
                 .toList();
+        offeringFetchMs += elapsedMs(offeringMappingStartNs);
 
         long insertMs = 0L;
         newStudentCourses.forEach(student::addStudentCourse);
@@ -165,21 +170,42 @@ public class SyncAcademicRecordService {
         stats.deleted += removed;
 
         long totalMs = elapsedMs(totalStartNs);
-        log.info("[PERF] portal.sync studentId={} academic_ms={} insert_ms={} delete_ms={} total_ms={} ins_cnt={} upd_cnt={} del_cnt={}",
-                studentId, academicMs, insertMs, deleteMs, totalMs, newStudentCourses.size(), toUpdate.size(), removed);
+        log.info("[PERF] portal.sync studentId={} academic_ms={} professor_map_ms={} course_map_ms={} curriculum_merge_ms={} course_get_or_create_ms={} offering_fetch_ms={} insert_ms={} delete_ms={} total_ms={} ins_cnt={} upd_cnt={} del_cnt={}",
+                studentId,
+                academicMs,
+                processingResult.professorMapMs(),
+                processingResult.courseMapMs(),
+                processingResult.curriculumMergeMs(),
+                processingResult.courseGetOrCreateMs(),
+                offeringFetchMs,
+                insertMs,
+                deleteMs,
+                totalMs,
+                newStudentCourses.size(),
+                toUpdate.size(),
+                removed);
         return stats;
     }
 
     /* offerings(교과)와 academic(학업 성적)을 합쳐서
      *  최종적으로 CourseEnrollment를 만드는 메서드
      *  */
-    private List<CourseEnrollment> processCurriculumData(PortalCurriculumData curriculumData, PortalAcademicData academicData, UUID studentId) {
-        List<CourseEnrollment> enrollments = new ArrayList<>();
+    private CurriculumProcessingResult processCurriculumData(PortalCurriculumData curriculumData, PortalAcademicData academicData, UUID studentId) {
+        long curriculumMergeStartNs = System.nanoTime();
         Map<String, MergedOfferingAcademic> mergedList = mergeOfferingsAndAcademic(curriculumData, academicData);
+        long curriculumMergeMs = elapsedMs(curriculumMergeStartNs);
 
         // 교수/과목 정보 미리 조회
+        long professorMapStartNs = System.nanoTime();
         Map<String, Long> professorMap = buildProfessorMap(curriculumData);
+        long professorMapMs = elapsedMs(professorMapStartNs);
+
+        long courseMapStartNs = System.nanoTime();
         Map<String, Long> courseMap = buildCourseMap(curriculumData);
+        long courseMapMs = elapsedMs(courseMapStartNs);
+
+        List<CourseEnrollment> enrollments = new ArrayList<>();
+        long courseGetOrCreateMs = 0L;
 
         for (MergedOfferingAcademic item : mergedList.values()) {
             PortalOfferingCreationData offering = item.getOffering();
@@ -208,8 +234,10 @@ public class SyncAcademicRecordService {
                     offering.getHostDepartment()
             );
 
-            // 개설강좌 및 성적 처리
+            long offeringCreateStartNs = System.nanoTime();
             CourseOffering courseOffering = courseOfferingService.getOrCreateOffering(createOfferingCommand);
+            courseGetOrCreateMs += elapsedMs(offeringCreateStartNs);
+
             Grade grade = academic != null
                     ? new Grade(GradeType.from(academic.getGrade()))
                     : Grade.createInProgress();
@@ -221,7 +249,7 @@ public class SyncAcademicRecordService {
             enrollments.add(enrollment);
         }
 
-        return enrollments;
+        return new CurriculumProcessingResult(enrollments, professorMapMs, courseMapMs, curriculumMergeMs, courseGetOrCreateMs);
     }
 
     private Map<String, MergedOfferingAcademic> mergeOfferingsAndAcademic(
@@ -419,6 +447,14 @@ public class SyncAcademicRecordService {
     }
 
     private static class SyncStats { int inserted, updated, deleted; }
+
+    private record CurriculumProcessingResult(
+            List<CourseEnrollment> enrollments,
+            long professorMapMs,
+            long courseMapMs,
+            long curriculumMergeMs,
+            long courseGetOrCreateMs
+    ) {}
 
     private long elapsedMs(long startNs) {
         return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
