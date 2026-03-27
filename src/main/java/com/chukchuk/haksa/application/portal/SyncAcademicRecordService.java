@@ -7,9 +7,11 @@ import com.chukchuk.haksa.application.academic.repository.AcademicRecordReposito
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.course.dto.CreateOfferingCommand;
+import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.course.service.CourseOfferingService;
 import com.chukchuk.haksa.domain.course.service.CourseService;
+import com.chukchuk.haksa.domain.professor.model.Professor;
 import com.chukchuk.haksa.domain.professor.service.ProfessorService;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
@@ -42,6 +44,7 @@ public class SyncAcademicRecordService {
     private final CourseOfferingService courseOfferingService;
     private final ProfessorService professorService;
     private final CourseService courseService;
+    private static final String DEFAULT_PROFESSOR_NAME = "미확인 교수";
 
     @Transactional
     public SyncAcademicRecordResult executeWithPortalData(UUID userId, PortalData portalData) {
@@ -95,15 +98,8 @@ public class SyncAcademicRecordService {
         CurriculumProcessingResult processingResult =
                 processCurriculumData(portalData.curriculum(), portalData.academic(), studentId);
         List<CourseEnrollment> newEnrollments = processingResult.enrollments();
-
-        List<Long> offeringIds = newEnrollments.stream()
-                .map(e -> (long) e.getOfferingId())
-                .distinct()
-                .toList();
-
-        long offeringFetchStartNs = System.nanoTime();
-        Map<Long, CourseOffering> offerings = courseOfferingService.getOfferingMapByIds(offeringIds);
-        long offeringFetchMs = elapsedMs(offeringFetchStartNs);
+        Map<Long, CourseOffering> offerings = processingResult.offeringById();
+        long offeringFetchMs = processingResult.offeringFetchMs();
 
         // 2) 기존 수강 기록
         List<StudentCourse> existingEnrollments = studentCourseRepository.findByStudent(student);
@@ -187,82 +183,106 @@ public class SyncAcademicRecordService {
         return stats;
     }
 
-    /* offerings(교과)와 academic(학업 성적)을 합쳐서
-     *  최종적으로 CourseEnrollment를 만드는 메서드
-     *  */
     private CurriculumProcessingResult processCurriculumData(PortalCurriculumData curriculumData, PortalAcademicData academicData, UUID studentId) {
         long curriculumMergeStartNs = System.nanoTime();
-        Map<String, MergedOfferingAcademic> mergedList = mergeOfferingsAndAcademic(curriculumData, academicData);
+        Map<OfferingKey, MergedOfferingAcademic> mergedOfferings = mergeOfferingsAndAcademic(curriculumData, academicData);
         long curriculumMergeMs = elapsedMs(curriculumMergeStartNs);
 
-        // 교수/과목 정보 미리 조회
-        long professorMapStartNs = System.nanoTime();
-        Map<String, Long> professorMap = buildProfessorMap(curriculumData);
-        long professorMapMs = elapsedMs(professorMapStartNs);
+        Set<String> professorNames = mergedOfferings.keySet().stream()
+                .map(OfferingKey::professorName)
+                .collect(Collectors.toSet());
+        professorNames.add(DEFAULT_PROFESSOR_NAME);
+        long professorLoadStart = System.nanoTime();
+        Map<String, Professor> professors = professorService.getOrCreateAll(professorNames);
+        long professorMapMs = elapsedMs(professorLoadStart);
 
-        long courseMapStartNs = System.nanoTime();
-        Map<String, Long> courseMap = buildCourseMap(curriculumData);
-        long courseMapMs = elapsedMs(courseMapStartNs);
+        Map<String, String> courseCodeToName = extractCourseNames(curriculumData, mergedOfferings);
+        long courseLoadStart = System.nanoTime();
+        Map<String, Course> courses = courseService.getOrCreateCourses(courseCodeToName);
+        long courseMapMs = elapsedMs(courseLoadStart);
 
-        List<CourseEnrollment> enrollments = new ArrayList<>();
-        long courseGetOrCreateMs = 0L;
+        List<CreateOfferingCommand> offeringCommands = new ArrayList<>();
+        Map<OfferingKey, CourseOfferingService.CourseOfferingKey> offeringKeyMap = new HashMap<>();
+        for (Map.Entry<OfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
+            OfferingKey key = entry.getKey();
+            PortalOfferingCreationData offering = entry.getValue().getOffering();
+            Long courseId = Optional.ofNullable(courses.get(offering.getCourseCode()))
+                    .map(Course::getId)
+                    .orElseThrow(() -> new IllegalStateException("Course not found for code " + offering.getCourseCode()));
+            Long professorId = Optional.ofNullable(professors.get(key.professorName()))
+                    .map(Professor::getId)
+                    .orElseThrow(() -> new IllegalStateException("Professor not found for name " + key.professorName()));
 
-        for (MergedOfferingAcademic item : mergedList.values()) {
-            PortalOfferingCreationData offering = item.getOffering();
-            PortalCourseInfo academic = item.getAcademic();
-
-            // 과목 ID 및 교수 ID 구하기
-            Long courseId = courseMap.get(offering.getCourseCode());
-            String professorName = offering.getProfessorName() != null ? offering.getProfessorName() : "미확인 교수";
-            Long professorId = professorMap.get(professorName);
-
-            CreateOfferingCommand createOfferingCommand = new CreateOfferingCommand(
+            CreateOfferingCommand command = new CreateOfferingCommand(
                     courseId,
                     offering.getYear(),
                     offering.getSemester(),
-                    offering.getClassSection(),
+                    key.classSection(),
                     professorId,
-                    null, // departmentId → 확장 가능
+                    null,
                     offering.getScheduleSummary(),
                     offering.getEvaluationType(),
                     offering.getIsVideoLecture(),
                     offering.getSubjectEstablishmentSemester(),
-                    offering.getFacultyDivisionName(),
+                    key.facultyDivisionName(),
                     offering.getAreaCode(),
                     offering.getOriginalAreaCode(),
                     offering.getPoints(),
-                    offering.getHostDepartment()
+                    key.hostDepartment()
             );
-
-            long offeringCreateStartNs = System.nanoTime();
-            CourseOffering courseOffering = courseOfferingService.getOrCreateOffering(createOfferingCommand);
-            courseGetOrCreateMs += elapsedMs(offeringCreateStartNs);
-
-            Grade grade = academic != null
-                    ? new Grade(GradeType.from(academic.getGrade()))
-                    : Grade.createInProgress();
-
-            boolean isRetake = academic != null && academic.isRetake();
-            double originalScore = Optional.ofNullable(academic.getOriginalScore()).orElse(0.0);
-
-            CourseEnrollment enrollment = new CourseEnrollment(studentId, courseOffering.getId(), grade, offering.getPoints(), isRetake, originalScore, academic.isRetakeDeleted());
-            enrollments.add(enrollment);
+            offeringCommands.add(command);
+            offeringKeyMap.put(key, CourseOfferingService.CourseOfferingKey.from(command));
         }
 
-        return new CurriculumProcessingResult(enrollments, professorMapMs, courseMapMs, curriculumMergeMs, courseGetOrCreateMs);
+        long offeringLoadStart = System.nanoTime();
+        Map<CourseOfferingService.CourseOfferingKey, CourseOffering> offeringEntities =
+                courseOfferingService.getOrCreateAll(offeringCommands);
+        long courseGetOrCreateMs = elapsedMs(offeringLoadStart);
+
+        long offeringFetchStart = System.nanoTime();
+        Map<Long, CourseOffering> offeringById = new HashMap<>();
+        List<CourseEnrollment> enrollments = new ArrayList<>();
+        for (Map.Entry<OfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
+            CourseOfferingService.CourseOfferingKey serviceKey = offeringKeyMap.get(entry.getKey());
+            CourseOffering courseOffering = offeringEntities.get(serviceKey);
+            if (courseOffering == null) {
+                log.error("CourseOffering not found for key {}", entry.getKey());
+                continue;
+            }
+            PortalOfferingCreationData offering = entry.getValue().getOffering();
+            PortalCourseInfo academic = entry.getValue().getAcademic();
+            Grade grade = academic != null ? new Grade(GradeType.from(academic.getGrade())) : Grade.createInProgress();
+            boolean isRetake = academic != null && academic.isRetake();
+            double originalScore = academic != null && academic.getOriginalScore() != null ? academic.getOriginalScore() : 0.0;
+            boolean isRetakeDeleted = academic != null && academic.isRetakeDeleted();
+
+            CourseEnrollment enrollment = new CourseEnrollment(
+                    studentId,
+                    courseOffering.getId(),
+                    grade,
+                    offering.getPoints(),
+                    isRetake,
+                    originalScore,
+                    isRetakeDeleted
+            );
+            enrollments.add(enrollment);
+            offeringById.put(courseOffering.getId(), courseOffering);
+        }
+        long offeringFetchMs = elapsedMs(offeringFetchStart);
+
+        return new CurriculumProcessingResult(enrollments, offeringById, professorMapMs, courseMapMs, curriculumMergeMs, courseGetOrCreateMs, offeringFetchMs);
     }
 
-    private Map<String, MergedOfferingAcademic> mergeOfferingsAndAcademic(
+    private Map<OfferingKey, MergedOfferingAcademic> mergeOfferingsAndAcademic(
             PortalCurriculumData curriculumData,
             PortalAcademicData academicData
     ) {
-        Map<String, MergedOfferingAcademic> map = new HashMap<>();
+        Map<OfferingKey, MergedOfferingAcademic> map = new HashMap<>();
 
         // 1. offerings 삽입
         for (OfferingInfo offering : curriculumData.offerings()) {
-            String key = makeKey(offering.year(), offering.semester(), offering.courseCode());
             PortalOfferingCreationData converted = toCreationData(offering);
-            map.put(key, new MergedOfferingAcademic(converted, null));
+            map.put(toOfferingKey(converted), new MergedOfferingAcademic(converted, null));
         }
 
         // 2. academicData로 병합
@@ -271,26 +291,21 @@ public class SyncAcademicRecordService {
             int semesterNum = semester.semester();
 
             for (CourseInfo course : semester.courses()) {
-                String key = makeKey(year, semesterNum, course.code());
-
+                PortalOfferingCreationData inferredOffering = new PortalOfferingCreationData();
+                inferredOffering.setCourseCode(course.code());
+                inferredOffering.setYear(year);
+                inferredOffering.setSemester(semesterNum);
+                inferredOffering.setProfessorName(course.professor());
+                inferredOffering.setScheduleSummary(course.schedule());
+                inferredOffering.setPoints(course.credits());
+                inferredOffering.setSubjectEstablishmentSemester(course.establishmentSemester());
+                OfferingKey key = toOfferingKey(inferredOffering);
                 PortalCourseInfo convertedCourse = toPortalCourseInfo(course);
 
                 if (map.containsKey(key)) {
-                    // 이미 존재하는 offering에 academic만 추가
                     PortalOfferingCreationData existingOffering = map.get(key).getOffering();
                     map.put(key, new MergedOfferingAcademic(existingOffering, convertedCourse));
                 } else {
-                    // academic만 존재하는 경우 → offering은 기본값 생성
-                    PortalOfferingCreationData inferredOffering = new PortalOfferingCreationData();
-                    inferredOffering.setCourseCode(course.code());
-                    inferredOffering.setYear(year);
-                    inferredOffering.setSemester(semesterNum);
-                    inferredOffering.setProfessorName(course.professor());
-                    inferredOffering.setScheduleSummary(course.schedule());
-                    inferredOffering.setPoints(course.credits());
-                    inferredOffering.setSubjectEstablishmentSemester(course.establishmentSemester());
-                    // 다른 필드는 null로 유지
-
                     map.put(key, new MergedOfferingAcademic(inferredOffering, convertedCourse));
                 }
             }
@@ -324,47 +339,20 @@ public class SyncAcademicRecordService {
         return toRemove.size();
     }
 
-    private Map<String, Long> buildProfessorMap(PortalCurriculumData curriculumData) {
-        Map<String, Long> professorMap = new HashMap<>();
-
-        for (ProfessorInfo prof : curriculumData.professors()) {
-            String name = prof.professorName() != null ? prof.professorName() : "미확인 교수";
-
-            // DB에서 getOrCreate
-            Long id = professorService.getOrCreate(name).getId();
-            professorMap.put(name, id);
+    private Map<String, String> extractCourseNames(PortalCurriculumData curriculumData, Map<OfferingKey, MergedOfferingAcademic> mergedOfferings) {
+        Map<String, String> courseNames = new HashMap<>();
+        if (curriculumData.courses() != null) {
+            for (CourseInfo course : curriculumData.courses()) {
+                if (course.code() != null) {
+                    courseNames.put(course.code(), course.name());
+                }
+            }
         }
-
-        // 명시적으로 "미확인 교수"도 포함
-        if (!professorMap.containsKey("미확인 교수")) {
-            Long id = professorService.getOrCreate("미확인 교수").getId();
-            professorMap.put("미확인 교수", id);
+        for (MergedOfferingAcademic offering : mergedOfferings.values()) {
+            String code = offering.getOffering().getCourseCode();
+            courseNames.putIfAbsent(code, code);
         }
-
-
-        return professorMap;
-    }
-
-    private Map<String, Long> buildCourseMap(PortalCurriculumData curriculumData) {
-        Map<String, Long> courseMap = new HashMap<>();
-
-        for (CourseInfo course : curriculumData.courses()) {
-            String courseCode = course.code();
-
-            // DB에서 getOrCreate
-            Long id = courseService.getOrCreateCourse(
-                    courseCode,
-                    course.name()
-            ).getId();
-
-            courseMap.put(courseCode, id);
-        }
-
-        return courseMap;
-    }
-
-    private String makeKey(int year, int semester, String courseCode) {
-        return year + "-" + semester + "-" + courseCode;
+        return courseNames;
     }
 
     private PortalOfferingCreationData toCreationData(OfferingInfo info) {
@@ -389,6 +377,26 @@ public class SyncAcademicRecordService {
         data.setIsVideoLecture(info.isVideoLecture());
 
         return data;
+    }
+
+    private OfferingKey toOfferingKey(PortalOfferingCreationData data) {
+        return new OfferingKey(
+                data.getCourseCode(),
+                data.getYear(),
+                data.getSemester(),
+                defaultString(data.getClassSection()),
+                normalizeProfessorName(data.getProfessorName()),
+                defaultString(data.getFacultyDivisionName()),
+                defaultString(data.getHostDepartment())
+        );
+    }
+
+    private String normalizeProfessorName(String name) {
+        return (name == null || name.isBlank()) ? DEFAULT_PROFESSOR_NAME : name.trim();
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 
     private PortalCourseInfo toPortalCourseInfo(CourseInfo info) {
@@ -448,12 +456,24 @@ public class SyncAcademicRecordService {
 
     private static class SyncStats { int inserted, updated, deleted; }
 
+    private record OfferingKey(
+            String courseCode,
+            int year,
+            int semester,
+            String classSection,
+            String professorName,
+            String facultyDivisionName,
+            String hostDepartment
+    ) {}
+
     private record CurriculumProcessingResult(
             List<CourseEnrollment> enrollments,
+            Map<Long, CourseOffering> offeringById,
             long professorMapMs,
             long courseMapMs,
             long curriculumMergeMs,
-            long courseGetOrCreateMs
+            long courseGetOrCreateMs,
+            long offeringFetchMs
     ) {}
 
     private long elapsedMs(long startNs) {
