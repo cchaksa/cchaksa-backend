@@ -7,6 +7,15 @@ public enum ErrorCode {
     // 공통(Common)
     INVALID_ARGUMENT("C01", "잘못된 요청입니다.", HttpStatus.BAD_REQUEST),
     NOT_FOUND("C05", "요청한 API를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    SCRAPE_JOB_NOT_FOUND("C06", "스크래핑 작업을 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+    IDEMPOTENCY_KEY_CONFLICT("C07", "동일한 Idempotency-Key로 다른 요청을 보낼 수 없습니다.", HttpStatus.CONFLICT),
+    INVALID_CALLBACK_SIGNATURE("C08", "유효하지 않은 내부 콜백 서명입니다.", HttpStatus.UNAUTHORIZED),
+    UNSUPPORTED_PORTAL_TYPE("C09", "지원하지 않는 포털 타입입니다.", HttpStatus.BAD_REQUEST),
+    SCRAPE_JOB_ENQUEUE_FAILED("C10", "스크래핑 작업 큐 등록에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    CALLBACK_TIMEOUT("C11", "스크래핑 결과 콜백이 시간 내 도착하지 않았습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SCRAPE_JOB_OUTBOX_DEAD("C12", "스크래핑 작업 전송이 중단되었습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SCRAPE_JOB_NOT_COMPLETED("C13", "스크래핑 작업이 아직 완료되지 않았습니다.", HttpStatus.CONFLICT),
+    SCRAPE_JOB_FAILED_RESULT("C14", "스크래핑 작업이 실패 상태입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),

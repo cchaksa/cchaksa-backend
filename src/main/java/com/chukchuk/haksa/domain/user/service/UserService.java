@@ -50,14 +50,18 @@ public class UserService {
 
     @Transactional
     public AuthDto.SignInTokenResponse signIn(UserDto.SignInRequest signInRequest) {
-        OidcProvider provider = OidcProvider.KAKAO; // TODO: 실제 요청에서 provider 추춮
+        OidcProvider provider = signInRequest.provider();
+        log.info("[BIZ] users.signin.verify.start provider={}", provider);
         Claims claims = verifyToken(provider, signInRequest);
+        log.info("[BIZ] users.signin.verify.success provider={} subject={}", provider, claims.getSubject());
 
         String sub = claims.getSubject();
         String email = extractEmail(claims);
 
         User user = findOrCreateUser(provider, sub, email, "Unknown User");
-        return generateSignInResponse(user);
+        AuthDto.SignInTokenResponse response = generateSignInResponse(user);
+        log.info("[BIZ] users.signin.token.issued userId={} portalLinked={}", user.getId(), user.getPortalConnected());
+        return response;
     }
 
     @Transactional
@@ -122,7 +126,11 @@ public class UserService {
 
     private User findOrCreateUser(OidcProvider provider, String socialId, String email, String profileNickname) {
         return socialAccountRepository.findByProviderAndSocialId(provider, socialId)
-                .map(SocialAccount::getUser)
+                .map(socialAccount -> {
+                    log.info("[BIZ] users.signin.user.found provider={} socialId={} userId={}",
+                            provider, socialId, socialAccount.getUser().getId());
+                    return socialAccount.getUser();
+                })
                 .orElseGet(() -> {
                     User newUser = userRepository.save(User.builder()
                             .email(email)
@@ -137,6 +145,8 @@ public class UserService {
                             .build();
 
                     socialAccountRepository.save(socialAccount);
+                    log.info("[BIZ] users.signin.user.created provider={} socialId={} userId={}",
+                            provider, socialId, newUser.getId());
 
                     return newUser;
                 });

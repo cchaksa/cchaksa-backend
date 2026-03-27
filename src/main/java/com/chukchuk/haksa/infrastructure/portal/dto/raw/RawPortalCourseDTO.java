@@ -1,7 +1,10 @@
 package com.chukchuk.haksa.infrastructure.portal.dto.raw;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import java.util.Optional;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record RawPortalCourseDTO(
         String subjtCd,
         String subjtNm,

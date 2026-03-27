@@ -1,0 +1,58 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:lambda-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+security:
+  jwt:
+    secret: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    access-expiration: 3600
+    refresh-expiration: 86400
+  appKey: test-app-key
+  nativeAppKey: test-native-key
+
+crawler:
+  base-url: https://example.com
+
+scraping:
+  mode: async
+  job:
+    queue-url: https://sqs.ap-northeast-2.amazonaws.com/000000000000/test-queue
+  callback:
+    hmac-secret: test-callback-secret
+    allowed-skew-seconds: 300
+  scheduler:
+    enabled: true
+  publisher:
+    enabled: true
+    fixed-delay-ms: 1000
+    batch-size: 10
+    max-attempts: 3
+    initial-backoff-seconds: 1
+    max-backoff-seconds: 10
+    api-call-timeout-seconds: 5
+    api-call-attempt-timeout-seconds: 2
+  stale:
+    enabled: true
+    fixed-delay-ms: 1000
+    timeout-seconds: 60
+    batch-size: 10
+
+sentry:
+  dsn: ""
+  environment: test
+
+swagger:
+  server-url: http://localhost
+
+server:
+  port: 0
+
+LOCAL_DB_URL: jdbc:h2:mem:lambda-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+LOCAL_DB_USERNAME: sa
+LOCAL_DB_PASSWORD:

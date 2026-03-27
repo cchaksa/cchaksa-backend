@@ -4,7 +4,36 @@ info:
   description: 척척학사 OpenAPI 문서입니다.
   version: 1.0.0
 
-paths: {}
+paths:
+  /api/users/signin:
+    post:
+      summary: 회원 가입 및 로그인
+      description: OIDC 소셜 로그인으로 회원가입 및 로그인을 진행합니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: 회원가입/로그인 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInResponse'
+        '401':
+          description: 토큰 유효성 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '500':
+          description: 서버 내부 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
 components:
   schemas:
     ApiResponse:
@@ -37,3 +66,40 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+    SignInRequest:
+      type: object
+      required:
+        - provider
+        - id_token
+        - nonce
+      properties:
+        provider:
+          type: string
+          description: OIDC Provider
+          example: KAKAO
+        id_token:
+          type: string
+          description: OIDC Provider에서 발급받은 ID 토큰
+        nonce:
+          type: string
+          description: 로그인 시 사용한 nonce 값
+          example: random_nonce_value
+    SignInResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            isPortalLinked:
+              type: boolean
+        message:
+          type: string
+          nullable: true
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
