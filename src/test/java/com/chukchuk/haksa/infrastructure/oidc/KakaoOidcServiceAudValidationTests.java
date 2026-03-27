@@ -18,6 +18,7 @@ import java.util.HexFormat;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 class KakaoOidcServiceAudValidationTests {
 
@@ -30,7 +31,7 @@ class KakaoOidcServiceAudValidationTests {
 
     @BeforeEach
     void setUp() throws Exception {
-        kakaoOidcService = new KakaoOidcService();
+        kakaoOidcService = new KakaoOidcService(mock(OidcJwksClient.class));
         validateClaimsMethod = KakaoOidcService.class.getDeclaredMethod("validateClaims", String.class, Claims.class);
         validateClaimsMethod.setAccessible(true);
 

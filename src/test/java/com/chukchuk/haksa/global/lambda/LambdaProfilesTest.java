@@ -2,10 +2,13 @@ package com.chukchuk.haksa.global.lambda;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
-import org.springframework.core.io.ClassPathResource;
+import org.yaml.snakeyaml.Yaml;
 
-import java.util.Properties;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,16 +20,20 @@ class LambdaProfilesTest {
     }
 
     @Test
-    void developShadowProfileIncludesDevGroup() {
-        YamlPropertiesFactoryBean yamlPropertiesFactoryBean = new YamlPropertiesFactoryBean();
-        yamlPropertiesFactoryBean.setResources(new ClassPathResource("application.yml"));
+    @SuppressWarnings("unchecked")
+    void developShadowProfileIncludesDevGroup() throws Exception {
+        List<String> developShadowProfiles;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/application.yml"))) {
+            Map<String, Object> yamlMap = new Yaml().load(inputStream);
+            Map<String, Object> spring = (Map<String, Object>) yamlMap.get("spring");
+            Map<String, Object> profiles = (Map<String, Object>) spring.get("profiles");
+            Map<String, Object> group = (Map<String, Object>) profiles.get("group");
+            developShadowProfiles = (List<String>) group.get("develop-shadow");
+        }
 
-        Properties properties = yamlPropertiesFactoryBean.getObject();
-
-        assertThat(properties)
-                .isNotNull();
-        assertThat(properties.getProperty("spring.profiles.group.develop-shadow[0]"))
-                .isEqualTo("dev");
+        assertThat(developShadowProfiles)
+                .isNotNull()
+                .contains("dev");
     }
 
     @Test
