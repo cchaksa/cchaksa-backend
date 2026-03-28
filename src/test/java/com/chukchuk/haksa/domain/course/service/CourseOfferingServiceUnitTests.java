@@ -22,7 +22,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -176,6 +175,50 @@ class CourseOfferingServiceUnitTests {
 
         assertThat(result.getEvaluationTypeCode()).isEqualTo(EvaluationType.UNKNOWN);
         assertThat(result.getFacultyDivisionName()).isNull();
+    }
+
+    @Test
+    @DisplayName("기존 강의의 nullable 키 필드가 비어 있어도 동일 강의로 재사용한다")
+    void getOrCreateOffering_whenExistingKeyFieldsAreNull_reusesExistingOffering() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                14L,
+                2024,
+                1,
+                " ",
+                24L,
+                null,
+                "수 1-2",
+                "ABSOLUTE",
+                false,
+                20241,
+                " ",
+                null,
+                null,
+                3,
+                " "
+        );
+
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(14L);
+        when(professor.getId()).thenReturn(24L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn(null);
+        when(existing.getFacultyDivisionName()).thenReturn(null);
+        when(existing.getHostDepartment()).thenReturn(null);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(14L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result).isSameAs(existing);
+        verify(courseOfferingRepository, never()).saveAll(any());
     }
 
     private CreateOfferingCommand command(Long courseId, Long professorId, Long departmentId, Integer areaCode) {

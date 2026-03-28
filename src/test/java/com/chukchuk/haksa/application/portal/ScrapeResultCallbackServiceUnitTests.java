@@ -132,8 +132,7 @@ class ScrapeResultCallbackServiceUnitTests {
         RuntimeException boom = new RuntimeException("unexpected");
         doThrow(boom).when(portalSyncService).syncWithPortal(any(UUID.class), any());
 
-        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody)))
-                .isSameAs(boom);
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
 
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("INTERNAL_ERROR");

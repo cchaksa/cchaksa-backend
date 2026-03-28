@@ -142,6 +142,45 @@ class SyncAcademicRecordServiceTest {
         verify(studentCourseRepository, never()).saveAll(any());
     }
 
+    @Test
+    void executeWithPortalData_mergesDuplicateSectionsIntoSingleEnrollment() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+        when(studentCourseRepository.findByStudent(student)).thenReturn(List.of());
+        doNothing().when(academicRecordRepository).insertAllAcademicRecords(any(), any());
+
+        Professor professor = mock(Professor.class);
+        when(professor.getId()).thenReturn(11L);
+        when(professorService.getOrCreateAll(any())).thenReturn(Map.of(
+                "홍길동", professor,
+                "미확인 교수", professor
+        ));
+
+        Course course = mock(Course.class);
+        when(course.getId()).thenReturn(21L);
+        when(courseService.getOrCreateCourses(any())).thenReturn(Map.of("CSE101", course));
+
+        when(courseOfferingService.getOrCreateAll(any())).thenAnswer(invocation -> {
+            List<CreateOfferingCommand> commands = invocation.getArgument(0);
+            assertThat(commands).hasSize(1);
+            assertThat(commands.get(0).classSection()).isEqualTo("02");
+            CourseOffering offering = mock(CourseOffering.class);
+            when(offering.getId()).thenReturn(31L);
+            return Map.of(CourseOfferingService.CourseOfferingKey.from(commands.get(0)), offering);
+        });
+
+        service.executeWithPortalData(userId, new PortalData(
+                null,
+                sampleAcademicData(),
+                sampleCurriculumDataWithDuplicateSections()
+        ));
+
+        verify(studentCourseBulkRepository).insertAll(argThat(rows -> rows.size() == 1));
+    }
+
     private PortalCurriculumData sampleCurriculumData() {
         return new PortalCurriculumData(
                 List.of(new CourseInfo(
@@ -209,6 +248,62 @@ class SyncAcademicRecordServiceTest {
                 List.of(semester),
                 grades,
                 new AcademicSummary(3, 3, 4.3, 95.0)
+        );
+    }
+
+    private PortalCurriculumData sampleCurriculumDataWithDuplicateSections() {
+        return new PortalCurriculumData(
+                List.of(new CourseInfo(
+                        "CSE101",
+                        "자료구조",
+                        "홍길동",
+                        "컴퓨터공학과",
+                        3,
+                        "A+",
+                        false,
+                        "월1-2",
+                        "전선",
+                        100,
+                        200,
+                        20241,
+                        4.3,
+                        false
+                )),
+                List.of(new ProfessorInfo("홍길동")),
+                List.of(
+                        new OfferingInfo(
+                                "CSE101",
+                                2024,
+                                1,
+                                "01",
+                                "홍길동",
+                                "월1-2",
+                                3,
+                                "컴퓨터공학과",
+                                "전선",
+                                20241,
+                                100,
+                                200,
+                                "ABSOLUTE",
+                                false
+                        ),
+                        new OfferingInfo(
+                                "CSE101",
+                                2024,
+                                1,
+                                "02",
+                                "홍길동",
+                                "수1-2",
+                                3,
+                                "컴퓨터공학과",
+                                "전선",
+                                20241,
+                                100,
+                                200,
+                                "ABSOLUTE",
+                                false
+                        )
+                )
         );
     }
 }

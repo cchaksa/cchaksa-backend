@@ -185,11 +185,13 @@ public class SyncAcademicRecordService {
 
     private CurriculumProcessingResult processCurriculumData(PortalCurriculumData curriculumData, PortalAcademicData academicData, UUID studentId) {
         long curriculumMergeStartNs = System.nanoTime();
-        Map<OfferingKey, MergedOfferingAcademic> mergedOfferings = mergeOfferingsAndAcademic(curriculumData, academicData);
+        Map<SimpleOfferingKey, MergedOfferingAcademic> mergedOfferings = mergeOfferingsAndAcademic(curriculumData, academicData);
         long curriculumMergeMs = elapsedMs(curriculumMergeStartNs);
 
-        Set<String> professorNames = mergedOfferings.keySet().stream()
-                .map(OfferingKey::professorName)
+        Set<String> professorNames = mergedOfferings.values().stream()
+                .map(MergedOfferingAcademic::getOffering)
+                .map(PortalOfferingCreationData::getProfessorName)
+                .map(this::normalizeProfessorName)
                 .collect(Collectors.toSet());
         professorNames.add(DEFAULT_PROFESSOR_NAME);
         long professorLoadStart = System.nanoTime();
@@ -202,16 +204,17 @@ public class SyncAcademicRecordService {
         long courseMapMs = elapsedMs(courseLoadStart);
 
         List<CreateOfferingCommand> offeringCommands = new ArrayList<>();
-        Map<OfferingKey, CourseOfferingService.CourseOfferingKey> offeringKeyMap = new HashMap<>();
-        for (Map.Entry<OfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
-            OfferingKey key = entry.getKey();
+        Map<SimpleOfferingKey, OfferingKey> resolvedOfferingKeys = new HashMap<>();
+        Map<SimpleOfferingKey, CourseOfferingService.CourseOfferingKey> offeringKeyMap = new HashMap<>();
+        for (Map.Entry<SimpleOfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
             PortalOfferingCreationData offering = entry.getValue().getOffering();
+            OfferingKey key = toOfferingKey(offering);
             Long courseId = Optional.ofNullable(courses.get(offering.getCourseCode()))
                     .map(Course::getId)
                     .orElseThrow(() -> new IllegalStateException("Course not found for code " + offering.getCourseCode()));
-            Long professorId = Optional.ofNullable(professors.get(key.professorName()))
+            Long professorId = Optional.ofNullable(professors.get(normalizeProfessorName(offering.getProfessorName())))
                     .map(Professor::getId)
-                    .orElseThrow(() -> new IllegalStateException("Professor not found for name " + key.professorName()));
+                    .orElseThrow(() -> new IllegalStateException("Professor not found for name " + normalizeProfessorName(offering.getProfessorName())));
 
             CreateOfferingCommand command = new CreateOfferingCommand(
                     courseId,
@@ -231,7 +234,8 @@ public class SyncAcademicRecordService {
                     key.hostDepartment()
             );
             offeringCommands.add(command);
-            offeringKeyMap.put(key, CourseOfferingService.CourseOfferingKey.from(command));
+            resolvedOfferingKeys.put(entry.getKey(), key);
+            offeringKeyMap.put(entry.getKey(), CourseOfferingService.CourseOfferingKey.from(command));
         }
 
         long offeringLoadStart = System.nanoTime();
@@ -242,11 +246,11 @@ public class SyncAcademicRecordService {
         long offeringFetchStart = System.nanoTime();
         Map<Long, CourseOffering> offeringById = new HashMap<>();
         List<CourseEnrollment> enrollments = new ArrayList<>();
-        for (Map.Entry<OfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
+        for (Map.Entry<SimpleOfferingKey, MergedOfferingAcademic> entry : mergedOfferings.entrySet()) {
             CourseOfferingService.CourseOfferingKey serviceKey = offeringKeyMap.get(entry.getKey());
             CourseOffering courseOffering = offeringEntities.get(serviceKey);
             if (courseOffering == null) {
-                log.error("CourseOffering not found for key {}", entry.getKey());
+                log.error("CourseOffering not found for key {}", resolvedOfferingKeys.get(entry.getKey()));
                 continue;
             }
             PortalOfferingCreationData offering = entry.getValue().getOffering();
@@ -273,24 +277,19 @@ public class SyncAcademicRecordService {
         return new CurriculumProcessingResult(enrollments, offeringById, professorMapMs, courseMapMs, curriculumMergeMs, courseGetOrCreateMs, offeringFetchMs);
     }
 
-    private Map<OfferingKey, MergedOfferingAcademic> mergeOfferingsAndAcademic(
+    private Map<SimpleOfferingKey, MergedOfferingAcademic> mergeOfferingsAndAcademic(
             PortalCurriculumData curriculumData,
             PortalAcademicData academicData
     ) {
-        Map<OfferingKey, MergedOfferingAcademic> map = new HashMap<>();
-        Map<SimpleOfferingKey, OfferingKey> simpleKeyIndex = new HashMap<>();
+        Map<SimpleOfferingKey, MergedOfferingAcademic> map = new HashMap<>();
 
-        // 1. offerings 삽입
         if (curriculumData.offerings() != null) {
             for (OfferingInfo offering : curriculumData.offerings()) {
                 PortalOfferingCreationData converted = toCreationData(offering);
-                OfferingKey key = toOfferingKey(converted);
-                map.put(key, new MergedOfferingAcademic(converted, null));
-                simpleKeyIndex.put(toSimpleKey(converted), key);
+                map.put(toSimpleKey(converted), new MergedOfferingAcademic(converted, null));
             }
         }
 
-        // 2. academicData로 병합
         if (academicData.semesters() != null) {
             for (SemesterCourseInfo semester : academicData.semesters()) {
                 int year = semester.year();
@@ -306,18 +305,15 @@ public class SyncAcademicRecordService {
                     }
                     SimpleOfferingKey simpleKey = new SimpleOfferingKey(course.code(), year, semesterNum);
                     PortalCourseInfo convertedCourse = toPortalCourseInfo(course);
-                    OfferingKey matchedKey = simpleKeyIndex.get(simpleKey);
 
-                    if (matchedKey != null && map.containsKey(matchedKey)) {
-                        PortalOfferingCreationData existingOffering = map.get(matchedKey).getOffering();
-                        map.put(matchedKey, new MergedOfferingAcademic(existingOffering, convertedCourse));
+                    if (map.containsKey(simpleKey)) {
+                        PortalOfferingCreationData existingOffering = map.get(simpleKey).getOffering();
+                        map.put(simpleKey, new MergedOfferingAcademic(existingOffering, convertedCourse));
                         continue;
                     }
 
                     PortalOfferingCreationData inferredOffering = createInferredOffering(course, year, semesterNum);
-                    OfferingKey inferredKey = toOfferingKey(inferredOffering);
-                    map.put(inferredKey, new MergedOfferingAcademic(inferredOffering, convertedCourse));
-                    simpleKeyIndex.put(simpleKey, inferredKey);
+                    map.put(simpleKey, new MergedOfferingAcademic(inferredOffering, convertedCourse));
                 }
             }
         }
@@ -366,7 +362,7 @@ public class SyncAcademicRecordService {
         return toRemove.size();
     }
 
-    private Map<String, String> extractCourseNames(PortalCurriculumData curriculumData, Map<OfferingKey, MergedOfferingAcademic> mergedOfferings) {
+    private Map<String, String> extractCourseNames(PortalCurriculumData curriculumData, Map<SimpleOfferingKey, MergedOfferingAcademic> mergedOfferings) {
         Map<String, String> courseNames = new HashMap<>();
         if (curriculumData.courses() != null) {
             for (CourseInfo course : curriculumData.courses()) {
@@ -411,10 +407,10 @@ public class SyncAcademicRecordService {
                 data.getCourseCode(),
                 data.getYear(),
                 data.getSemester(),
-                defaultString(data.getClassSection()),
+                normalizeNullableString(data.getClassSection()),
                 normalizeProfessorName(data.getProfessorName()),
-                defaultString(data.getFacultyDivisionName()),
-                defaultString(data.getHostDepartment())
+                normalizeNullableString(data.getFacultyDivisionName()),
+                normalizeNullableString(data.getHostDepartment())
         );
     }
 
@@ -422,8 +418,11 @@ public class SyncAcademicRecordService {
         return (name == null || name.isBlank()) ? DEFAULT_PROFESSOR_NAME : name.trim();
     }
 
-    private String defaultString(String value) {
-        return value == null ? "" : value;
+    private String normalizeNullableString(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private PortalCourseInfo toPortalCourseInfo(CourseInfo info) {

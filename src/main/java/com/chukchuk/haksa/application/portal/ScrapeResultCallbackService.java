@@ -150,7 +150,6 @@ public class ScrapeResultCallbackService {
             recordQueuedAge(job, finishedAt);
             log.error("[BIZ] scrape.job.callback.unexpected_fail jobId={} operationType={} ex={}",
                     job.getJobId(), job.getOperationType(), e.getClass().getSimpleName(), e);
-            throw e;
         }
     }
 

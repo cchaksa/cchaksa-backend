@@ -15,10 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -146,10 +144,10 @@ public class CourseOfferingService {
                     cmd.courseId(),
                     cmd.year(),
                     cmd.semester(),
-                    cmd.classSection(),
+                    normalizeBlank(cmd.classSection()),
                     cmd.professorId(),
-                    cmd.facultyDivisionName(),
-                    cmd.hostDepartment()
+                    normalizeBlank(cmd.facultyDivisionName()),
+                    normalizeBlank(cmd.hostDepartment())
             );
         }
 
@@ -158,11 +156,18 @@ public class CourseOfferingService {
                     offering.getCourse().getId(),
                     offering.getYear(),
                     offering.getSemester(),
-                    offering.getClassSection(),
+                    normalizeBlank(offering.getClassSection()),
                     offering.getProfessor().getId(),
-                    offering.getFacultyDivisionName().name(),
-                    offering.getHostDepartment()
+                    offering.getFacultyDivisionName() != null ? normalizeBlank(offering.getFacultyDivisionName().name()) : null,
+                    normalizeBlank(offering.getHostDepartment())
             );
+        }
+
+        private static String normalizeBlank(String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            return value.trim();
         }
     }
 }
