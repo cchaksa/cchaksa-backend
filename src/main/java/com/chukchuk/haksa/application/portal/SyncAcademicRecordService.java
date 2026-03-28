@@ -211,10 +211,21 @@ public class SyncAcademicRecordService {
             OfferingKey key = toOfferingKey(offering);
             Long courseId = Optional.ofNullable(courses.get(offering.getCourseCode()))
                     .map(Course::getId)
-                    .orElseThrow(() -> new IllegalStateException("Course not found for code " + offering.getCourseCode()));
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Course not found for code=%s year=%s semester=%s".formatted(
+                                    offering.getCourseCode(),
+                                    offering.getYear(),
+                                    offering.getSemester()
+                            )));
             Long professorId = Optional.ofNullable(professors.get(normalizeProfessorName(offering.getProfessorName())))
                     .map(Professor::getId)
-                    .orElseThrow(() -> new IllegalStateException("Professor not found for name " + normalizeProfessorName(offering.getProfessorName())));
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Professor not found for name=%s courseCode=%s year=%s semester=%s".formatted(
+                                    normalizeProfessorName(offering.getProfessorName()),
+                                    offering.getCourseCode(),
+                                    offering.getYear(),
+                                    offering.getSemester()
+                            )));
 
             CreateOfferingCommand command = new CreateOfferingCommand(
                     courseId,
