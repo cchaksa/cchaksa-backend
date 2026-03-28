@@ -31,11 +31,11 @@ jobs:
       - name: Check if Issue Link Already Exists
         if: steps.extract.outputs.issue_number != ''
         id: check_link
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          ISSUE_NUMBER: ${{ steps.extract.outputs.issue_number }}
         run: |
-          PR_BODY="${{ github.event.pull_request.body }}"
-          ISSUE_NUMBER="${{ steps.extract.outputs.issue_number }}"
-
-          if echo "$PR_BODY" | grep -qE "(Close[sd]?|Fix(e[sd])?|Resolve[sd]?) #$ISSUE_NUMBER"; then
+          if printf '%s' "$PR_BODY" | grep -qE "(Close[sd]?|Fix(e[sd])?|Resolve[sd]?) #$ISSUE_NUMBER"; then
             echo "Link already exists"
             echo "link_exists=true" >> $GITHUB_OUTPUT
           else
