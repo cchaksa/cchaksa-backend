@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.course.service;
 import com.chukchuk.haksa.domain.course.dto.CreateOfferingCommand;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
+import com.chukchuk.haksa.domain.course.model.EvaluationType;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.model.LiberalArtsAreaCode;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
@@ -21,13 +22,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CourseOfferingServiceUnitTests {
@@ -54,16 +53,27 @@ class CourseOfferingServiceUnitTests {
     @DisplayName("동일 분반 강의가 이미 존재하면 기존 강의를 반환한다")
     void getOrCreateOffering_whenExists_returnsExisting() {
         CreateOfferingCommand cmd = command(10L, 20L, 30L, 101);
-        CourseOffering existing = org.mockito.Mockito.mock(CourseOffering.class);
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(10L);
+        when(professor.getId()).thenReturn(20L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn("01");
+        when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
+        when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                10L, 2024, 1, "01", 20L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.of(existing));
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(10L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
         assertThat(result).isSameAs(existing);
-        verify(courseOfferingRepository, never()).save(any(CourseOffering.class));
+        verify(courseOfferingRepository, never()).saveAll(any());
         verify(courseRepository, never()).getReferenceById(any(Long.class));
     }
 
@@ -76,14 +86,14 @@ class CourseOfferingServiceUnitTests {
         Department department = new Department("CS", "컴퓨터학과");
         LiberalArtsAreaCode areaCode = org.mockito.Mockito.mock(LiberalArtsAreaCode.class);
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                11L, 2024, 1, "01", 21L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.empty());
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(11L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
         when(courseRepository.getReferenceById(11L)).thenReturn(course);
         when(professorRepository.getReferenceById(21L)).thenReturn(professor);
         when(departmentRepository.getReferenceById(31L)).thenReturn(department);
         when(liberalArtsAreaCodeRepository.getReferenceById(202)).thenReturn(areaCode);
-        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
@@ -101,12 +111,12 @@ class CourseOfferingServiceUnitTests {
         Course course = new Course("MAT201", "선형대수");
         Professor professor = new Professor("김교수");
 
-        when(courseOfferingRepository.findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
-                12L, 2024, 1, "01", 22L, FacultyDivision.전핵, "컴퓨터학과"
-        )).thenReturn(Optional.empty());
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(12L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
         when(courseRepository.getReferenceById(12L)).thenReturn(course);
         when(professorRepository.getReferenceById(22L)).thenReturn(professor);
-        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
@@ -128,6 +138,87 @@ class CourseOfferingServiceUnitTests {
         Map<Long, CourseOffering> map = courseOfferingService.getOfferingMapByIds(List.of(1L, 2L));
 
         assertThat(map).containsEntry(1L, first).containsEntry(2L, second);
+    }
+
+    @Test
+    @DisplayName("평가 방식/이수구분 값이 없으면 안전한 기본값으로 저장한다")
+    void getOrCreateOffering_whenEnumFieldsMissing_usesSafeDefaults() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                13L,
+                2024,
+                1,
+                "02",
+                23L,
+                null,
+                "화 1-2",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                3,
+                "소프트웨어학과"
+        );
+
+        Course course = new Course("SWE201", "SW공학");
+        Professor professor = new Professor("이교수");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(13L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
+        when(courseRepository.getReferenceById(13L)).thenReturn(course);
+        when(professorRepository.getReferenceById(23L)).thenReturn(professor);
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result.getEvaluationTypeCode()).isEqualTo(EvaluationType.UNKNOWN);
+        assertThat(result.getFacultyDivisionName()).isNull();
+    }
+
+    @Test
+    @DisplayName("기존 강의의 nullable 키 필드가 비어 있어도 동일 강의로 재사용한다")
+    void getOrCreateOffering_whenExistingKeyFieldsAreNull_reusesExistingOffering() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                14L,
+                2024,
+                1,
+                " ",
+                24L,
+                null,
+                "수 1-2",
+                "ABSOLUTE",
+                false,
+                20241,
+                " ",
+                null,
+                null,
+                3,
+                " "
+        );
+
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(14L);
+        when(professor.getId()).thenReturn(24L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn(null);
+        when(existing.getFacultyDivisionName()).thenReturn(null);
+        when(existing.getHostDepartment()).thenReturn(null);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(14L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result).isSameAs(existing);
+        verify(courseOfferingRepository, never()).saveAll(any());
     }
 
     private CreateOfferingCommand command(Long courseId, Long professorId, Long departmentId, Integer areaCode) {

@@ -13,14 +13,25 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
   config:
     import: optional:file:.env[.properties]
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   mvc:
     throw-exception-if-no-handler-found: true
   web:
     resources:
       add-mappings: false
+  jpa:
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
 
 server:
   port: 8080
+  shutdown: graceful
   application:
     name: "chukchuk-haksa"
 

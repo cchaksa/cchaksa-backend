@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -97,6 +98,44 @@ class ScrapeResultCallbackServiceUnitTests {
         assertThat(job.isCompleted()).isTrue();
         assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
         verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+    }
+
+    @Test
+    @DisplayName("성공 callback 처리 중 RuntimeException이 발생해도 FAILED로 마킹된다")
+    void handleCallback_runtimeDuringSync_marksJobFailed() {
+        ScrapeResultCallbackService service = createService();
+        UUID userId = UUID.randomUUID();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = ScrapeJob.createQueued(
+                userId,
+                "suwon",
+                ScrapeJobOperationType.LINK,
+                "idem-1",
+                "fingerprint",
+                "{\"username\":\"17019013\",\"password\":\"pw\"}"
+        );
+        String rawBody = """
+                {
+                  "job_id":"%s",
+                  "status":"succeeded",
+                  "result_payload":{
+                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
+                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
+                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
+                  },
+                  "finished_at":"2026-03-14T10:01:00Z"
+                }
+                """.formatted(job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
+        RuntimeException boom = new RuntimeException("unexpected");
+        doThrow(boom).when(portalSyncService).syncWithPortal(any(UUID.class), any());
+
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+
+        assertThat(job.getStatus().name()).isEqualTo("FAILED");
+        assertThat(job.getErrorCode()).isEqualTo("INTERNAL_ERROR");
     }
 
     @Test

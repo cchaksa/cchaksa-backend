@@ -5,6 +5,8 @@ import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface CourseOfferingRepository extends JpaRepository<CourseOffering, Long> {
@@ -20,5 +22,17 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
 """)
     Optional<CourseOffering> findByCourseIdAndYearAndSemesterAndClassSectionAndProfessorIdAndFacultyDivisionNameAndHostDepartment(
             Long courseId, Integer year, Integer semester, String classSection, Long professorId, FacultyDivision facultyDivisionName, String hostDepartment
+    );
+
+    @Query("""
+    SELECT o FROM CourseOffering o
+    WHERE o.course.id IN :courseIds
+      AND o.year IN :years
+      AND o.semester IN :semesters
+""")
+    List<CourseOffering> findByCourseIdInAndYearInAndSemesterIn(
+            Collection<Long> courseIds,
+            Collection<Integer> years,
+            Collection<Integer> semesters
     );
 }

@@ -145,6 +145,11 @@ public class ScrapeResultCallbackService {
             log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_mapping jobId={} rawBodyHash={} resultPayloadKeys={} message={}",
                     job.getJobId(), bodyHash, topLevelFieldNames(request.result_payload()), e.getOriginalMessage());
             throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
+        } catch (RuntimeException e) {
+            job.markFailed("INTERNAL_ERROR", e.getMessage(), false, finishedAt);
+            recordQueuedAge(job, finishedAt);
+            log.error("[BIZ] scrape.job.callback.unexpected_fail jobId={} operationType={} ex={}",
+                    job.getJobId(), job.getOperationType(), e.getClass().getSimpleName(), e);
         }
     }
 
