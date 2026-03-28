@@ -11,7 +11,7 @@
 
 ## 2. Domain Rules
 - Rule 1: Workflow는 `pull_request`(base: dev, main)와 `push`(branches: dev, main) 이벤트를 모두 감시한다.
-- Rule 2: Job은 `actions/setup-java@v4`로 JDK17을 설치하고 `./gradlew test` → `./gradlew check` 순으로 실행하며 하나라도 실패하면 전체 Job을 실패로 마크한다.
+- Rule 2: Job은 `actions/setup-java@v4`로 JDK17을 설치하고 `./gradlew check --stacktrace --no-daemon` 단일 명령으로 테스트·정적 분석을 모두 실행하며, 실패 시 전체 Job을 실패로 마크한다.
 - Rule 3: Gradle 디펜던시 캐시는 `actions/cache@v4` + Gradle 전용 캐시 액션으로 구성해 동일 러너에서 반복 사용한다.
 - Rule 4: 모든 Lambda 배포 workflow는 패키징 전에 `./gradlew test --stacktrace --no-daemon`을 실행한다.
 - Mutable Rules: 대상 브랜치 목록 (추후 release 브랜치 추가 가능).
@@ -25,9 +25,8 @@
   - Steps:
     1. pull_request 이벤트로 워크플로우가 시작된다.
     2. 코드 체크아웃 후 Gradle 캐시를 복원한다.
-    3. `./gradlew test --stacktrace`를 실행해 단위/통합 테스트를 수행한다.
-    4. `./gradlew check --stacktrace`를 실행해 정적 분석/추가 검증을 수행한다.
-    5. 두 단계 모두 성공하면 상태 체크가 green으로 반환된다.
+    3. `./gradlew check --stacktrace --no-daemon`을 실행해 테스트 + 정적 검증을 동시에 수행한다.
+    4. 명령이 성공하면 상태 체크가 green으로 반환된다.
   - Expected Result: PR이 merge 가능 상태가 된다.
 
 ### Exception / Boundary Flow

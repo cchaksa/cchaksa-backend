@@ -14,7 +14,7 @@
 ## Testing Strategy
 - Domain tests: N/A.
 - Application tests: N/A.
-- Integration/API tests: 새 CI workflow와 Lambda workflow 모두 `./gradlew test --stacktrace --no-daemon`을 실행한다.
+- Integration/API tests: CI workflow는 `./gradlew check --stacktrace --no-daemon`을 실행(테스트 포함)하고, Lambda workflow는 `./gradlew test --stacktrace --no-daemon`을 실행한다.
 - Additional commands: 로컬에서 `./gradlew test`를 실행해 baseline 확인 (필수), workflow 문법은 `act` 대신 `workflow syntax` 검토로 대체.
 
 ## Rollout Considerations
