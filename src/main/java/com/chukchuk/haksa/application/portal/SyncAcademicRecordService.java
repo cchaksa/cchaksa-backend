@@ -379,8 +379,6 @@ public class SyncAcademicRecordService {
     }
 
     private PortalOfferingCreationData toCreationData(OfferingInfo info) {
-        log.debug("from OfferingInfo, facultyDivisionName: {}, evaluationType:{}", info.facultyDivisionName(), info.evaluationType());
-
         PortalOfferingCreationData data = new PortalOfferingCreationData();
         data.setCourseCode(info.courseCode());
         data.setYear(info.year());
