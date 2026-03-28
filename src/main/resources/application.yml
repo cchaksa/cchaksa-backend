@@ -13,6 +13,8 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
   config:
     import: optional:file:.env[.properties]
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   mvc:
     throw-exception-if-no-handler-found: true
   web:
@@ -29,6 +31,7 @@ spring:
 
 server:
   port: 8080
+  shutdown: graceful
   application:
     name: "chukchuk-haksa"
 
