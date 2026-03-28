@@ -3,8 +3,8 @@
 ## Architecture / Layering
 - Domain impact: 없음 (코드/도메인 로직 미변경).
 - Application orchestration: 없음.
-- Infrastructure touchpoints: GitHub Actions 실행 환경(Hosted Ubuntu), Gradle 캐시(S3 backend 아님)만 사용.
-- Global/config changes: `.github/workflows/ci.yml` 추가, Gradle 캐시 키(`~/.gradle` + Wrapper) 정의.
+- Infrastructure touchpoints: GitHub Actions 실행 환경(Hosted Ubuntu), Gradle 캐시(S3 backend 아님)만 사용. Lambda 배포 workflow(`deploy-*-lambda.yml`)에 테스트 스텝 추가.
+- Global/config changes: `.github/workflows/ci.yml` 추가, Gradle 캐시 키(`~/.gradle` + Wrapper) 정의, Lambda workflow 내 테스트 스텝에서 `--stacktrace --no-daemon` 옵션 사용.
 
 ## Data / Transactions
 - Repositories touched: `.github/workflows/ci.yml`.
@@ -14,7 +14,7 @@
 ## Testing Strategy
 - Domain tests: N/A.
 - Application tests: N/A.
-- Integration/API tests: 새 workflow 내에서 `./gradlew test --stacktrace` 실행.
+- Integration/API tests: 새 CI workflow와 Lambda workflow 모두 `./gradlew test --stacktrace --no-daemon`을 실행한다.
 - Additional commands: 로컬에서 `./gradlew test`를 실행해 baseline 확인 (필수), workflow 문법은 `act` 대신 `workflow syntax` 검토로 대체.
 
 ## Rollout Considerations
