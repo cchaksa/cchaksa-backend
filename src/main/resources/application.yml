@@ -103,7 +103,7 @@ management:
         enabled: true
   otlp:
     tracing:
-      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:}
+      endpoint: ${MANAGEMENT_OTLP_TRACING_ENDPOINT:http://localhost:4318/v1/traces}
     metrics:
       export:
         enabled: ${MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED:false}
