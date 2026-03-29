@@ -19,8 +19,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,9 @@ public class AppleOidcService implements OidcService {
 
     @Value("${security.apple.client-id}")
     private String clientId;
+
+    @Value("${security.apple.allowed-client-ids:}")
+    private String allowedClientIds;
 
     @Value("${security.apple.issuer}")
     private String issuer;
@@ -70,8 +75,10 @@ public class AppleOidcService implements OidcService {
 
             return claims;
 
+        } catch (TokenException e) {
+            throw e;
         } catch (Exception e) {
-            throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
+            throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR, e);
         }
     }
 
@@ -120,13 +127,19 @@ public class AppleOidcService implements OidcService {
             throw new TokenException(ErrorCode.TOKEN_INVALID_ISS);
         }
 
+        List<String> allowedAudiences = resolveAllowedClientIds();
+
         Object audClaim = claims.get("aud");
         if (audClaim instanceof String) {
-            if (!clientId.equals(audClaim)) {
+            if (!allowedAudiences.contains(audClaim)) {
                 throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
             }
         } else if (audClaim instanceof java.util.List) {
-            if (!((java.util.List<?>) audClaim).contains(clientId)) {
+            boolean matches = ((java.util.List<?>) audClaim).stream()
+                    .filter(String.class::isInstance)
+                    .map(String.class::cast)
+                    .anyMatch(allowedAudiences::contains);
+            if (!matches) {
                 throw new TokenException(ErrorCode.TOKEN_INVALID_AUD);
             }
         } else {
@@ -157,5 +170,21 @@ public class AppleOidcService implements OidcService {
         } catch (NoSuchAlgorithmException e) {
             throw new TokenException(ErrorCode.TOKEN_HASH_ERROR, e);
         }
+    }
+
+    private List<String> resolveAllowedClientIds() {
+        if (allowedClientIds == null || allowedClientIds.isBlank()) {
+            return List.of(clientId);
+        }
+
+        List<String> parsed = Arrays.stream(allowedClientIds.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .toList();
+
+        if (parsed.isEmpty()) {
+            return List.of(clientId);
+        }
+        return parsed;
     }
 }
