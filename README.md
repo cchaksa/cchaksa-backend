@@ -24,10 +24,10 @@
 **척척학사**는 학생들이 학교 포털과 연동하여 본인의 이수 현황과 졸업 요건을 손쉽게 확인하고 관리할 수 있도록 도와주는 서비스입니다.
 
 > 기존에는 학생들이 졸업 요건을 직접 확인하며 수작업으로 비교해야 했지만,  
-> 척척학사는 이를 **학교 포털과 실시간 연동**, **자동 분석**, **시각적 안내** 기능으로 효율화합니다.
+> 척척학사는 이를 **학교 포털과 비동기 연동**, **자동 분석**, **시각적 안내** 기능으로 효율화합니다.
 
-- ✅ **4,000명 이상** 수원대 재학생 사용 중
-- 🔁 **학교 포털과 실시간 동기화**
+- ✅ **6,000명 이상** 수원대 재학생 사용 중
+- 🔁 **학교 포털과 비동기 연동 + job_id 상태 조회**
 - 🧠 **졸업 요건 자동 분석 및 부족 항목 안내**
 
 ---
@@ -45,6 +45,7 @@
 - 포털 연동을 통한 학점·성적·커리큘럼 실시간 동기화
 - 졸업 요건과 사용자 학사 정보 자동 비교
 - 부족한 학점 및 조건 자동 분석 및 안내
+- job_id 기반 비동기 파이프라인: 요청 수락 -> SQS outbox -> 상태/요약 조회 -> 자동 분석 반영
 
 ---
 
@@ -72,10 +73,13 @@
 - JPA, Hibernate
 
 ### Infra
-- AWS ASG(EC2), ALB, Route53, ACM ...
-- PostgreSQL (Supabase 연동: BaaS 인증/스토리지 활용)
-- Redis, Caffeine 
-- Docker, Nginx
+- AWS API Gateway (HTTP API v2) + AWS Lambda (Spring Boot) + Route53/ACM
+- AWS SQS + HMAC Callback 파이프라인 (스크래핑 워커 연동)
+- PostgreSQL (Supabase 연동) + Caffeine / Redis 캐시
+- Observability: Sentry, Grafana Cloud(OTLP), CloudWatch Logs
+- Docker 기반 Lambda 패키징 및 GitHub Actions 배포
+
+> 장애 롤백 대비를 위해 기존 EC2 ASG 경로는 보조 배포선으로 유지합니다.
 
 ### Tools
 - Git, GitHub
@@ -86,9 +90,32 @@
 
 ## 아키텍처
 
-<p align="center">
-  <img width="1141" height="692" alt="Image" src="https://github.com/user-attachments/assets/192c997a-06ef-4de7-8a64-a32f9c0cea51" />
-</p>
+```mermaid
+flowchart LR
+    Client["Web / Android Client"]
+    APIGW["API Gateway (HTTP API v2)"]
+    Lambda["AWS Lambda (Spring Boot)"]
+    Domain["Domain & Graduation Analysis"]
+    DB[(PostgreSQL)]
+    Cache[(Caffeine / Redis)]
+    Outbox["Scrape Job & Outbox"]
+    SQS["AWS SQS Queue"]
+    Worker["Scraping Worker"]
+    Portal["University Portal"]
+    Callback["Callback API (HMAC)"]
+
+    Client --> APIGW --> Lambda --> Domain
+    Domain --> DB
+    Domain --> Cache
+    Lambda -->|idempotent job_id| Outbox --> SQS --> Worker --> Portal
+    Worker --> Callback --> Lambda
+    Callback --> Domain
+    Callback --> DB
+```
+
+1. 사용자는 `Idempotency-Key`와 함께 비동기 포털 연동을 요청하고, Lambda는 job_id와 polling endpoint를 즉시 반환합니다.
+2. 스크래핑 요청은 Scrape Job Outbox -> AWS SQS -> 전용 워커 -> 학교 포털 순으로 전달되어 병목을 분리합니다.
+3. 워커는 HMAC 서명된 callback으로 결과를 전달하고, Lambda는 졸업 요건 데이터/캐시를 갱신한 뒤 상태/요약 API에 반영합니다.
 
 ---
 
@@ -171,9 +198,11 @@ fix: 사용자 정보 누락 버그 해결
 👉 [척척학사 블로그 시리즈 전체보기](https://velog.io/@pp8817/series/척척학사)
 
 <details>
-<summary><b>🚀 성능 최적화 & 트러블슈팅</b></summary>
+<summary><b>성능 최적화 & 트러블슈팅</b></summary>
 <div markdown="1">
 
+- [척척학사 포털 연동 과정 16초를 0.8초로 94.8% 개선한 과정](https://velog.io/@pp8817/척척학사-포털-연동-과정-16초를-0.8초로-94.8-개선한-과정)
+- [트래픽 피크형 서비스의 운영 구조를 요청 기반 구조로 바꾼 과정](https://velog.io/@pp8817/트래픽-피크형-서비스의-운영-구조를-요청-기반-구조로-바꾼-과정)
 - [ API 성능 튜닝: P6Spy 쿼리 분석부터 인덱싱 & 캐싱까지](https://velog.io/@pp8817/척척학사-API-성능-튜닝)
 - [크롤링 로직 비동기 처리 대신 Redis 캐싱 도입한 이유](https://velog.io/@pp8817/척척학사-크롤링-로직-비동기-처리-대신-Redis-캐싱을-도입한-이유)
 - [포털 데이터 Redis 캐싱 전략 도입기](https://velog.io/@pp8817/척척학사-포털-데이터-Redis-캐싱-전략-도입기)
@@ -185,9 +214,11 @@ fix: 사용자 정보 누락 버그 해결
 </details>
 
 <details>
-<summary><b>🛠️ 아키텍처 & 인프라</b></summary>
+<summary><b>아키텍처 & 인프라</b></summary>
 <div markdown="1">
 
+- [척척학사 AWS EC2 주기적 사망 원인 분석](https://velog.io/@pp8817/척척학사-AWS-EC2-주기적-사망-원인-분석)
+- [척척학사 Lambda 서버리스 전환 후 처리량 한계 분석](https://velog.io/@pp8817/척척학사-Lambda-서버리스-전환-후-처리량-한계-분석)
 - [Next.js 기반 서버를 Spring으로 갈아엎은 이유](https://velog.io/@pp8817/척척학사-Next.js-Spring-Boot-백엔드-마이그레이션-회고)
 - [ELK의 오버엔지니어링을 걷어내고: Grafana Loki와 Sentry로 로그 스택 재설계하기](https://velog.io/@pp8817/척척학사-로그-시스템-리빌드-ELK-Grafana-Loki)
 - [CI/CD 적용 과정 With GitHub Actions](https://velog.io/@pp8817/척척학사-GitHub-Actions-적용)
@@ -199,7 +230,7 @@ fix: 사용자 정보 누락 버그 해결
 </details>
 
 <details>
-<summary><b>💡 기능 구현 & 설계</b></summary>
+<summary><b>기능 구현 & 설계</b></summary>
 <div markdown="1">
 
 - [Supabase를 알아보자 With Java, Spring](https://velog.io/@pp8817/DB-Supabase를-알아보자-With-Java-Spring)
