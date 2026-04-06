@@ -42,10 +42,10 @@
   <img src="https://github.com/user-attachments/assets/1f464920-a223-45da-9cf1-4d8c2bd04cd6" width="800" alt="기능 소개2" />
 </p>
 
-- 포털 연동을 통한 학점·성적·커리큘럼 실시간 동기화
+- 포털 연동을 통한 학점·성적·커리큘럼 비동기 동기화
 - 졸업 요건과 사용자 학사 정보 자동 비교
 - 부족한 학점 및 조건 자동 분석 및 안내
-- job_id 기반 비동기 파이프라인: 요청 수락 -> SQS outbox -> 상태/요약 조회 -> 자동 분석 반영
+- job_id 기반 비동기 파이프라인: 요청 접수 -> Outbox 패턴으로 SQS에 발행 -> 비동기 처리 후 결과 반영
 
 ---
 
@@ -102,20 +102,19 @@ flowchart LR
     SQS["AWS SQS Queue"]
     Worker["Scraping Worker"]
     Portal["University Portal"]
-    Callback["Callback API (HMAC)"]
 
-    Client --> APIGW --> Lambda --> Domain
+    Client --> APIGW --> Lambda
+    Lambda --> Domain
     Domain --> DB
     Domain --> Cache
     Lambda -->|idempotent job_id| Outbox --> SQS --> Worker --> Portal
-    Worker --> Callback --> Lambda
-    Callback --> Domain
-    Callback --> DB
+    Worker -- HMAC signed callback --> APIGW
+    APIGW --> Lambda
 ```
 
 1. 사용자는 `Idempotency-Key`와 함께 비동기 포털 연동을 요청하고, Lambda는 job_id와 polling endpoint를 즉시 반환합니다.
 2. 스크래핑 요청은 Scrape Job Outbox -> AWS SQS -> 전용 워커 -> 학교 포털 순으로 전달되어 병목을 분리합니다.
-3. 워커는 HMAC 서명된 callback으로 결과를 전달하고, Lambda는 졸업 요건 데이터/캐시를 갱신한 뒤 상태/요약 API에 반영합니다.
+3. 워커는 HMAC 서명된 callback을 API Gateway로 보내고, Lambda는 이를 처리해 졸업 요건 데이터/캐시를 갱신한 뒤 상태/요약 API에 반영합니다.
 
 ---
 
