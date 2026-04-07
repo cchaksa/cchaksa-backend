@@ -29,6 +29,9 @@ public class GraduationQueryRepository {
 
     private static final String AREA_MAJOR_ELECTIVE = "전선";  // 전공선택
     private static final String AREA_GENERAL_ELECTIVE = "일선"; // 일반선택
+    private static final String AREA_ETC = FacultyDivision.기타.name();
+    private static final int ETC_REQUIRED_CREDITS = 0;
+    private static final int ETC_EARNED_CREDITS = 0;
 
     /* 졸업 요건 조회 (학과 코드, 입학년도) */
     public List<AreaRequirementDto> getAreaRequirements(Long departmentId, Integer admissionYear) {
@@ -126,6 +129,8 @@ public class GraduationQueryRepository {
             result.add(dto);
         }
 
+        appendEtcAreaIfPresent(result, coursesByArea);
+
         long tookMS = LogTime.elapsedMs(t0);
         if (tookMS >= SLOW_MS) {
             log.info("[BIZ] graduation.progress.query.done studentId={} deptId={} admissionYear={} rows={} took_ms={}",
@@ -217,6 +222,8 @@ public class GraduationQueryRepository {
 
             result.add(dto);
         }
+
+        appendEtcAreaIfPresent(result, coursesByArea);
 
         long tookMS = LogTime.elapsedMs(t0);
         if (tookMS >= SLOW_MS) {
@@ -322,6 +329,40 @@ public class GraduationQueryRepository {
     private FacultyDivision parseDivision(String raw) {
         if (raw == null) return null;
         return FacultyDivision.valueOf(raw.trim());
+    }
+
+    private void appendEtcAreaIfPresent(List<AreaProgressDto> target, Map<String, List<CourseInternalDto>> coursesByArea) {
+        if (target.stream().anyMatch(dto -> dto.getAreaType() == FacultyDivision.기타)) {
+            return;
+        }
+
+        List<CourseInternalDto> etcCourses = coursesByArea.getOrDefault(AREA_ETC, Collections.emptyList());
+        if (etcCourses.isEmpty()) {
+            return;
+        }
+
+        target.add(buildEtcAreaProgress(etcCourses));
+    }
+
+    private AreaProgressDto buildEtcAreaProgress(List<CourseInternalDto> etcCourses) {
+        int completedElectiveCourses = (int) etcCourses.stream()
+                .map(CourseInternalDto::getOfferingId)
+                .distinct()
+                .count();
+
+        List<CourseDto> courseDtos = etcCourses.stream()
+                .map(this::toCourseResponseDto)
+                .toList();
+
+        return new AreaProgressDto(
+                FacultyDivision.기타,
+                ETC_REQUIRED_CREDITS,
+                ETC_EARNED_CREDITS,
+                null,
+                completedElectiveCourses,
+                null,
+                courseDtos
+        );
     }
 
     public CourseDto toCourseResponseDto(CourseInternalDto dto) {

@@ -7,6 +7,8 @@
     - `FacultyDivision` 열거형에 `기타` 값을 추가
     - 포털 연동 시 이수 구분 해석 로직(`CourseOfferingService.resolveFacultyDivision` 등)
     - 관련 단위 테스트 보강
+    - `/api/graduation/progress` 응답에서 `기타` 영역을 캐시/요구사항 테이블에 의존하지 않고 동적으로 추가하며, 필요 학점/이수 학점 필드는 매직넘버(0, 0)로 세팅
+    - `/api/academic/record` 응답 구조를 `기타` 과목 전용 리스트를 포함하도록 확장하고, 분류 로직 업데이트
   - Out:
     - 졸업 요건 계산 로직
     - 평가 방식 열거형/해석 방식
@@ -18,6 +20,8 @@
 - Rule 1: 포털이 내려주는 정의된 이수 구분(`중핵`, `기교`, `선교`, `소교`, `전교`, `전취`, `전핵`, `전선`, `일선`, `복선`, `복핵`, `복교`)은 동일한 열거형 값으로 저장된다.
 - Rule 2: null/blank 이수 구분은 현재와 같이 `null`(미지정)로 남긴다.
 - Rule 3: 위 목록에 없는 비어있지 않은 문자열은 모두 `FacultyDivision.기타`로 저장하고, 원본 문자열은 별도로 저장하지 않는다.
+- Rule 4: 졸업 요건 API에서 `기타` 영역은 요구사항 테이블 여부와 무관하게 노출되며, `requiredCredits=0`, `earnedCredits=0`으로 고정된다.
+- Rule 5: 학업 기록 API는 `기타` 전용 섹션을 갖고, 분류 로직이 `기타`를 교양/전공과 분리한다.
 - Mutable Rules: 포털 측에서 새로운 문자열을 도입하면 언제든 `기타`로 분류된다.
 - Immutable Rules: 정의된 기존 이수 구분 값과 매핑은 변경하지 않는다.
 
@@ -57,9 +61,9 @@
 - [x] Phase 1 Spec fixed
 - [x] Phase 2 Domain complete
 - [x] Phase 3 Application complete
-- [ ] Phase 4 Infrastructure complete
+- [x] Phase 4 Infrastructure complete
 - [ ] Phase 5 Global/Config complete
-- [ ] Phase 6 API/Controller complete
+- [x] Phase 6 API/Controller complete
 
 ## 8. Generated File List
 - Path: src/main/java/com/chukchuk/haksa/domain/course/model/FacultyDivision.java
