@@ -18,8 +18,8 @@
 |------|---------|--------|------|
 | 1 | `./gradlew test --tests "*CourseOfferingServiceUnitTests"` | Pass | 2026-04-07 |
 | 2 | `./gradlew test --tests "*AcademicRecordServiceUnitTests"` | Pass | 2026-04-07 |
-| 3 | `./gradlew test --tests "*GraduationQueryRepository*"` | Pass | 2026-04-07 |
-| 4 | `./gradlew test` | Pass | 2026-04-07 |
+| 3 | `./gradlew test --tests "*GraduationQueryRepository*"` | Pass (rerun after review) | 2026-04-07 |
+| 4 | `./gradlew test` | Pass (rerun after review) | 2026-04-07 |
 
 ## Notes
 - Observation: 포털에서 신규 이수 구분이 들어올 때도 데이터 적재가 중단되지 않아야 한다.
