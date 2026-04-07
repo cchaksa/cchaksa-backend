@@ -221,6 +221,42 @@ class CourseOfferingServiceUnitTests {
         verify(courseOfferingRepository, never()).saveAll(any());
     }
 
+    @Test
+    @DisplayName("정의되지 않은 이수 구분은 기타로 대체한다")
+    void getOrCreateOffering_whenFacultyDivisionUnknown_setsEtc() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                15L,
+                2024,
+                1,
+                "01",
+                25L,
+                null,
+                "금 3-4",
+                "ABSOLUTE",
+                false,
+                20241,
+                "신규구분",
+                null,
+                null,
+                3,
+                "컴퓨터학과"
+        );
+
+        Course course = new Course("GEN101", "일반과목");
+        Professor professor = new Professor("박교수");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(15L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
+        when(courseRepository.getReferenceById(15L)).thenReturn(course);
+        when(professorRepository.getReferenceById(25L)).thenReturn(professor);
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result.getFacultyDivisionName()).isEqualTo(FacultyDivision.기타);
+    }
+
     private CreateOfferingCommand command(Long courseId, Long professorId, Long departmentId, Integer areaCode) {
         return new CreateOfferingCommand(
                 courseId,
