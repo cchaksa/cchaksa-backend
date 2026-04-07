@@ -3,7 +3,7 @@
 ## Architecture / Layering
 - Domain impact: `FacultyDivision` 열거형에 `기타` 상수를 추가하고, enum 순서를 유지한 채 말미에 배치한다.
 - Application orchestration: `CourseOfferingService.resolveFacultyDivision`에서 `IllegalArgumentException` 발생을 try/catch로 흡수하고 `FacultyDivision.기타`로 반환한다.
-- Graduation API: `GraduationQueryRepository`가 요구사항 테이블 조회 결과와 별개로 `기타` 영역을 동적으로 추가하고 고정 매직 넘버(0, 0)를 설정한다.
+- Graduation API: `GraduationQueryRepository`가 요구사항 테이블 조회 결과와 별개로 `기타` 영역을 동적으로 추가하고 필요 학점은 0, 이수 학점은 실제 합계로 설정한다.
 - Academic Record API: `AcademicRecordResponse.Courses` 레이아웃을 확장하고 `AcademicRecordService` 분류 로직을 `기타` 섹션을 포함하도록 업데이트한다.
 - Infrastructure touchpoints: 없음 (native query 결과 후처리만 변경).
 - Global/config changes: 없음.

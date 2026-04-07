@@ -30,10 +30,10 @@ class GraduationQueryRepositoryEtcTests {
                 .orElseThrow();
 
         assertThat(etcArea.getRequiredCredits()).isZero();
-        assertThat(etcArea.getEarnedCredits()).isZero();
+        assertThat(etcArea.getEarnedCredits()).isEqualTo(3);
         assertThat(etcArea.getCourses())
                 .map(CourseDto::getCourseName)
-                .containsExactly("특별활동");
+                .containsExactlyInAnyOrder("특별활동", "미지정활동");
     }
 
     private static class TestGraduationQueryRepository extends GraduationQueryRepository {
@@ -55,7 +55,10 @@ class GraduationQueryRepositoryEtcTests {
             CourseInternalDto etc = new CourseInternalDto(
                     2L, FacultyDivision.기타.name(), 1, "P", "특별활동", 1, 2024, "ETC001", 0
             );
-            return List.of(major, etc);
+            CourseInternalDto undefined = new CourseInternalDto(
+                    3L, null, 2, "P", "미지정활동", 1, 2024, "UNK001", 0
+            );
+            return List.of(major, etc, undefined);
         }
     }
 }
