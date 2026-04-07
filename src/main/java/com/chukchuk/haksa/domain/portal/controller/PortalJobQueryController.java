@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.domain.portal.controller;
 
 import com.chukchuk.haksa.application.portal.PortalLinkJobQueryService;
+import com.chukchuk.haksa.domain.portal.controller.docs.PortalLinkQueryControllerDocs;
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/portal/link/jobs")
 @RequiredArgsConstructor
-public class PortalJobQueryController {
+public class PortalJobQueryController implements PortalLinkQueryControllerDocs {
 
     private final PortalLinkJobQueryService portalLinkJobQueryService;
 
