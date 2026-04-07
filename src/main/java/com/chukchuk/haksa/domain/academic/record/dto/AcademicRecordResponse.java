@@ -14,6 +14,7 @@ public record AcademicRecordResponse(
     @Schema(description = "수강 과목 목록")
     public record Courses(
             @Schema(description = "전공 과목 목록", required = true) List<StudentCourseDto.CourseDetailDto> major,
-            @Schema(description = "교양 과목 목록", required = true) List<StudentCourseDto.CourseDetailDto> liberal
+            @Schema(description = "교양 과목 목록", required = true) List<StudentCourseDto.CourseDetailDto> liberal,
+            @Schema(description = "기타 과목 목록", required = true) List<StudentCourseDto.CourseDetailDto> etc
     ) {}
 }
