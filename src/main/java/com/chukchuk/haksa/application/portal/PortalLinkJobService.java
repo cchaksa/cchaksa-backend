@@ -35,7 +35,7 @@ public class PortalLinkJobService {
     private final ScrapeJobRepository scrapeJobRepository;
     private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
     private final UserService userService;
-    private final ScrapeJobOutboxDispatcher scrapeJobOutboxDispatcher;
+    private final ScrapeJobOutboxAfterCommitExecutor scrapeJobOutboxAfterCommitExecutor;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Transactional
@@ -173,18 +173,7 @@ public class PortalLinkJobService {
     }
 
     private void scheduleDispatchAfterCommit(ScrapeJob job, ScrapeJobOutbox outbox) {
-        Runnable dispatchAction = () -> {
-            log.info("[BIZ] scrape.outbox.dispatch.after_commit.start jobId={} outboxId={} portalType={} idempotencyKey={}",
-                    job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey());
-            try {
-                int dispatchedCount = scrapeJobOutboxDispatcher.dispatchOnce(outbox.getOutboxId());
-                log.info("[BIZ] scrape.outbox.dispatch.after_commit.end jobId={} outboxId={} portalType={} idempotencyKey={} dispatchedCount={}",
-                        job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey(), dispatchedCount);
-            } catch (RuntimeException exception) {
-                log.error("[BIZ] scrape.outbox.dispatch.after_commit.fail jobId={} outboxId={} portalType={} idempotencyKey={}",
-                        job.getJobId(), outbox.getOutboxId(), job.getPortalType(), job.getIdempotencyKey(), exception);
-            }
-        };
+        Runnable dispatchAction = () -> scrapeJobOutboxAfterCommitExecutor.dispatchAsync(job, outbox);
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

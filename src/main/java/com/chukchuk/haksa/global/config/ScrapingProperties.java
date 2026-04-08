@@ -48,6 +48,19 @@ public class ScrapingProperties {
         private long maxBackoffSeconds = 300;
         private long apiCallTimeoutSeconds = 10;
         private long apiCallAttemptTimeoutSeconds = 5;
+        private long metricsRefreshMs = 60000;
+        private final AfterCommit afterCommit = new AfterCommit();
+
+        @Getter
+        @Setter
+        public static class AfterCommit {
+            private int executorCorePoolSize = 2;
+            private int executorMaxPoolSize = 4;
+            private int queueCapacity = 100;
+            private int maxAttempts = 5;
+            private long initialDelayMs = 250;
+            private long maxDelayMs = 5000;
+        }
     }
 
     @Getter

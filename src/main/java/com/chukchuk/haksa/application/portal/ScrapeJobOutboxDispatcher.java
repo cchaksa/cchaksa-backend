@@ -8,7 +8,6 @@ import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import io.micrometer.core.instrument.MeterRegistry;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -43,14 +42,6 @@ public class ScrapeJobOutboxDispatcher {
     private final ScrapingProperties scrapingProperties;
     private final MeterRegistry meterRegistry;
     private final Environment environment;
-
-    @PostConstruct
-    void registerGauges() {
-        meterRegistry.gauge("scrape.outbox.dead.count", scrapeJobOutboxRepository,
-                repository -> (double) repository.countByStatus(ScrapeJobOutboxStatus.DEAD));
-        meterRegistry.gauge("scrape.outbox.retryable_failed.count", scrapeJobOutboxRepository,
-                repository -> (double) repository.countByStatus(ScrapeJobOutboxStatus.RETRYABLE_FAILED));
-    }
 
     @Scheduled(fixedDelayString = "${scraping.publisher.fixed-delay-ms:10000}")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
