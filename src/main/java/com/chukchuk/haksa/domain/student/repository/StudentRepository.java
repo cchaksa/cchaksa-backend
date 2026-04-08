@@ -15,6 +15,8 @@ import java.util.UUID;
 public interface StudentRepository extends JpaRepository<Student, UUID> {
     Optional<Student> findByUser(User user);
 
+    Optional<Student> findByStudentCode(String studentCode);
+
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Student s SET s.targetGpa = :targetGpa WHERE s.id = :studentId")
     void updateTargetGpaByStudentId(@Param("studentId") UUID studentId, @Param("targetGpa") Double targetGpa);
@@ -25,4 +27,7 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
             "LEFT JOIN FETCH s.major m " +
             "WHERE s.id = :studentId")
     Optional<Student> findProfileByIdWithAssociations(@Param("studentId") UUID studentId);
+
+    @Query("SELECT s FROM Student s JOIN s.user u WHERE u.id = :userId AND (u.portalConnected = false OR u.portalConnected IS NULL)")
+    Optional<Student> findPortalPendingStudent(@Param("userId") UUID userId);
 }

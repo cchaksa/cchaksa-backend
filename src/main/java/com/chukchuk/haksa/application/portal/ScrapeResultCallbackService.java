@@ -121,13 +121,15 @@ public class ScrapeResultCallbackService {
             PortalDataMapper.toPortalData(rawPortalData); // validate payload before persisting
 
             String payloadJson = writeJson(normalizedPayload);
-            job.markSucceeded(payloadJson, finishedAt);
-            recordQueuedAge(job, finishedAt);
+            job.recordWorkerResult(payloadJson, finishedAt);
+            Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
             eventPublisher.publishEvent(new PortalCallbackPostProcessCommand(
                     job.getJobId(),
                     job.getUserId(),
                     job.getOperationType(),
-                    payloadJson
+                    payloadJson,
+                    finishedAt,
+                    queuedAgeSeconds
             ));
             log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
         } catch (BaseException | IllegalArgumentException e) {
@@ -145,6 +147,13 @@ public class ScrapeResultCallbackService {
             log.error("[BIZ] scrape.job.callback.unexpected_fail jobId={} operationType={} ex={}",
                     job.getJobId(), job.getOperationType(), e.getClass().getSimpleName(), e);
         }
+    }
+
+    private Double calculateQueuedAgeSeconds(ScrapeJob job, Instant finishedAt) {
+        if (job.getCreatedAt() == null || finishedAt == null) {
+            return null;
+        }
+        return Duration.between(job.getCreatedAt(), finishedAt).toMillis() / 1000.0;
     }
 
     private String writeJson(Object value) {

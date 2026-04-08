@@ -1,6 +1,9 @@
 package com.chukchuk.haksa.application.portal;
 
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
+import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
@@ -13,12 +16,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.AbstractPlatformTransactionManager;
+import org.springframework.transaction.support.DefaultTransactionStatus;
+
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,59 +49,131 @@ class PortalCallbackPostProcessorTests {
     @Mock
     private PortalSyncService portalSyncService;
 
+    @Mock
+    private ScrapeJobRepository scrapeJobRepository;
+
     private SimpleMeterRegistry meterRegistry;
     private PortalCallbackPostProcessor processor;
+    private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
-        processor = new PortalCallbackPostProcessor(portalSyncService, new ObjectMapper().findAndRegisterModules(), meterRegistry);
+        transactionManager = new TestTransactionManager();
+        processor = new PortalCallbackPostProcessor(
+                portalSyncService,
+                new ObjectMapper().findAndRegisterModules(),
+                meterRegistry,
+                scrapeJobRepository,
+                transactionManager
+        );
+    }
+
+    private static class TestTransactionManager extends AbstractPlatformTransactionManager {
+
+        @Override
+        protected Object doGetTransaction() {
+            return new Object();
+        }
+
+        @Override
+        protected void doBegin(Object transaction, TransactionDefinition definition) {
+            // no-op
+        }
+
+        @Override
+        protected void doCommit(DefaultTransactionStatus status) {
+            // no-op
+        }
+
+        @Override
+        protected void doRollback(DefaultTransactionStatus status) {
+            // no-op
+        }
     }
 
     @Test
     @DisplayName("LINK 후처리가 성공하면 portal sync가 호출되고 성공 메트릭이 증가한다")
     void handle_linkSuccess() {
-        PortalCallbackPostProcessCommand command = command(ScrapeJobOperationType.LINK);
+        ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        PortalCallbackPostProcessCommand command = command(job);
 
         processor.handle(command);
 
         verify(portalSyncService).syncWithPortal(eq(command.userId()), any());
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.success").count()).isEqualTo(1.0);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
     }
 
     @Test
     @DisplayName("PORTAL refresh 실패는 실패 메트릭에 reason=portal_conn_fail로 기록된다")
     void handle_portalFailure_recordsPortalReason() {
-        PortalCallbackPostProcessCommand command = command(ScrapeJobOperationType.REFRESH);
+        ScrapeJob job = newJob(ScrapeJobOperationType.REFRESH);
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        PortalCallbackPostProcessCommand command = command(job);
         doThrow(new PortalScrapeException(ErrorCode.SCRAPING_FAILED)).when(portalSyncService).refreshFromPortal(eq(command.userId()), any());
 
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
+        assertThat(meterRegistry.counter("scrape.job.callback.postprocess.job_failed", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
     @Test
     @DisplayName("EntityNotFoundException은 reason=user_missing으로 기록된다")
     void handle_userMissing_recordsReason() {
-        PortalCallbackPostProcessCommand command = command(ScrapeJobOperationType.LINK);
+        ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        PortalCallbackPostProcessCommand command = command(job);
         doThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND)).when(portalSyncService).syncWithPortal(eq(command.userId()), any());
 
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "user_missing").count()).isEqualTo(1.0);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
     @Test
     @DisplayName("Json 파싱 실패는 portal sync를 호출하지 않고 invalid_payload 메트릭을 증가시킨다")
     void handle_invalidPayload_recordsFailure() {
-        PortalCallbackPostProcessCommand command = new PortalCallbackPostProcessCommand(UUID.randomUUID().toString(), UUID.randomUUID(), ScrapeJobOperationType.LINK, "{invalid-json}");
+        ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        PortalCallbackPostProcessCommand command = new PortalCallbackPostProcessCommand(
+                job.getJobId(),
+                job.getUserId(),
+                ScrapeJobOperationType.LINK,
+                "{invalid-json}",
+                Instant.parse("2026-04-08T00:00:00Z"),
+                1.0
+        );
 
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
-    private static PortalCallbackPostProcessCommand command(ScrapeJobOperationType operationType) {
-        return new PortalCallbackPostProcessCommand(UUID.randomUUID().toString(), UUID.randomUUID(), operationType, PAYLOAD_JSON);
+    private static ScrapeJob newJob(ScrapeJobOperationType operationType) {
+        return ScrapeJob.createQueued(
+                UUID.randomUUID(),
+                "suwon",
+                operationType,
+                "idem-1",
+                "fingerprint",
+                "{}"
+        );
+    }
+
+    private static PortalCallbackPostProcessCommand command(ScrapeJob job) {
+        return new PortalCallbackPostProcessCommand(
+                job.getJobId(),
+                job.getUserId(),
+                job.getOperationType(),
+                PAYLOAD_JSON,
+                Instant.parse("2026-04-08T00:00:00Z"),
+                1.0
+        );
     }
 }

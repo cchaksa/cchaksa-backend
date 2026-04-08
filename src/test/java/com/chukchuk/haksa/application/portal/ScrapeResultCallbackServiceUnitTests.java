@@ -2,6 +2,7 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -90,13 +91,15 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
 
-        assertThat(job.isCompleted()).isTrue();
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
+        assertThat(job.isCompleted()).isFalse();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
+        assertThat(job.getResultPayloadJson()).isNotBlank();
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
         PortalCallbackPostProcessCommand command = captor.getValue();
         assertThat(command.jobId()).isEqualTo(job.getJobId());
         assertThat(command.operationType()).isEqualTo(ScrapeJobOperationType.LINK);
+        assertThat(command.finishedAt()).isEqualTo(Instant.parse("2026-03-14T10:01:00Z"));
     }
 
     @Test
@@ -196,10 +199,12 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
+        assertThat(job.isCompleted()).isFalse();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().operationType()).isEqualTo(ScrapeJobOperationType.REFRESH);
+        assertThat(captor.getValue().finishedAt()).isEqualTo(Instant.parse("2026-03-14T10:01:00Z"));
     }
 
     @Test
@@ -233,7 +238,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 
@@ -268,7 +273,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 
