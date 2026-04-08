@@ -95,6 +95,10 @@ public class UserService {
         }
 
         User existingUser = existingUserOpt.get();
+        if (existingUser.getId().equals(currentUserId)) {
+            log.info("[BIZ] user.merge.skip.self userId={} studentCode={}", currentUserId, studentCode);
+            return currentUser;
+        }
 
         // 소셜 계정 모두 이전
         List<SocialAccount> accounts = socialAccountRepository.findAllByUserId(existingUser.getId());

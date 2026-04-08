@@ -167,6 +167,26 @@ class UserServiceUnitTests {
     }
 
     @Test
+    @DisplayName("existing user가 current와 동일하면 병합을 건너뛴다")
+    void tryMergeWithExistingUser_whenExistingIsSame_skipsMerge() {
+        UUID currentUserId = UUID.randomUUID();
+        User currentUser = User.builder()
+                .id(currentUserId)
+                .email("current@example.com")
+                .profileNickname("current")
+                .build();
+
+        UserService userService = createService();
+        when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+        when(userRepository.findByStudent_StudentCode("20201234")).thenReturn(Optional.of(currentUser));
+
+        User merged = userService.tryMergeWithExistingUser(currentUserId, "20201234");
+
+        assertThat(merged).isSameAs(currentUser);
+        verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
     @DisplayName("병합 대상 current user가 없으면 USER_NOT_FOUND 예외를 던진다")
     void tryMergeWithExistingUser_whenCurrentMissing_throws() {
         UUID currentUserId = UUID.randomUUID();

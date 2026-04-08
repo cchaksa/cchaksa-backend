@@ -1,20 +1,15 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
-import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.user.model.User;
-import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.mapper.PortalDataMapper;
-import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,10 +38,7 @@ import java.util.UUID;
 public class ScrapeResultCallbackService {
 
     private final ScrapeJobRepository scrapeJobRepository;
-    private final PortalSyncService portalSyncService;
-    private final UserService userService;
-    private final StudentService studentService;
-    private final AcademicCache academicCache;
+    private final ApplicationEventPublisher eventPublisher;
     private final HmacSignatureVerifier hmacSignatureVerifier;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -125,16 +118,17 @@ public class ScrapeResultCallbackService {
             }
             JsonNode normalizedPayload = normalizeNodeKeys(request.result_payload());
             RawPortalData rawPortalData = objectMapper.treeToValue(normalizedPayload, RawPortalData.class);
-            PortalData portalData = PortalDataMapper.toPortalData(rawPortalData);
+            PortalDataMapper.toPortalData(rawPortalData); // validate payload before persisting
 
-            if (job.getOperationType() == ScrapeJobOperationType.LINK) {
-                applyLink(job, portalData);
-            } else {
-                applyRefresh(job, portalData);
-            }
-
-            job.markSucceeded(writeJson(normalizedPayload), finishedAt);
+            String payloadJson = writeJson(normalizedPayload);
+            job.markSucceeded(payloadJson, finishedAt);
             recordQueuedAge(job, finishedAt);
+            eventPublisher.publishEvent(new PortalCallbackPostProcessCommand(
+                    job.getJobId(),
+                    job.getUserId(),
+                    job.getOperationType(),
+                    payloadJson
+            ));
             log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
@@ -151,24 +145,6 @@ public class ScrapeResultCallbackService {
             log.error("[BIZ] scrape.job.callback.unexpected_fail jobId={} operationType={} ex={}",
                     job.getJobId(), job.getOperationType(), e.getClass().getSimpleName(), e);
         }
-    }
-
-    private void applyLink(ScrapeJob job, PortalData portalData) {
-        UUID userId = job.getUserId();
-        User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
-        if (Boolean.TRUE.equals(mergedUser.getPortalConnected())) {
-            log.info("[BIZ] scrape.job.link.skip jobId={} mergedUserId={} reason=already_connected",
-                    job.getJobId(), mergedUser.getId());
-            return;
-        }
-
-        portalSyncService.syncWithPortal(mergedUser.getId(), portalData);
-    }
-
-    private void applyRefresh(ScrapeJob job, PortalData portalData) {
-        portalSyncService.refreshFromPortal(job.getUserId(), portalData);
-        UUID studentId = studentService.getRequiredStudentIdByUserId(job.getUserId());
-        academicCache.deleteAllByStudentId(studentId);
     }
 
     private String writeJson(Object value) {
