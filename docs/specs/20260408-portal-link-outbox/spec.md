@@ -12,6 +12,8 @@
 - Rule 1: Portal link 잡은 accepted 상태에서 outbox 메시지가 성공적으로 발행되어야 상태 전이가 진행된다.
 - Rule 2: Outbox 디스패치는 동일 트랜잭션 커밋 이후에만 실행되어 DB 레코드가 확정된 상태여야 한다.
 - Rule 3: 동일 job의 중복 디스패치는 idempotent 해야 하며 실패 시 재시도 경로가 존재해야 한다.
+- Rule 4: Job 상태 `SUCCEEDED` 표시는 포털 초기화/학업 동기화까지 완료된 이후에만 가능하다.
+- Rule 5: 동일 학번(StudentCode)에 대해 단 하나의 Student 엔티티만 존재해야 하며 재시도 시 중복 레코드가 남지 않아야 한다.
 - Mutable Rules: 디스패치 재시도 전략, gauge 수집 주기.
 - Immutable Rules: 잡 상태 전이 규칙, outbox -> SQS contract.
 
@@ -31,11 +33,14 @@
 - Scenario Name: 커넥션 고갈 등으로 afterCommit 실패
   - Condition: 동일 스레드에서 REQUIRES_NEW 트랜잭션 시작 시 Hikari pool에 사용 가능한 커넥션이 없음
   - Expected Behavior: 디스패치 스케줄러 또는 백오프 재시도가 커넥션 회복 후 다시 처리, shadow 환경에도 재시도 경로 존재.
+- Scenario Name: 포털 콜백 후처리 실패 또는 Student 중복
+  - Condition: `/internal/scrape-results` 콜백 이후 포털 초기화/학업 동기화 중 예외 발생 혹은 동일 학번 Student 중복으로 unique 제약 위반
+  - Expected Behavior: Job 상태는 `FAILED`로 전이되고 errorCode/Message에 사유 기록, Student/수강 데이터는 롤백되어 재시도 시 중복이 발생하지 않는다.
 
 ## 4. Transaction / Consistency
 - Transaction Start Point: PortalLinkJobService.acceptJob 진입 시 @Transactional
 - Transaction End Point: job insert/상태 변경 커밋 완료 시점
-- Atomicity Scope: Job 생성 및 outbox 레코드 생성까지 단일 트랜잭션, 디스패치는 별도 비동기 트랜잭션/스케줄러가 담당
+- Atomicity Scope: Job 생성 및 outbox 레코드 생성까지 단일 트랜잭션, 콜백 후처리(포털 초기화+학업 동기화+최종 상태 반영)는 AFTER_COMMIT 이벤트 안의 단일 REQUIRES_NEW 트랜잭션에서 원자적으로 수행
 - Eventual Consistency Allowed: SQS 디스패치는 eventual 허용, 단 재시도 메커니즘 필수
 
 ## 5. API List (필요 시)
