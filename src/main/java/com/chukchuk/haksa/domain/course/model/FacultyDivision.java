@@ -12,5 +12,6 @@ public enum FacultyDivision {
     일선,
     복선,
     복핵,
-    복교
+    복교,
+    기타
 }

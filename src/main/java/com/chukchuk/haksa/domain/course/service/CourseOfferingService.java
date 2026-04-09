@@ -127,7 +127,13 @@ public class CourseOfferingService {
         if (rawValue == null || rawValue.isBlank()) {
             return null;
         }
-        return FacultyDivision.valueOf(rawValue);
+
+        String normalized = rawValue.trim();
+        try {
+            return FacultyDivision.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return FacultyDivision.기타;
+        }
     }
 
     public record CourseOfferingKey(
