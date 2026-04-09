@@ -57,6 +57,10 @@
   - Message Convention: `portal_link.dispatch.error`
   - Handling Layer: ScrapeJobOutboxDispatcher + Global exception mapper
   - User Exposure: 로그/모니터링 기록, API 응답은 여전히 202
+- Error Code: `SCRAPE_JOB_FAILED_RESULT` / `SCRAPE_JOB_NOT_COMPLETED` / `SCRAPE_JOB_NOT_FOUND`
+  - Condition: `/portal/link/jobs/{jobId}` 등에서 Polling 중 발생하는 정상적인 비즈니스 예외
+  - Handling Layer: `PortalLinkJobQueryService` → `GlobalExceptionHandler`
+  - Sentry 정책: 사용자 행동 기반 4xx 잡음 방지를 위해 Sentry 이벤트를 남기지 않는다 (응답/로그만 남김)
 
 ## 7. Phase Checklist
 - [x] Phase 1 Spec fixed
