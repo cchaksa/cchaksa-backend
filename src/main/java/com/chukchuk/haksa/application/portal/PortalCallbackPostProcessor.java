@@ -14,16 +14,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -49,69 +47,92 @@ public class PortalCallbackPostProcessor {
         this.successTemplate = buildRequiresNewTemplate(transactionManager);
     }
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    @Async("portalCallbackExecutor")
-    public void handle(PortalCallbackPostProcessCommand command) {
+    public void process(
+            String jobId,
+            UUID userId,
+            ScrapeJobOperationType operationType,
+            String payloadJson,
+            Instant finishedAt,
+            Double queuedAgeSeconds,
+            int attempt,
+            String workerRequestId,
+            String payloadHash
+    ) {
         PortalData portalData;
         try {
-            portalData = toPortalData(command.resultPayloadJson());
+            portalData = toPortalData(payloadJson);
         } catch (JsonProcessingException e) {
-            handleParsingFailure(command, e);
+            handleParsingFailure(jobId, userId, operationType, finishedAt, queuedAgeSeconds, e);
             return;
         }
 
         String studentCode = portalData.student().studentCode();
         log.info("[BIZ] scrape.job.callback.postprocess.start jobId={} userId={} operationType={} studentCode={} attempt={} requestId={} payloadHash={}",
-                command.jobId(), command.userId(), command.operationType(), studentCode, command.attempt(), command.workerRequestId(), command.payloadHash());
+                jobId, userId, operationType, studentCode, attempt, workerRequestId, payloadHash);
         try {
             successTemplate.executeWithoutResult(status -> {
-                ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(command.jobId())
+                ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(jobId)
                         .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND));
                 log.info("[BIZ] scrape.job.callback.postprocess.execute jobId={} currentStatus={}", job.getJobId(), job.getStatus());
-                if (command.operationType() == ScrapeJobOperationType.LINK) {
-                    portalSyncService.syncWithPortal(command.userId(), portalData);
+                if (operationType == ScrapeJobOperationType.LINK) {
+                    portalSyncService.syncWithPortal(userId, portalData);
                 } else {
-                    portalSyncService.refreshFromPortal(command.userId(), portalData);
+                    portalSyncService.refreshFromPortal(userId, portalData);
                 }
-                job.markSucceeded(command.resultPayloadJson(), resolveFinishedAt(command));
-                recordQueuedAge(job, command.finishedAt(), command.queuedAgeSeconds());
+                Instant resolvedFinishedAt = resolveFinishedAt(finishedAt);
+                job.markSucceeded(payloadJson, resolvedFinishedAt);
+                recordQueuedAge(job, finishedAt, queuedAgeSeconds);
                 log.info("[BIZ] scrape.job.succeeded jobId={} operationType={} payloadHash={} finishedAt={}",
-                        job.getJobId(), job.getOperationType(), command.payloadHash(), resolveFinishedAt(command));
+                        job.getJobId(), job.getOperationType(), payloadHash, resolvedFinishedAt);
             });
             meterRegistry.counter("scrape.job.callback.postprocess.success").increment();
             log.info("[BIZ] scrape.job.callback.postprocess.success jobId={} userId={} operationType={} studentCode={}",
-                    command.jobId(), command.userId(), command.operationType(), studentCode);
+                    jobId, userId, operationType, studentCode);
         } catch (EntityNotFoundException exception) {
-            recordFailure(command, studentCode, "user_missing", exception);
+            recordFailure(jobId, finishedAt, queuedAgeSeconds, "user_missing", operationType, exception);
         } catch (PortalScrapeException exception) {
-            recordFailure(command, studentCode, "portal_conn_fail", exception);
+            recordFailure(jobId, finishedAt, queuedAgeSeconds, "portal_conn_fail", operationType, exception);
         } catch (DataIntegrityViolationException exception) {
-            recordFailure(command, studentCode, "data_integrity", exception);
+            recordFailure(jobId, finishedAt, queuedAgeSeconds, "data_integrity", operationType, exception);
         } catch (RuntimeException exception) {
-            recordFailure(command, studentCode, "unexpected", exception);
+            recordFailure(jobId, finishedAt, queuedAgeSeconds, "unexpected", operationType, exception);
         }
     }
 
-    private void handleParsingFailure(PortalCallbackPostProcessCommand command, JsonProcessingException exception) {
+    private void handleParsingFailure(
+            String jobId,
+            UUID userId,
+            ScrapeJobOperationType operationType,
+            Instant finishedAt,
+            Double queuedAgeSeconds,
+            JsonProcessingException exception
+    ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
-        markJobFailed(command, "INVALID_PORTAL_PAYLOAD", exception.getOriginalMessage());
+        markJobFailed(jobId, finishedAt, queuedAgeSeconds, "INVALID_PORTAL_PAYLOAD", exception.getOriginalMessage());
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
-                command.jobId(), command.userId(), command.operationType(), exception.getOriginalMessage(), exception);
+                jobId, userId, operationType, exception.getOriginalMessage(), exception);
     }
 
-    private void recordFailure(PortalCallbackPostProcessCommand command, String studentCode, String reason, Exception exception) {
+    private void recordFailure(
+            String jobId,
+            Instant finishedAt,
+            Double queuedAgeSeconds,
+            String reason,
+            ScrapeJobOperationType operationType,
+            Exception exception
+    ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", reason).increment();
-        markJobFailed(command, failureCode(reason, exception, command.operationType()), exception.getMessage());
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} studentCode={} reason={} message={}",
-                command.jobId(), command.userId(), command.operationType(), studentCode, reason, exception.getMessage(), exception);
+        markJobFailed(jobId, finishedAt, queuedAgeSeconds, failureCode(reason, exception, operationType), exception.getMessage());
+        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} message={}",
+                jobId, operationType, reason, exception.getMessage(), exception);
     }
 
-    private void markJobFailed(PortalCallbackPostProcessCommand command, String errorCode, String message) {
+    private void markJobFailed(String jobId, Instant finishedAt, Double queuedAgeSeconds, String errorCode, String message) {
         successTemplate.executeWithoutResult(status -> {
-            ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(command.jobId())
+            ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(jobId)
                     .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND));
-            job.markFailed(errorCode, message, false, resolveFinishedAt(command));
-            recordQueuedAge(job, command.finishedAt(), command.queuedAgeSeconds());
+            job.markFailed(errorCode, message, false, resolveFinishedAt(finishedAt));
+            recordQueuedAge(job, finishedAt, queuedAgeSeconds);
         });
     }
 
@@ -132,8 +153,8 @@ public class PortalCallbackPostProcessor {
         return PortalDataMapper.toPortalData(rawPortalData);
     }
 
-    private static Instant resolveFinishedAt(PortalCallbackPostProcessCommand command) {
-        return command.finishedAt() != null ? command.finishedAt() : Instant.now();
+    private static Instant resolveFinishedAt(Instant finishedAt) {
+        return finishedAt != null ? finishedAt : Instant.now();
     }
 
     private String failureCode(String reason, Exception exception, ScrapeJobOperationType operationType) {

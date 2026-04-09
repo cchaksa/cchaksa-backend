@@ -2,7 +2,6 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
@@ -19,7 +18,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,7 +36,7 @@ import java.util.UUID;
 public class ScrapeResultCallbackService {
 
     private final ScrapeJobRepository scrapeJobRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final PortalCallbackPostProcessor portalCallbackPostProcessor;
     private final HmacSignatureVerifier hmacSignatureVerifier;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -135,13 +133,12 @@ public class ScrapeResultCallbackService {
             String payloadJson = writeJson(normalizedPayload);
             String payloadHash = hashRawBody(payloadJson);
             job.recordWorkerResult(payloadJson, finishedAt);
-            job.markPostProcessing();
             Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
             recordQueuedAge(job, finishedAt);
             meterRegistry.counter("scrape.job.callback.persisted").increment();
             log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={} queuedAgeSeconds={}",
                     job.getJobId(), attempt, workerRequestId, payloadHash, queuedAgeSeconds);
-            eventPublisher.publishEvent(new PortalCallbackPostProcessCommand(
+            portalCallbackPostProcessor.process(
                     job.getJobId(),
                     job.getUserId(),
                     job.getOperationType(),
@@ -151,7 +148,7 @@ public class ScrapeResultCallbackService {
                     attempt,
                     workerRequestId,
                     payloadHash
-            ));
+            );
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
             recordQueuedAge(job, finishedAt);

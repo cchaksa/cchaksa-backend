@@ -17,6 +17,7 @@
 | 4 | `./gradlew test` | Success | 2026-04-09 |
 | 5 | `./gradlew test` | Success | 2026-04-09 |
 | 6 | `./gradlew test` | Success | 2026-04-09 |
+| 7 | `./gradlew test` | Success | 2026-04-09 |
 
 ## Notes
 - Observation: develop-shadow 는 scheduler disabled 상태라 afterCommit 비동기 경로 외에는 재시도 없음, executor 기반 재시도 필요.

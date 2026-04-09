@@ -1,15 +1,15 @@
 # Plan
 
 ## Architecture / Layering
-- Domain impact: ScrapeJob 은 성공 콜백 저장 시 `recordWorkerResult` 까지만 수행하며, 포털 동기화가 끝난 뒤에만 `markSucceeded` 혹은 실패 시 `markFailed` 된다.
-- Application orchestration: ScrapeResultCallbackService 는 서명 검증/결과 적재/이벤트 발행까지만 수행하고, PortalCallbackPostProcessor 가 REQUIRES_NEW 트랜잭션에서 포털 연동 후 최종 상태를 확정한다.
-- Infrastructure touchpoints: PortalCallbackPostProcessor 는 ScrapeJobRepository/PortalSyncService 를 묶어 실행하되, 실패 시 Job 상태 수정 없이 로그/메트릭만 남긴다.
-- Global/config changes: Async executor(`portalCallbackExecutor`) 추가, callback/후처리 단계별 관측 지표 확장.
+- Domain impact: ScrapeJob 은 성공 콜백 저장 시 `recordWorkerResult` 까지만 수행하며, 같은 요청 안에서 포털 동기화가 완료돼야 `markSucceeded`/`markFailed` 된다.
+- Application orchestration: ScrapeResultCallbackService 가 서명 검증 → 결과 적재 → PortalCallbackPostProcessor.process 동기 호출까지 모두 수행하고, PortalCallbackPostProcessor 는 REQUIRES_NEW 트랜잭션으로 portal sync/refresh 후 상태를 확정한다.
+- Infrastructure touchpoints: PortalCallbackPostProcessor 는 ScrapeJobRepository/PortalSyncService 를 묶어 실행하며, 실패 시 동일 트랜잭션에서 Job 상태를 FAILED 로 기록한다.
+- Global/config changes: Lambda 함수 timeout/메모리 상향(별도 IaC), portalCallbackExecutor 제거.
 
 ## Data / Transactions
 - Repositories touched: `ScrapeJobRepository`, `StudentRepository`, `UserRepository`, `StudentCourseRepository`, `StudentCourseBulkRepository`.
-- Transaction scope: `/internal/scrape-results` 트랜잭션은 job 상태/결과 저장까지만 책임지고 즉시 커밋한다. PortalSyncService 는 AFTER_COMMIT 이벤트의 REQUIRES_NEW 트랜잭션에서 실행되며 실패 시 롤백되지만 Job 상태는 유지된다.
-- Consistency expectations: 성공 콜백이 수신되면 항상 `ScrapeJobStatus.SUCCEEDED` 로 커밋되며, 후처리 실패는 로그/메트릭 기반으로만 노출된다.
+- Transaction scope: `/internal/scrape-results` 트랜잭션이 worker 결과 기록과 portal sync 호출을 모두 수행하고, PortalCallbackPostProcessor 내부에서 REQUIRES_NEW 트랜잭션으로 최종 상태를 커밋한다.
+- Consistency expectations: 성공 콜백이 수신되면 portal sync 결과에 따라 즉시 `ScrapeJobStatus.SUCCEEDED/FAILED` 로 확정되며, 후처리 실패도 동일 요청 안에서 사용자에게 반영된다(HTTP 200 + 상태 FAILED).
 
 ## Testing Strategy
 - Domain tests: ScrapeJob `markSucceeded`/`recordWorkerResult` 조합이 중복 호출에도 idempotent 한지 검증.

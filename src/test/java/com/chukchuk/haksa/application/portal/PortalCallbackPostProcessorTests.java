@@ -29,8 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PortalCallbackPostProcessorTests {
@@ -97,11 +97,20 @@ class PortalCallbackPostProcessorTests {
     void handle_linkSuccess() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        PortalCallbackPostProcessCommand command = command(job);
+        Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
+        processor.process(
+                job.getJobId(),
+                job.getUserId(),
+                ScrapeJobOperationType.LINK,
+                PAYLOAD_JSON,
+                finishedAt,
+                1.0,
+                1,
+                "",
+                "payload-hash"
+        );
 
-        processor.handle(command);
-
-        verify(portalSyncService).syncWithPortal(eq(command.userId()), any());
+        verify(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.success").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
     }
@@ -111,10 +120,20 @@ class PortalCallbackPostProcessorTests {
     void handle_portalFailure_recordsPortalReason() {
         ScrapeJob job = newJob(ScrapeJobOperationType.REFRESH);
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        PortalCallbackPostProcessCommand command = command(job);
-        doThrow(new PortalScrapeException(ErrorCode.SCRAPING_FAILED)).when(portalSyncService).refreshFromPortal(eq(command.userId()), any());
+        Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
+        doThrow(new PortalScrapeException(ErrorCode.SCRAPING_FAILED)).when(portalSyncService).refreshFromPortal(eq(job.getUserId()), any());
 
-        processor.handle(command);
+        processor.process(
+                job.getJobId(),
+                job.getUserId(),
+                ScrapeJobOperationType.REFRESH,
+                PAYLOAD_JSON,
+                finishedAt,
+                1.0,
+                1,
+                "",
+                "payload-hash"
+        );
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
@@ -125,10 +144,20 @@ class PortalCallbackPostProcessorTests {
     void handle_userMissing_recordsReason() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        PortalCallbackPostProcessCommand command = command(job);
-        doThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND)).when(portalSyncService).syncWithPortal(eq(command.userId()), any());
+        Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
+        doThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND)).when(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
 
-        processor.handle(command);
+        processor.process(
+                job.getJobId(),
+                job.getUserId(),
+                ScrapeJobOperationType.LINK,
+                PAYLOAD_JSON,
+                finishedAt,
+                1.0,
+                1,
+                "",
+                "payload-hash"
+        );
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "user_missing").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
@@ -138,21 +167,20 @@ class PortalCallbackPostProcessorTests {
     @DisplayName("Json 파싱 실패는 portal sync를 호출하지 않고 invalid_payload 메트릭을 증가시킨다")
     void handle_invalidPayload_recordsFailure() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
-        PortalCallbackPostProcessCommand command = new PortalCallbackPostProcessCommand(
-                job.getJobId(),
-                job.getUserId(),
-                ScrapeJobOperationType.LINK,
-                "{invalid-json}",
-                Instant.parse("2026-04-08T00:00:00Z"),
-                1.0,
-                1,
-                "",
-                "invalid"
-        );
-
+        Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        processor.handle(command);
+        processor.process(
+            job.getJobId(),
+            job.getUserId(),
+            ScrapeJobOperationType.LINK,
+            "{invalid-json}",
+            finishedAt,
+            1.0,
+            1,
+            "",
+            "invalid"
+        );
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
@@ -168,21 +196,6 @@ class PortalCallbackPostProcessorTests {
                 "{}"
         );
         job.recordWorkerResult(PAYLOAD_JSON, Instant.parse("2026-04-08T00:00:00Z"));
-        job.markPostProcessing();
         return job;
-    }
-
-    private static PortalCallbackPostProcessCommand command(ScrapeJob job) {
-        return new PortalCallbackPostProcessCommand(
-                job.getJobId(),
-                job.getUserId(),
-                job.getOperationType(),
-                PAYLOAD_JSON,
-                Instant.parse("2026-04-08T00:00:00Z"),
-                1.0,
-                1,
-                "",
-                "payload-hash"
-        );
     }
 }

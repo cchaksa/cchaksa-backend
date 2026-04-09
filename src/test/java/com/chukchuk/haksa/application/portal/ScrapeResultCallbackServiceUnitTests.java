@@ -2,7 +2,6 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -12,10 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.util.Base64;
@@ -25,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,7 +35,7 @@ class ScrapeResultCallbackServiceUnitTests {
     private ScrapeJobRepository scrapeJobRepository;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private PortalCallbackPostProcessor portalCallbackPostProcessor;
 
     private SimpleMeterRegistry meterRegistry;
 
@@ -93,15 +91,18 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isFalse();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
         assertThat(job.getResultPayloadJson()).isNotBlank();
-        ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        PortalCallbackPostProcessCommand command = captor.getValue();
-        assertThat(command.jobId()).isEqualTo(job.getJobId());
-        assertThat(command.operationType()).isEqualTo(ScrapeJobOperationType.LINK);
-        assertThat(command.finishedAt()).isEqualTo(Instant.parse("2026-03-14T10:01:00Z"));
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     @Test
@@ -134,7 +135,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        verify(eventPublisher, never()).publishEvent(any());
+        verify(portalCallbackPostProcessor, never()).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -168,6 +169,7 @@ class ScrapeResultCallbackServiceUnitTests {
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("PORTAL_AUTH_FAILED");
         assertThat(job.getRetryable()).isFalse();
+        verify(portalCallbackPostProcessor, never()).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -201,12 +203,17 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isFalse();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
-        ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
-        verify(eventPublisher).publishEvent(captor.capture());
-        assertThat(captor.getValue().operationType()).isEqualTo(ScrapeJobOperationType.REFRESH);
-        assertThat(captor.getValue().finishedAt()).isEqualTo(Instant.parse("2026-03-14T10:01:00Z"));
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.REFRESH),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     @Test
@@ -240,8 +247,17 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
-        verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     @Test
@@ -275,14 +291,23 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
-        verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     private ScrapeResultCallbackService createService() {
         return new ScrapeResultCallbackService(
                 scrapeJobRepository,
-                eventPublisher,
+                portalCallbackPostProcessor,
                 new HmacSignatureVerifier("test-callback-secret", 300),
                 meterRegistry
         );
