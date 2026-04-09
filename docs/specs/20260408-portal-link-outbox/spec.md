@@ -12,7 +12,7 @@
 - Rule 1: Portal link 잡은 accepted 상태에서 outbox 메시지가 성공적으로 발행되어야 상태 전이가 진행된다.
 - Rule 2: Outbox 디스패치는 동일 트랜잭션 커밋 이후에만 실행되어 DB 레코드가 확정된 상태여야 한다.
 - Rule 3: 동일 job의 중복 디스패치는 idempotent 해야 하며 실패 시 재시도 경로가 존재해야 한다.
-- Rule 4: Job 상태 `SUCCEEDED` 표시는 포털 초기화/학업 동기화까지 완료된 이후에만 가능하다.
+- Rule 4: Worker 성공 콜백이 저장되면 Job 상태는 즉시 `SUCCEEDED` 로 전환되고, 포털 초기화/학업 동기화는 별도 비동기 후처리로 진행된다.
 - Rule 5: 동일 학번(StudentCode)에 대해 단 하나의 Student 엔티티만 존재해야 하며 재시도 시 중복 레코드가 남지 않아야 한다.
 - Mutable Rules: 디스패치 재시도 전략, gauge 수집 주기.
 - Immutable Rules: 잡 상태 전이 규칙, outbox -> SQS contract.
@@ -35,7 +35,7 @@
   - Expected Behavior: 디스패치 스케줄러 또는 백오프 재시도가 커넥션 회복 후 다시 처리, shadow 환경에도 재시도 경로 존재.
 - Scenario Name: 포털 콜백 후처리 실패 또는 Student 중복
   - Condition: `/internal/scrape-results` 콜백 이후 포털 초기화/학업 동기화 중 예외 발생 혹은 동일 학번 Student 중복으로 unique 제약 위반
-  - Expected Behavior: Job 상태는 `FAILED`로 전이되고 errorCode/Message에 사유 기록, Student/수강 데이터는 롤백되어 재시도 시 중복이 발생하지 않는다.
+  - Expected Behavior: Job 상태는 이미 `SUCCEEDED` 이고 그대로 유지되며, 후처리 실패 원인만 로그/메트릭으로 노출되고 Student/수강 데이터는 롤백되어 재시도 시 중복이 발생하지 않는다.
 
 ## 4. Transaction / Consistency
 - Transaction Start Point: PortalLinkJobService.acceptJob 진입 시 @Transactional
