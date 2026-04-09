@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.domain.portal.controller;
 
 import com.chukchuk.haksa.application.portal.ScrapeResultCallbackService;
+import com.chukchuk.haksa.domain.portal.controller.docs.PortalLinkCallbackControllerDocs;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/internal/scrape-results")
 @RequiredArgsConstructor
-public class InternalScrapeResultController {
+public class InternalScrapeResultController implements PortalLinkCallbackControllerDocs {
 
     private final ScrapeResultCallbackService scrapeResultCallbackService;
 
