@@ -80,7 +80,7 @@ public class ScrapeResultCallbackService {
         log.info("[BIZ] scrape.job.callback.received jobId={} status={} attempt={} requestId={} rawBodyHash={}",
                 job.getJobId(), job.getStatus(), attempt, normalizedWorkerRequestId, bodyHash);
 
-        if (job.isCompleted()) {
+        if (job.isCompleted() || job.hasWorkerResult()) {
             handleDuplicate(job, attempt, normalizedWorkerRequestId);
             return;
         }
@@ -134,7 +134,8 @@ public class ScrapeResultCallbackService {
 
             String payloadJson = writeJson(normalizedPayload);
             String payloadHash = hashRawBody(payloadJson);
-            job.markSucceeded(payloadJson, finishedAt);
+            job.recordWorkerResult(payloadJson, finishedAt);
+            job.markPostProcessing();
             Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
             recordQueuedAge(job, finishedAt);
             meterRegistry.counter("scrape.job.callback.persisted").increment();
@@ -151,8 +152,6 @@ public class ScrapeResultCallbackService {
                     workerRequestId,
                     payloadHash
             ));
-            log.info("[BIZ] scrape.job.succeeded jobId={} operationType={} attempt={} requestId={}",
-                    job.getJobId(), job.getOperationType(), attempt, workerRequestId);
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
             recordQueuedAge(job, finishedAt);

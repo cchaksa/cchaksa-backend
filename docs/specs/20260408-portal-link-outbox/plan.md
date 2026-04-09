@@ -1,8 +1,8 @@
 # Plan
 
 ## Architecture / Layering
-- Domain impact: ScrapeJob 은 성공 콜백 저장 시 바로 `markSucceeded` 되고, 후속 포털 동기화 실패가 상태를 덮지 않는다.
-- Application orchestration: ScrapeResultCallbackService 는 서명 검증/상태 전이/이벤트 발행까지만 수행하고, PortalCallbackPostProcessor 는 `@Async` + REQUIRES_NEW 트랜잭션에서 포털 연동을 처리한다.
+- Domain impact: ScrapeJob 은 성공 콜백 저장 시 `recordWorkerResult` 까지만 수행하며, 포털 동기화가 끝난 뒤에만 `markSucceeded` 혹은 실패 시 `markFailed` 된다.
+- Application orchestration: ScrapeResultCallbackService 는 서명 검증/결과 적재/이벤트 발행까지만 수행하고, PortalCallbackPostProcessor 가 REQUIRES_NEW 트랜잭션에서 포털 연동 후 최종 상태를 확정한다.
 - Infrastructure touchpoints: PortalCallbackPostProcessor 는 ScrapeJobRepository/PortalSyncService 를 묶어 실행하되, 실패 시 Job 상태 수정 없이 로그/메트릭만 남긴다.
 - Global/config changes: Async executor(`portalCallbackExecutor`) 추가, callback/후처리 단계별 관측 지표 확장.
 

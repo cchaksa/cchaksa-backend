@@ -117,7 +117,7 @@ class PortalCallbackPostProcessorTests {
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
     @Test
@@ -131,7 +131,7 @@ class PortalCallbackPostProcessorTests {
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "user_missing").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
     @Test
@@ -150,10 +150,12 @@ class PortalCallbackPostProcessorTests {
                 "invalid"
         );
 
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
     }
 
     private static ScrapeJob newJob(ScrapeJobOperationType operationType) {
@@ -165,7 +167,8 @@ class PortalCallbackPostProcessorTests {
                 "fingerprint",
                 "{}"
         );
-        job.markSucceeded(PAYLOAD_JSON, Instant.parse("2026-04-08T00:00:00Z"));
+        job.recordWorkerResult(PAYLOAD_JSON, Instant.parse("2026-04-08T00:00:00Z"));
+        job.markPostProcessing();
         return job;
     }
 

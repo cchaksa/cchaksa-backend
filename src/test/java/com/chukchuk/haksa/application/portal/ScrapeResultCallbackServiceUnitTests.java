@@ -93,8 +93,8 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isTrue();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.isCompleted()).isFalse();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
         assertThat(job.getResultPayloadJson()).isNotBlank();
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -201,8 +201,8 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isTrue();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.isCompleted()).isFalse();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().operationType()).isEqualTo(ScrapeJobOperationType.REFRESH);
@@ -240,7 +240,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 
@@ -275,7 +275,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 
