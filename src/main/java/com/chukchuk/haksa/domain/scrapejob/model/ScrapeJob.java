@@ -119,8 +119,16 @@ public class ScrapeJob extends BaseEntity {
         return status == ScrapeJobStatus.SUCCEEDED || status == ScrapeJobStatus.FAILED;
     }
 
+    public boolean hasWorkerResult() {
+        return resultPayloadJson != null;
+    }
+
     public void markSucceeded(String resultPayloadJson, Instant finishedAt) {
+        recordWorkerResult(resultPayloadJson, finishedAt);
         this.status = ScrapeJobStatus.SUCCEEDED;
+    }
+
+    public void recordWorkerResult(String resultPayloadJson, Instant finishedAt) {
         this.resultPayloadJson = resultPayloadJson;
         this.errorCode = null;
         this.errorMessage = null;

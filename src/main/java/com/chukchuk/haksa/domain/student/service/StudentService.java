@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -35,6 +36,14 @@ public class StudentService {
         User user = userService.getUserById(userId);
 
         return user.getStudent();
+    }
+
+    public Optional<Student> findByStudentCode(String studentCode) {
+        return studentRepository.findByStudentCode(studentCode);
+    }
+
+    public Optional<Student> findPortalPendingStudent(UUID userId) {
+        return studentRepository.findPortalPendingStudent(userId);
     }
 
     public UUID getRequiredStudentIdByUserId(UUID userId) {

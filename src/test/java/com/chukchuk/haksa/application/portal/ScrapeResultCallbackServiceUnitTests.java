@@ -1,16 +1,13 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
-import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.user.model.User;
-import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,8 +22,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,16 +35,14 @@ class ScrapeResultCallbackServiceUnitTests {
     private ScrapeJobRepository scrapeJobRepository;
 
     @Mock
-    private PortalSyncService portalSyncService;
+    private PortalCallbackPostProcessor portalCallbackPostProcessor;
 
-    @Mock
-    private UserService userService;
+    private SimpleMeterRegistry meterRegistry;
 
-    @Mock
-    private StudentService studentService;
-
-    @Mock
-    private AcademicCache academicCache;
+    @BeforeEach
+    void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+    }
 
     @Test
     @DisplayName("잘못된 HMAC 서명은 거부한다")
@@ -58,7 +53,9 @@ class ScrapeResultCallbackServiceUnitTests {
         assertThatThrownBy(() -> service.handleCallback(
                 "{\"job_id\":\"job-1\",\"status\":\"failed\",\"error_code\":\"INVALID_PAYLOAD\",\"error_message\":\"bad\",\"retryable\":false,\"finished_at\":\"2026-03-14T10:01:00Z\"}",
                 timestamp,
-                "invalid-signature"
+                "invalid-signature",
+                null,
+                null
         )).isInstanceOf(CommonException.class)
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.INVALID_CALLBACK_SIGNATURE.code()));
     }
@@ -91,51 +88,21 @@ class ScrapeResultCallbackServiceUnitTests {
                 """.formatted(job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isTrue();
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
-    }
-
-    @Test
-    @DisplayName("성공 callback 처리 중 RuntimeException이 발생해도 FAILED로 마킹된다")
-    void handleCallback_runtimeDuringSync_marksJobFailed() {
-        ScrapeResultCallbackService service = createService();
-        UUID userId = UUID.randomUUID();
-        String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
+        assertThat(job.getResultPayloadJson()).isNotBlank();
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
         );
-        String rawBody = """
-                {
-                  "job_id":"%s",
-                  "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
-                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
-                }
-                """.formatted(job.getJobId());
-
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
-        RuntimeException boom = new RuntimeException("unexpected");
-        doThrow(boom).when(portalSyncService).syncWithPortal(any(UUID.class), any());
-
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
-
-        assertThat(job.getStatus().name()).isEqualTo("FAILED");
-        assertThat(job.getErrorCode()).isEqualTo("INTERNAL_ERROR");
     }
 
     @Test
@@ -166,9 +133,9 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        verify(portalSyncService, never()).refreshFromPortal(any(UUID.class), any());
+        verify(portalCallbackPostProcessor, never()).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -197,11 +164,12 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("PORTAL_AUTH_FAILED");
         assertThat(job.getRetryable()).isFalse();
+        verify(portalCallbackPostProcessor, never()).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -209,7 +177,6 @@ class ScrapeResultCallbackServiceUnitTests {
     void handleCallback_marksRefreshJobSucceeded() {
         ScrapeResultCallbackService service = createService();
         UUID userId = UUID.randomUUID();
-        UUID studentId = UUID.randomUUID();
         String timestamp = Instant.now().toString();
         ScrapeJob job = ScrapeJob.createQueued(
                 userId,
@@ -233,13 +200,20 @@ class ScrapeResultCallbackServiceUnitTests {
                 """.formatted(job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).refreshFromPortal(eq(userId), any());
-        verify(academicCache).deleteAllByStudentId(studentId);
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.REFRESH),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     @Test
@@ -270,12 +244,20 @@ class ScrapeResultCallbackServiceUnitTests {
                 """.formatted(job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     @Test
@@ -306,32 +288,29 @@ class ScrapeResultCallbackServiceUnitTests {
                 """.formatted(job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+        verify(portalCallbackPostProcessor).process(
+                eq(job.getJobId()),
+                eq(userId),
+                eq(ScrapeJobOperationType.LINK),
+                any(),
+                eq(Instant.parse("2026-03-14T10:01:00Z")),
+                any(),
+                eq(1),
+                eq(""),
+                any()
+        );
     }
 
     private ScrapeResultCallbackService createService() {
         return new ScrapeResultCallbackService(
                 scrapeJobRepository,
-                portalSyncService,
-                userService,
-                studentService,
-                academicCache,
+                portalCallbackPostProcessor,
                 new HmacSignatureVerifier("test-callback-secret", 300),
-                new SimpleMeterRegistry()
+                meterRegistry
         );
-    }
-
-    private static User disconnectedUser(UUID userId) {
-        return User.builder()
-                .id(userId)
-                .email("user@example.com")
-                .profileNickname("tester")
-                .build();
     }
 
     private static String sign(String timestamp, String rawBody) {
