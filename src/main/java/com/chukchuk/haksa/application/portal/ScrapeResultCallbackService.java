@@ -44,9 +44,11 @@ public class ScrapeResultCallbackService {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Transactional
-    public void handleCallback(String rawBody, String timestamp, String signature) {
+    public void handleCallback(String rawBody, String timestamp, String signature, String attemptHeader, String workerRequestId) {
         String bodyHash = hashRawBody(rawBody);
         String hintedJobId = extractJobId(rawBody);
+        int attempt = parseAttempt(attemptHeader);
+        String normalizedWorkerRequestId = normalizeWorkerRequestId(workerRequestId);
 
         try {
             hmacSignatureVerifier.verify(timestamp, rawBody, signature);
@@ -75,8 +77,11 @@ public class ScrapeResultCallbackService {
                     return new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND);
                 });
 
+        log.info("[BIZ] scrape.job.callback.received jobId={} status={} attempt={} requestId={} rawBodyHash={}",
+                job.getJobId(), job.getStatus(), attempt, normalizedWorkerRequestId, bodyHash);
+
         if (job.isCompleted()) {
-            log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={}", job.getJobId(), job.getStatus());
+            handleDuplicate(job, attempt, normalizedWorkerRequestId);
             return;
         }
 
@@ -84,15 +89,15 @@ public class ScrapeResultCallbackService {
         String normalizedStatus = normalize(request.status());
 
         if ("succeeded".equals(normalizedStatus)) {
-            handleSucceeded(job, request, finishedAt, bodyHash);
+            handleSucceeded(job, request, finishedAt, bodyHash, attempt, normalizedWorkerRequestId);
             return;
         }
 
         if ("failed".equals(normalizedStatus)) {
             job.markFailed(request.error_code(), request.error_message(), request.retryable(), finishedAt);
             recordQueuedAge(job, finishedAt);
-            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={}",
-                    job.getJobId(), request.error_code(), request.retryable());
+            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
+                    job.getJobId(), request.error_code(), request.retryable(), attempt, normalizedWorkerRequestId);
             return;
         }
 
@@ -109,7 +114,14 @@ public class ScrapeResultCallbackService {
         }
     }
 
-    private void handleSucceeded(ScrapeJob job, PortalLinkDto.ScrapeResultCallbackRequest request, Instant finishedAt, String bodyHash) {
+    private void handleSucceeded(
+            ScrapeJob job,
+            PortalLinkDto.ScrapeResultCallbackRequest request,
+            Instant finishedAt,
+            String bodyHash,
+            int attempt,
+            String workerRequestId
+    ) {
         try {
             if (request.result_payload() == null || request.result_payload().isNull()) {
                 log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_missing jobId={} rawBodyHash={}",
@@ -121,17 +133,26 @@ public class ScrapeResultCallbackService {
             PortalDataMapper.toPortalData(rawPortalData); // validate payload before persisting
 
             String payloadJson = writeJson(normalizedPayload);
-            job.recordWorkerResult(payloadJson, finishedAt);
+            String payloadHash = hashRawBody(payloadJson);
+            job.markSucceeded(payloadJson, finishedAt);
             Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
+            recordQueuedAge(job, finishedAt);
+            meterRegistry.counter("scrape.job.callback.persisted").increment();
+            log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={} queuedAgeSeconds={}",
+                    job.getJobId(), attempt, workerRequestId, payloadHash, queuedAgeSeconds);
             eventPublisher.publishEvent(new PortalCallbackPostProcessCommand(
                     job.getJobId(),
                     job.getUserId(),
                     job.getOperationType(),
                     payloadJson,
                     finishedAt,
-                    queuedAgeSeconds
+                    queuedAgeSeconds,
+                    attempt,
+                    workerRequestId,
+                    payloadHash
             ));
-            log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
+            log.info("[BIZ] scrape.job.succeeded jobId={} operationType={} attempt={} requestId={}",
+                    job.getJobId(), job.getOperationType(), attempt, workerRequestId);
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
             recordQueuedAge(job, finishedAt);
@@ -147,6 +168,13 @@ public class ScrapeResultCallbackService {
             log.error("[BIZ] scrape.job.callback.unexpected_fail jobId={} operationType={} ex={}",
                     job.getJobId(), job.getOperationType(), e.getClass().getSimpleName(), e);
         }
+    }
+
+    private void handleDuplicate(ScrapeJob job, int attempt, String workerRequestId) {
+        meterRegistry.counter("scrape.job.callback.duplicate", "status", job.getStatus().name().toLowerCase(Locale.ROOT))
+                .increment();
+        log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={} attempt={} requestId={}",
+                job.getJobId(), job.getStatus(), attempt, workerRequestId);
     }
 
     private Double calculateQueuedAgeSeconds(ScrapeJob job, Instant finishedAt) {
@@ -191,6 +219,23 @@ public class ScrapeResultCallbackService {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    private int parseAttempt(String attemptHeader) {
+        if (attemptHeader == null || attemptHeader.isBlank()) {
+            return 1;
+        }
+        try {
+            int value = Integer.parseInt(attemptHeader);
+            return value <= 0 ? 1 : value;
+        } catch (NumberFormatException e) {
+            log.warn("[BIZ] scrape.job.callback.attempt.parse_fail header={} message={}", attemptHeader, e.getMessage());
+            return 1;
+        }
+    }
+
+    private String normalizeWorkerRequestId(String workerRequestId) {
+        return workerRequestId == null ? "" : workerRequestId;
     }
 
     private JsonNode normalizeNodeKeys(JsonNode node) {

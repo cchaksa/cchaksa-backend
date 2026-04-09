@@ -22,9 +22,11 @@ public class InternalScrapeResultController {
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> handleCallback(
             @RequestBody String rawBody,
             @RequestHeader("X-Timestamp") String timestamp,
-            @RequestHeader("X-Signature") String signature
+            @RequestHeader("X-Signature") String signature,
+            @RequestHeader(value = "X-Callback-Attempt", required = false) String attemptHeader,
+            @RequestHeader(value = "X-Request-Id", required = false) String workerRequestId
     ) {
-        scrapeResultCallbackService.handleCallback(rawBody, timestamp, signature);
+        scrapeResultCallbackService.handleCallback(rawBody, timestamp, signature, attemptHeader, workerRequestId);
         return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("콜백 처리 완료")));
     }
 }

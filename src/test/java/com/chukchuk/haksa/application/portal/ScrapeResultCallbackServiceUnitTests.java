@@ -55,7 +55,9 @@ class ScrapeResultCallbackServiceUnitTests {
         assertThatThrownBy(() -> service.handleCallback(
                 "{\"job_id\":\"job-1\",\"status\":\"failed\",\"error_code\":\"INVALID_PAYLOAD\",\"error_message\":\"bad\",\"retryable\":false,\"finished_at\":\"2026-03-14T10:01:00Z\"}",
                 timestamp,
-                "invalid-signature"
+                "invalid-signature",
+                null,
+                null
         )).isInstanceOf(CommonException.class)
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.INVALID_CALLBACK_SIGNATURE.code()));
     }
@@ -89,10 +91,10 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isFalse();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
+        assertThat(job.isCompleted()).isTrue();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
         assertThat(job.getResultPayloadJson()).isNotBlank();
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -130,7 +132,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
         verify(eventPublisher, never()).publishEvent(any());
     }
@@ -161,7 +163,7 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("PORTAL_AUTH_FAILED");
@@ -197,10 +199,10 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.isCompleted()).isFalse();
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
+        assertThat(job.isCompleted()).isTrue();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
         ArgumentCaptor<PortalCallbackPostProcessCommand> captor = ArgumentCaptor.forClass(PortalCallbackPostProcessCommand.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().operationType()).isEqualTo(ScrapeJobOperationType.REFRESH);
@@ -236,9 +238,9 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 
@@ -271,9 +273,9 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.QUEUED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
         verify(eventPublisher).publishEvent(any(PortalCallbackPostProcessCommand.class));
     }
 

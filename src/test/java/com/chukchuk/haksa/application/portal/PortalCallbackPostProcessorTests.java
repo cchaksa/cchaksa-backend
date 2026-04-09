@@ -117,8 +117,7 @@ class PortalCallbackPostProcessorTests {
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
-        assertThat(meterRegistry.counter("scrape.job.callback.postprocess.job_failed", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
     }
 
     @Test
@@ -132,31 +131,33 @@ class PortalCallbackPostProcessorTests {
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "user_missing").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
     }
 
     @Test
     @DisplayName("Json 파싱 실패는 portal sync를 호출하지 않고 invalid_payload 메트릭을 증가시킨다")
     void handle_invalidPayload_recordsFailure() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         PortalCallbackPostProcessCommand command = new PortalCallbackPostProcessCommand(
                 job.getJobId(),
                 job.getUserId(),
                 ScrapeJobOperationType.LINK,
                 "{invalid-json}",
                 Instant.parse("2026-04-08T00:00:00Z"),
-                1.0
+                1.0,
+                1,
+                "",
+                "invalid"
         );
 
         processor.handle(command);
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
     }
 
     private static ScrapeJob newJob(ScrapeJobOperationType operationType) {
-        return ScrapeJob.createQueued(
+        ScrapeJob job = ScrapeJob.createQueued(
                 UUID.randomUUID(),
                 "suwon",
                 operationType,
@@ -164,6 +165,8 @@ class PortalCallbackPostProcessorTests {
                 "fingerprint",
                 "{}"
         );
+        job.markSucceeded(PAYLOAD_JSON, Instant.parse("2026-04-08T00:00:00Z"));
+        return job;
     }
 
     private static PortalCallbackPostProcessCommand command(ScrapeJob job) {
@@ -173,7 +176,10 @@ class PortalCallbackPostProcessorTests {
                 job.getOperationType(),
                 PAYLOAD_JSON,
                 Instant.parse("2026-04-08T00:00:00Z"),
-                1.0
+                1.0,
+                1,
+                "",
+                "payload-hash"
         );
     }
 }

@@ -11,6 +11,9 @@ public record PortalCallbackPostProcessCommand(
         ScrapeJobOperationType operationType,
         String resultPayloadJson,
         Instant finishedAt,
-        Double queuedAgeSeconds
+        Double queuedAgeSeconds,
+        int attempt,
+        String workerRequestId,
+        String payloadHash
 ) {
 }
