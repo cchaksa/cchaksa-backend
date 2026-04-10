@@ -84,6 +84,7 @@ class ScrapeResultCallbackServiceUnitTests {
                   \"job_id\":\"%s\",
                   \"status\":\"succeeded\",
                   \"result_s3_key\":\"callbacks/%s/result.json\",
+                  \"result_checksum\":\"sha256:abc123\",
                   \"finished_at\":\"2026-03-14T10:01:00Z\"
                 }
                 """.formatted(job.getJobId(), job.getJobId());

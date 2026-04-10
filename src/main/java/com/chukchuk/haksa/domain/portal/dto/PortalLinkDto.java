@@ -84,6 +84,8 @@ public class PortalLinkDto {
             Integer attempt,
             @JsonProperty("result_s3_key")
             String result_s3_key,
+            @JsonProperty("result_checksum")
+            String resultChecksum,
             @JsonProperty("error_code")
             String error_code,
             @JsonProperty("error_message")
