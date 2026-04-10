@@ -44,7 +44,7 @@ public class ScrapeJobDispatchConfig {
 
     @Bean
     public S3Client scrapeResultS3Client() {
-        ScrapingProperties.Callback.ResultStore store = scrapingProperties.getCallback().getResultStore();
+        ScrapingProperties.ResultStore store = scrapingProperties.getResultStore();
         return S3Client.builder()
                 .region(Region.of(store.getRegion()))
                 .overrideConfiguration(ClientOverrideConfiguration.builder()

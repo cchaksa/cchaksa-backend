@@ -30,12 +30,16 @@ public class ScrapeResultResultStoreClient {
     private final ScrapingProperties scrapingProperties;
 
     public String fetch(String requestedLocation) {
-        ScrapingProperties.Callback.ResultStore store = scrapingProperties.getCallback().getResultStore();
-        S3Location location = resolveLocation(requestedLocation, store);
-        return fetchWithRetry(store, location);
+        S3Location location = validateLocation(requestedLocation);
+        return fetchWithRetry(location);
     }
 
-    private String fetchWithRetry(ScrapingProperties.Callback.ResultStore store, S3Location location) {
+    public S3Location validateLocation(String requestedLocation) {
+        return resolveLocation(requestedLocation, scrapingProperties.getResultStore());
+    }
+
+    private String fetchWithRetry(S3Location location) {
+        ScrapingProperties.ResultStore store = scrapingProperties.getResultStore();
         long backoffMs = INITIAL_BACKOFF_MS;
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
@@ -91,7 +95,7 @@ public class ScrapeResultResultStoreClient {
         }
     }
 
-    private void validateContentLength(ScrapingProperties.Callback.ResultStore store, long contentLength) {
+    private void validateContentLength(ScrapingProperties.ResultStore store, long contentLength) {
         if (contentLength < 0) {
             return;
         }
@@ -123,7 +127,7 @@ public class ScrapeResultResultStoreClient {
         }
     }
 
-    private S3Location resolveLocation(String requestedLocation, ScrapingProperties.Callback.ResultStore store) {
+    private S3Location resolveLocation(String requestedLocation, ScrapingProperties.ResultStore store) {
         if (requestedLocation == null || requestedLocation.isBlank()) {
             throw new ScrapeResultPayloadAccessException(ERROR_CODE, "result_s3_key is missing", true);
         }
@@ -167,5 +171,5 @@ public class ScrapeResultResultStoreClient {
         return new S3Location(bucket, key);
     }
 
-    private record S3Location(String bucket, String key) {}
+    public record S3Location(String bucket, String key) {}
 }
