@@ -84,10 +84,10 @@
   - Idempotency: `job_id` + `status` 조합 기준 멱등
 
 ## 6. Exception Policy
-- Error Code: `SCRAPE_INVALID_REQUEST`
-  - Condition: DTO 필수값 누락 또는 형식 오류
+- Error Code: `SCRAPE_INVALID_CALLBACK_REQUEST`
+  - Condition: DTO 필수값 누락, attempt 불일치, 서명은 통과했으나 payload 형식이 계약을 위반한 경우
   - Message Convention: "Invalid scrape callback payload"
-  - Handling Layer: Controller validation → Global exception handler
+  - Handling Layer: Controller validation → Callback 서비스
   - User Exposure: 내부 시스템만 사용, 로그에서 추적
 - Error Code: `SCRAPE_INVALID_S3_KEY`
   - Condition: 허용되지 않은 `result_s3_key` prefix, 형식 위반

@@ -11,7 +11,8 @@
   - AWS SDK S3 client에 HEAD/GET + retry 래퍼(`ScrapeResultResultStoreClient`) 구현, prefix allowlist 검증 포함
   - 비동기 executor/scheduler 제거 (thread/Async 금지)
 - Global/config changes:
-  - `scraping.callback` 하위에 result-store 설정만 유지, post-process executor 설정 제거
+  - `scraping.result-store`로 키 경로를 평탄화하고 dev 기본값(`SCRAPING_RESULT_BUCKET`, `SCRAPING_RESULT_PREFIX`, `SCRAPING_RESULT_REGION`, `SCRAPING_RESULT_MAX_PAYLOAD_BYTES`, `SCRAPING_RESULT_API_CALL_TIMEOUT_SECONDS`, `SCRAPING_RESULT_API_CALL_ATTEMPT_TIMEOUT_SECONDS`)을 명시한다.
+  - post-process executor 설정은 제거/비활성화하고 callback 요청 내에서만 처리한다.
   - 새로운 오류 코드/상태에 대한 로깅 패턴 점검
 
 ## Data / Transactions

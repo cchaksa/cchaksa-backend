@@ -12,7 +12,7 @@
 ## Decisions
 | # | Decision | Reason | Date |
 |---|----------|--------|------|
-| 1 | callback 최소 동기 처리는 검증 + 상태 저장까지만 수행, S3 read는 비동기 처리 파이프라인으로 분리 | timeout 리스크 경감 및 스크래핑 서버 SLA 확보 | 2026-04-10 |
+| 1 | 콜백 요청 내에서 검증 → 상태 저장 → S3 read → JSON/schema 검증 → DB 반영까지 모두 동기 처리한다. 별도 비동기 파이프라인은 두지 않는다. | 워커 타임아웃(25초) 내 후처리를 끝내고 duplicate retry 시 멱등성을 보장하기 위함 | 2026-04-10 |
 | 2 | 2026-04-10 사용자 "작업 시작" 지시에 따라 OK to implement 승인 확보 | Phase 2 진행 승인 | 2026-04-10 |
 
 ## Risks / Unknowns
@@ -24,4 +24,4 @@
   - Mitigation: DB 레벨 unique constraint + version check + 멱등 저장 로직
 
 ## Follow-ups
-- [ ] Open 질문 1~5 답변 확보 (Owner: BE 팀)
+- [x] Open 질문 1~5 답변 확보 (Owner: BE 팀)
