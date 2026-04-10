@@ -27,6 +27,9 @@ import java.util.UUID;
 @Component
 public class PortalCallbackPostProcessor {
 
+    private static final String FAILED_POST_PROCESSING = "FAILED_POST_PROCESSING";
+    private static final String FAILED_RESULT_SCHEMA = "FAILED_RESULT_SCHEMA";
+
     private final PortalSyncService portalSyncService;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
@@ -108,7 +111,7 @@ public class PortalCallbackPostProcessor {
             JsonProcessingException exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
-        markJobFailed(jobId, finishedAt, queuedAgeSeconds, "INVALID_PORTAL_PAYLOAD", exception.getOriginalMessage());
+        markJobFailed(jobId, finishedAt, queuedAgeSeconds, FAILED_RESULT_SCHEMA, exception.getOriginalMessage());
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
                 jobId, userId, operationType, exception.getOriginalMessage(), exception);
     }
@@ -122,9 +125,10 @@ public class PortalCallbackPostProcessor {
             Exception exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", reason).increment();
-        markJobFailed(jobId, finishedAt, queuedAgeSeconds, failureCode(reason, exception, operationType), exception.getMessage());
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} message={}",
-                jobId, operationType, reason, exception.getMessage(), exception);
+        String failureDetail = failureCode(reason, exception, operationType);
+        markJobFailed(jobId, finishedAt, queuedAgeSeconds, FAILED_POST_PROCESSING, failureDetail + ":" + exception.getMessage());
+        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
+                jobId, operationType, reason, failureDetail, exception);
     }
 
     private void markJobFailed(String jobId, Instant finishedAt, Double queuedAgeSeconds, String errorCode, String message) {

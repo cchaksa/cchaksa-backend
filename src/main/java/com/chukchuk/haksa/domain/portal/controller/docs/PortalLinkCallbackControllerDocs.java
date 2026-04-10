@@ -19,7 +19,8 @@ public interface PortalLinkCallbackControllerDocs {
 
     @Operation(
             summary = "[Internal] 스크래핑 결과 콜백 수신",
-            description = "스크래핑 워커가 API Gateway를 통해 전달하는 결과 payload를 검증하고 DB에 반영합니다.\n"
+            description = "스크래핑 워커가 API Gateway를 통해 전달하는 job 상태와 result_s3_key를 검증하고 DB에 반영합니다.\n"
+                    + "실제 결과 payload는 result_s3_key 기반으로 백엔드가 S3에서 조회합니다.\n"
                     + "HMAC 서명 규칙: signature = HMAC_SHA256(\"{timestamp}.{rawBody}\").",
             responses = {
                     @ApiResponse(responseCode = "200", description = "콜백 처리 완료",

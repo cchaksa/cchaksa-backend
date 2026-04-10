@@ -16,6 +16,10 @@ public enum ErrorCode {
     SCRAPE_JOB_OUTBOX_DEAD("C12", "스크래핑 작업 전송이 중단되었습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     SCRAPE_JOB_NOT_COMPLETED("C13", "스크래핑 작업이 아직 완료되지 않았습니다.", HttpStatus.CONFLICT),
     SCRAPE_JOB_FAILED_RESULT("C14", "스크래핑 작업이 실패 상태입니다.", HttpStatus.UNPROCESSABLE_ENTITY),
+    SCRAPE_INVALID_S3_KEY("C15", "허용되지 않은 S3 key 입니다.", HttpStatus.BAD_REQUEST),
+    SCRAPE_RESULT_S3_FAILED("C16", "S3에서 스크래핑 결과를 읽어오지 못했습니다.", HttpStatus.BAD_GATEWAY),
+    SCRAPE_RESULT_SCHEMA_INVALID("C17", "스크래핑 결과 스키마가 유효하지 않습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
+    SCRAPE_RESULT_POST_PROCESSING_FAILED("C18", "스크래핑 결과 후처리에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),

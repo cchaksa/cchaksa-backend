@@ -59,6 +59,15 @@ public class ScrapeJob extends BaseEntity {
     @Column(name = "result_payload_json", columnDefinition = "TEXT")
     private String resultPayloadJson;
 
+    @Column(name = "result_s3_key")
+    private String resultS3Key;
+
+    @Column(name = "callback_attempt")
+    private Integer callbackAttempt;
+
+    @Column(name = "callback_received_at")
+    private Instant callbackReceivedAt;
+
     @Column(name = "error_code")
     private String errorCode;
 
@@ -123,6 +132,10 @@ public class ScrapeJob extends BaseEntity {
         return resultPayloadJson != null;
     }
 
+    public boolean hasProcessedAttempt(int attempt) {
+        return callbackAttempt != null && attempt <= callbackAttempt;
+    }
+
     public void markSucceeded(String resultPayloadJson, Instant finishedAt) {
         recordWorkerResult(resultPayloadJson, finishedAt);
         this.status = ScrapeJobStatus.SUCCEEDED;
@@ -134,6 +147,16 @@ public class ScrapeJob extends BaseEntity {
         this.errorMessage = null;
         this.retryable = null;
         this.finishedAt = finishedAt;
+    }
+
+    public void recordCallbackAttempt(int attempt, Instant receivedAt) {
+        this.callbackAttempt = attempt;
+        this.callbackReceivedAt = receivedAt;
+    }
+
+    public void recordResultLocation(String resultS3Key, int attempt, Instant receivedAt) {
+        recordCallbackAttempt(attempt, receivedAt);
+        this.resultS3Key = resultS3Key;
     }
 
     public void markFailed(String errorCode, String errorMessage, Boolean retryable, Instant finishedAt) {
