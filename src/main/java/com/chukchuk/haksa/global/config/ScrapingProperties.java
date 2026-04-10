@@ -29,6 +29,19 @@ public class ScrapingProperties {
     public static class Callback {
         private String hmacSecret = "";
         private long allowedSkewSeconds = 300;
+        private final ResultStore resultStore = new ResultStore();
+
+        @Getter
+        @Setter
+        public static class ResultStore {
+            private String bucket = "";
+            private String prefix = "";
+            private String region = "ap-northeast-2";
+            private long maxPayloadBytes = 2_097_152;
+            private long apiCallTimeoutSeconds = 10;
+            private long apiCallAttemptTimeoutSeconds = 5;
+        }
+
     }
 
     @Getter

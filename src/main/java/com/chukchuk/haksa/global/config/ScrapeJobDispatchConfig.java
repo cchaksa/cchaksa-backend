@@ -7,6 +7,9 @@ import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 @RequiredArgsConstructor
@@ -37,5 +40,17 @@ public class ScrapeJobDispatchConfig {
         scheduler.setRemoveOnCancelPolicy(true);
         scheduler.initialize();
         return scheduler;
+    }
+
+    @Bean
+    public S3Client scrapeResultS3Client() {
+        ScrapingProperties.Callback.ResultStore store = scrapingProperties.getCallback().getResultStore();
+        return S3Client.builder()
+                .region(Region.of(store.getRegion()))
+                .overrideConfiguration(ClientOverrideConfiguration.builder()
+                        .apiCallTimeout(java.time.Duration.ofSeconds(store.getApiCallTimeoutSeconds()))
+                        .apiCallAttemptTimeout(java.time.Duration.ofSeconds(store.getApiCallAttemptTimeoutSeconds()))
+                        .build())
+                .build();
     }
 }

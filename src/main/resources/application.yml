@@ -58,6 +58,13 @@ scraping:
   callback:
     hmac-secret: ${SCRAPING_CALLBACK_HMAC_SECRET:}
     allowed-skew-seconds: ${SCRAPING_CALLBACK_ALLOWED_SKEW_SECONDS:300}
+    result-store:
+      bucket: ${SCRAPING_RESULT_BUCKET:}
+      prefix: ${SCRAPING_RESULT_PREFIX:}
+      region: ${SCRAPING_RESULT_REGION:ap-northeast-2}
+      max-payload-bytes: ${SCRAPING_RESULT_MAX_PAYLOAD_BYTES:2097152}
+      api-call-timeout-seconds: ${SCRAPING_RESULT_API_CALL_TIMEOUT_SECONDS:10}
+      api-call-attempt-timeout-seconds: ${SCRAPING_RESULT_API_CALL_ATTEMPT_TIMEOUT_SECONDS:5}
   scheduler:
     enabled: ${SCRAPING_SCHEDULER_ENABLED:true}
   publisher:
