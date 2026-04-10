@@ -74,6 +74,7 @@
 - Move business logic gradually into the domain layer.
 - Gradually reduce transaction scope.
 - Split commits by meaningful units (feature, refactor, test).
+- 커밋은 반드시 작업 최소 단위(기능/버그 수정/테스트 추가 등)별로 분리해라.
 
 ### Git Branch Naming
 - 모든 작업 브랜치는 사용자가 지정한 GitHub Issue 번호와 1:1로 매핑되며, 브랜치명은 항상 `feat/{github-issue-number}` 형식을 따른다. (예: `feat/123`)
