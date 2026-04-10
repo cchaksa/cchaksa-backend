@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
@@ -114,6 +115,7 @@ public class PortalCallbackPostProcessor {
         markJobFailed(jobId, finishedAt, queuedAgeSeconds, FAILED_RESULT_SCHEMA, exception.getOriginalMessage());
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
                 jobId, userId, operationType, exception.getOriginalMessage(), exception);
+        throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
     }
 
     private void recordFailure(
@@ -129,6 +131,7 @@ public class PortalCallbackPostProcessor {
         markJobFailed(jobId, finishedAt, queuedAgeSeconds, FAILED_POST_PROCESSING, failureDetail + ":" + exception.getMessage());
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
                 jobId, operationType, reason, failureDetail, exception);
+        throw new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED, exception);
     }
 
     private void markJobFailed(String jobId, Instant finishedAt, Double queuedAgeSeconds, String errorCode, String message) {

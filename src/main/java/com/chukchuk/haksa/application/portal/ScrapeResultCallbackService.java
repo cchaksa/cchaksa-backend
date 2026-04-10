@@ -103,7 +103,7 @@ public class ScrapeResultCallbackService {
             return;
         }
 
-        throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        throw new CommonException(ErrorCode.SCRAPE_INVALID_CALLBACK_REQUEST);
     }
 
     private PortalLinkDto.ScrapeResultCallbackRequest parseRequest(String rawBody, String bodyHash) {
@@ -112,7 +112,7 @@ public class ScrapeResultCallbackService {
         } catch (JsonProcessingException e) {
             log.warn("[BIZ] scrape.job.callback.invalid_payload stage=request_parse rawBodyHash={} message={}",
                     bodyHash, e.getOriginalMessage());
-            throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
+            throw new CommonException(ErrorCode.SCRAPE_INVALID_CALLBACK_REQUEST, e);
         }
     }
 
@@ -237,7 +237,15 @@ public class ScrapeResultCallbackService {
         if (resultS3Key == null || resultS3Key.isBlank()) {
             throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY);
         }
-        if (!resultS3Key.contains(jobId)) {
+        ScrapeResultResultStoreClient.S3Location location;
+        try {
+            location = resultStoreClient.validateLocation(resultS3Key);
+        } catch (ScrapeResultPayloadAccessException exception) {
+            log.warn("[BIZ] scrape.job.callback.invalid_s3_key jobId={} resultS3Key={} reason={}",
+                    jobId, resultS3Key, exception.getMessage());
+            throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY, exception);
+        }
+        if (!location.key().contains(jobId)) {
             log.warn("[BIZ] scrape.job.callback.s3_key_without_job jobId={} resultS3Key={}", jobId, resultS3Key);
             throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY);
         }

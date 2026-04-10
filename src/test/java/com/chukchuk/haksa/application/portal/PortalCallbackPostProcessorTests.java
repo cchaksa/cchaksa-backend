@@ -5,6 +5,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -123,7 +125,7 @@ class PortalCallbackPostProcessorTests {
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         doThrow(new PortalScrapeException(ErrorCode.SCRAPING_FAILED)).when(portalSyncService).refreshFromPortal(eq(job.getUserId()), any());
 
-        processor.process(
+        assertThatThrownBy(() -> processor.process(
                 job.getJobId(),
                 job.getUserId(),
                 ScrapeJobOperationType.REFRESH,
@@ -133,7 +135,8 @@ class PortalCallbackPostProcessorTests {
                 1,
                 "",
                 "payload-hash"
-        );
+        )).isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED.code()));
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "portal_conn_fail").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
@@ -147,7 +150,7 @@ class PortalCallbackPostProcessorTests {
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         doThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND)).when(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
 
-        processor.process(
+        assertThatThrownBy(() -> processor.process(
                 job.getJobId(),
                 job.getUserId(),
                 ScrapeJobOperationType.LINK,
@@ -157,7 +160,8 @@ class PortalCallbackPostProcessorTests {
                 1,
                 "",
                 "payload-hash"
-        );
+        )).isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED.code()));
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "user_missing").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
@@ -170,7 +174,7 @@ class PortalCallbackPostProcessorTests {
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        processor.process(
+        assertThatThrownBy(() -> processor.process(
             job.getJobId(),
             job.getUserId(),
             ScrapeJobOperationType.LINK,
@@ -180,7 +184,8 @@ class PortalCallbackPostProcessorTests {
             1,
             "",
             "invalid"
-        );
+        )).isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code()));
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);

@@ -12,6 +12,7 @@
 | Step | Command | Result | Date |
 |------|---------|--------|------|
 | 1 | `./gradlew test` | Success | 2026-04-10 |
+| 2 | `./gradlew test` | Success | 2026-04-10 |
 
 ## Notes
 - Observation: Phase 1 완료, clarify 답변(동기 처리/상태 코드) 반영됨. Phase 2에서 S3 검증~DB 반영을 단일 요청 안에서 구현해야 함.

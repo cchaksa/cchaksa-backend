@@ -25,6 +25,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,6 +48,11 @@ class ScrapeResultCallbackServiceUnitTests {
     @BeforeEach
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
+        lenient().when(resultStoreClient.validateLocation(any()))
+                .thenAnswer(invocation -> new ScrapeResultResultStoreClient.S3Location(
+                        "bucket",
+                        invocation.getArgument(0, String.class)
+                ));
     }
 
     @Test
@@ -183,6 +190,30 @@ class ScrapeResultCallbackServiceUnitTests {
     }
 
     @Test
+    @DisplayName("S3 key 형식 검증이 실패하면 SCRAPE_INVALID_S3_KEY를 반환한다")
+    void handleCallback_rejectsInvalidS3KeyFormat() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        String rawBody = """
+                {
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"invalid/key.json\"
+                }
+                """.formatted(job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(resultStoreClient.validateLocation("invalid/key.json")).thenThrow(
+                new ScrapeResultPayloadAccessException("SCRAPE_S3_FAILURE", "prefix mismatch", false)
+        );
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
+    }
+
+    @Test
     @DisplayName("S3 읽기 실패 시 FAILED_S3_READ로 저장하고 SCRAPE_RESULT_S3_FAILED 반환")
     void handleCallback_marksS3Failure() {
         ScrapeResultCallbackService service = createService();
@@ -205,6 +236,32 @@ class ScrapeResultCallbackServiceUnitTests {
                 .isInstanceOf(CommonException.class)
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_S3_FAILED.code()));
         assertThat(job.getErrorCode()).isEqualTo("FAILED_S3_READ");
+    }
+
+    @Test
+    @DisplayName("후처리 실패는 SCRAPE_RESULT_POST_PROCESSING_FAILED로 전달된다")
+    void handleCallback_propagatesPostProcessingFailure() {
+        ScrapeResultCallbackService service = createService();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        String timestamp = Instant.now().toString();
+        String rawBody = """
+                {
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"callbacks/%s/result.json\"
+                }
+                """.formatted(job.getJobId(), job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId())))
+                .thenReturn("{\"schema_version\":\"v1\"}");
+        doThrow(new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED))
+                .when(portalCallbackPostProcessor)
+                .process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED.code()));
     }
 
     private ScrapeResultCallbackService createService() {

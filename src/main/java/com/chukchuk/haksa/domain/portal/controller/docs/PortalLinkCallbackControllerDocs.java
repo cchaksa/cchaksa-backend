@@ -27,6 +27,8 @@ public interface PortalLinkCallbackControllerDocs {
                             content = @Content(schema = @Schema(implementation = MessageOnlyResponse.class))),
                     @ApiResponse(responseCode = "400", description = "서명 검증 실패 (INVALID_CALLBACK_SIGNATURE)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(responseCode = "400", description = "잘못된 콜백 요청 (SCRAPE_INVALID_CALLBACK_REQUEST)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "404", description = "job 미존재 (PORTAL_JOB_NOT_FOUND)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
