@@ -33,10 +33,8 @@ class InternalScrapeResultControllerApiIntegrationTest extends ApiControllerWebM
         String body = """
                 {
                   "job_id":"job-1",
-                  "status":"failed",
-                  "error_code":"INVALID_PAYLOAD",
-                  "error_message":"bad",
-                  "retryable":false,
+                  "status":"succeeded",
+                  "result_s3_key":"callbacks/job-1/result.json",
                   "finished_at":"2026-03-14T10:01:00Z"
                 }
                 """;

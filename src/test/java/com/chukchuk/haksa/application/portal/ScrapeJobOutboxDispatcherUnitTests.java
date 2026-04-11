@@ -3,6 +3,7 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
@@ -66,6 +67,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
         assertThat(outbox.getQueueMessageId()).isEqualTo("msg-1");
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
     }
 
     @Test

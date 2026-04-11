@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -59,9 +57,7 @@ public class PortalSyncService {
         studentService.markReconnectedByUser(user);
 
         long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.sync.done userId={} took_ms={}", userId, tookMs);
-        }
+        log.info("[BIZ] portal.sync.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
         // 4. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
@@ -94,9 +90,7 @@ public class PortalSyncService {
         studentService.markReconnectedByUser(user);
 
         long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.refresh.done userId={} took_ms={}", userId, tookMs);
-        }
+        log.info("[BIZ] portal.refresh.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
         // 4. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
