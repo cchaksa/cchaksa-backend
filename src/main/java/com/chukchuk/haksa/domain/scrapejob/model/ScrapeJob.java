@@ -62,11 +62,18 @@ public class ScrapeJob extends BaseEntity {
     @Column(name = "result_s3_key")
     private String resultS3Key;
 
+    @Column(name = "result_checksum")
+    private String resultChecksum;
+
     @Column(name = "callback_attempt")
     private Integer callbackAttempt;
 
     @Column(name = "callback_received_at")
     private Instant callbackReceivedAt;
+
+    @Lob
+    @Column(name = "callback_metadata_json", columnDefinition = "TEXT")
+    private String callbackMetadataJson;
 
     @Column(name = "error_code")
     private String errorCode;
@@ -136,6 +143,29 @@ public class ScrapeJob extends BaseEntity {
         return callbackAttempt != null && attempt <= callbackAttempt;
     }
 
+    public void markRunning() {
+        if (!isCompleted()) {
+            this.status = ScrapeJobStatus.RUNNING;
+        }
+    }
+
+    public void markPostProcessing(
+            String resultS3Key,
+            String resultChecksum,
+            String callbackMetadataJson,
+            int attempt,
+            Instant receivedAt
+    ) {
+        this.status = ScrapeJobStatus.POST_PROCESSING;
+        this.resultS3Key = resultS3Key;
+        this.resultChecksum = resultChecksum;
+        this.callbackMetadataJson = callbackMetadataJson;
+        this.errorCode = null;
+        this.errorMessage = null;
+        this.retryable = null;
+        recordCallbackAttempt(attempt, receivedAt);
+    }
+
     public void markSucceeded(String resultPayloadJson, Instant finishedAt) {
         recordWorkerResult(resultPayloadJson, finishedAt);
         this.status = ScrapeJobStatus.SUCCEEDED;
@@ -157,6 +187,20 @@ public class ScrapeJob extends BaseEntity {
     public void recordResultLocation(String resultS3Key, int attempt, Instant receivedAt) {
         recordCallbackAttempt(attempt, receivedAt);
         this.resultS3Key = resultS3Key;
+    }
+
+    public void recordFailedCallback(
+            int attempt,
+            Instant receivedAt,
+            String callbackMetadataJson,
+            String errorCode,
+            String errorMessage,
+            Boolean retryable,
+            Instant finishedAt
+    ) {
+        recordCallbackAttempt(attempt, receivedAt);
+        this.callbackMetadataJson = callbackMetadataJson;
+        markFailed(errorCode, errorMessage, retryable, finishedAt);
     }
 
     public void markFailed(String errorCode, String errorMessage, Boolean retryable, Instant finishedAt) {
