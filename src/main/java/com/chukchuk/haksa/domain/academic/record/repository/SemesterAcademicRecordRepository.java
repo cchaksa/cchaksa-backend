@@ -29,4 +29,6 @@ public interface SemesterAcademicRecordRepository extends JpaRepository<Semester
     List<SemesterAcademicRecord> findByStudentId(UUID studentId); //studentID로 data 얻어오기
 
     List<SemesterAcademicRecord> findByStudentIdOrderByYearDescSemesterDesc(UUID studentId);
+
+    void deleteByStudentId(UUID studentId);
 }
