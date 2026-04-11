@@ -69,7 +69,7 @@ public class UserService {
         Student student = user.getStudent();
         UUID studentId = student != null ? student.getId() : null;
 
-        studentDeletionService.deleteByStudentId(studentId);
+        studentDeletionService.deleteByStudent(student);
         if (studentId != null) {
             academicCache.deleteAllByStudentId(studentId);
         }
