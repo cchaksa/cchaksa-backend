@@ -1,8 +1,6 @@
 package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
-import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
@@ -18,7 +16,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -36,20 +33,23 @@ public class ScrapeResultCallbackService {
     private static final String FAILED_S3_READ = "FAILED_S3_READ";
     private static final String FAILED_RESULT_SCHEMA = "FAILED_RESULT_SCHEMA";
 
-    private final ScrapeJobRepository scrapeJobRepository;
     private final PortalCallbackPostProcessor portalCallbackPostProcessor;
+    private final ScrapeResultCallbackTxService scrapeResultCallbackTxService;
     private final ScrapeResultResultStoreClient resultStoreClient;
     private final HmacSignatureVerifier hmacSignatureVerifier;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
-    @Transactional
     public void handleCallback(String rawBody, String timestamp, String signature, String attemptHeader, String workerRequestId) {
+        long startedAt = System.nanoTime();
         String bodyHash = hashRawBody(rawBody);
         String hintedJobId = extractJobId(rawBody);
         PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody, bodyHash);
         int attempt = resolveAttempt(attemptHeader, request.attempt());
         String normalizedWorkerRequestId = normalizeWorkerRequestId(workerRequestId);
+        String callbackMetadataJson = writeJson(request.metadata());
+        String normalizedStatus = normalize(request.status());
+        Instant callbackReceivedAt = Instant.now();
 
         try {
             hmacSignatureVerifier.verify(timestamp, rawBody, signature);
@@ -71,35 +71,24 @@ public class ScrapeResultCallbackService {
             throw exception;
         }
 
-        ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(request.job_id())
-                .orElseThrow(() -> {
-                    log.warn("[BIZ] scrape.job.callback.job_not_found jobId={} signatureValid=true rawBodyHash={}",
-                            request.job_id(), bodyHash);
-                    return new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND);
-                });
-
-        log.info("[BIZ] scrape.job.callback.received jobId={} status={} attempt={} requestId={} resultS3Key={} rawBodyHash={}",
-                job.getJobId(), request.status(), attempt, normalizedWorkerRequestId, request.result_s3_key(), bodyHash);
-
-        if (job.hasProcessedAttempt(attempt) || job.isCompleted()) {
-            handleDuplicate(job, attempt, normalizedWorkerRequestId, request.result_s3_key());
-            return;
-        }
-        job.recordCallbackAttempt(attempt, Instant.now());
-
         Instant finishedAt = request.finished_at() == null ? Instant.now() : request.finished_at();
-        String normalizedStatus = normalize(request.status());
+        logStage(
+                "validated",
+                request.job_id(),
+                attempt,
+                normalizedStatus,
+                request.result_s3_key(),
+                normalizedWorkerRequestId,
+                elapsedMillis(startedAt)
+        );
 
         if ("succeeded".equals(normalizedStatus)) {
-            handleSucceeded(job, request, finishedAt, attempt, normalizedWorkerRequestId);
+            handleSucceeded(request, callbackMetadataJson, callbackReceivedAt, finishedAt, attempt, normalizedWorkerRequestId, bodyHash, startedAt);
             return;
         }
 
         if ("failed".equals(normalizedStatus)) {
-            job.markFailed(request.error_code(), request.error_message(), request.retryable(), finishedAt);
-            recordQueuedAge(job, finishedAt);
-            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
-                    job.getJobId(), request.error_code(), request.retryable(), attempt, normalizedWorkerRequestId);
+            handleFailed(request, callbackMetadataJson, callbackReceivedAt, finishedAt, attempt, normalizedWorkerRequestId, bodyHash, startedAt);
             return;
         }
 
@@ -117,50 +106,160 @@ public class ScrapeResultCallbackService {
     }
 
     private void handleSucceeded(
-            ScrapeJob job,
             PortalLinkDto.ScrapeResultCallbackRequest request,
+            String callbackMetadataJson,
+            Instant callbackReceivedAt,
             Instant finishedAt,
             int attempt,
-            String workerRequestId
+            String workerRequestId,
+            String bodyHash,
+            long startedAt
     ) {
-        validateResultKey(job.getJobId(), request.result_s3_key());
-        job.recordResultLocation(request.result_s3_key(), attempt, Instant.now());
+        validateResultKey(request.job_id(), request.result_s3_key());
+        long receiptStartedAt = System.nanoTime();
+        ScrapeResultCallbackTxService.CallbackReceipt receipt = receiveSuccessCallback(
+                request,
+                callbackMetadataJson,
+                callbackReceivedAt,
+                attempt,
+                bodyHash
+        );
+        logStage(
+                "receipt_committed",
+                receipt.jobId(),
+                attempt,
+                receipt.status(),
+                request.result_s3_key(),
+                workerRequestId,
+                elapsedMillis(receiptStartedAt)
+        );
+        if (receipt.duplicate()) {
+            handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
+            return;
+        }
 
         try {
+            long s3StartedAt = System.nanoTime();
             String normalizedPayloadJson = fetchAndNormalizePayload(request.result_s3_key());
+            verifyChecksum(request.resultChecksum(), normalizedPayloadJson);
+            logStage(
+                    "payload_ready",
+                    receipt.jobId(),
+                    attempt,
+                    receipt.status(),
+                    request.result_s3_key(),
+                    workerRequestId,
+                    elapsedMillis(s3StartedAt)
+            );
 
-            job.recordWorkerResult(normalizedPayloadJson, finishedAt);
-            Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
-            recordQueuedAge(job, finishedAt);
             meterRegistry.counter("scrape.job.callback.persisted").increment();
             String payloadHash = hashRawBody(normalizedPayloadJson);
             log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={}",
-                    job.getJobId(), attempt, workerRequestId, payloadHash);
+                    receipt.jobId(), attempt, workerRequestId, payloadHash);
 
+            long postProcessStartedAt = System.nanoTime();
             portalCallbackPostProcessor.process(
-                    job.getJobId(),
-                    job.getUserId(),
-                    job.getOperationType(),
+                    receipt.jobId(),
+                    receipt.userId(),
+                    receipt.operationType(),
                     normalizedPayloadJson,
                     finishedAt,
-                    queuedAgeSeconds,
+                    receipt.queuedAgeSeconds(),
                     attempt,
                     workerRequestId,
                     payloadHash
             );
+            logStage(
+                    "postprocess_committed",
+                    receipt.jobId(),
+                    attempt,
+                    "succeeded",
+                    request.result_s3_key(),
+                    workerRequestId,
+                    elapsedMillis(postProcessStartedAt)
+            );
+        } catch (CommonException exception) {
+            if (ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code().equals(exception.getCode())) {
+                scrapeResultCallbackTxService.markFailed(
+                        receipt.jobId(),
+                        finishedAt,
+                        receipt.queuedAgeSeconds(),
+                        FAILED_RESULT_SCHEMA,
+                        exception.getMessage(),
+                        false
+                );
+            }
+            throw exception;
         } catch (ScrapeResultPayloadAccessException exception) {
-            job.markFailed(FAILED_S3_READ, exception.getMessage(), exception.isRetryable(), finishedAt);
-            recordQueuedAge(job, finishedAt);
+            scrapeResultCallbackTxService.markFailed(
+                    receipt.jobId(),
+                    finishedAt,
+                    receipt.queuedAgeSeconds(),
+                    FAILED_S3_READ,
+                    exception.getMessage(),
+                    exception.isRetryable()
+            );
             log.error("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
-                    job.getJobId(), request.result_s3_key(), attempt, exception.getMessage());
+                    receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
             throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
         } catch (JsonProcessingException exception) {
-            job.markFailed(FAILED_RESULT_SCHEMA, exception.getOriginalMessage(), false, finishedAt);
-            recordQueuedAge(job, finishedAt);
+            scrapeResultCallbackTxService.markFailed(
+                    receipt.jobId(),
+                    finishedAt,
+                    receipt.queuedAgeSeconds(),
+                    FAILED_RESULT_SCHEMA,
+                    exception.getOriginalMessage(),
+                    false
+            );
             log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_parse jobId={} resultS3Key={} message={}",
-                    job.getJobId(), request.result_s3_key(), exception.getOriginalMessage());
+                    receipt.jobId(), request.result_s3_key(), exception.getOriginalMessage());
             throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
+        } finally {
+            logStage(
+                    "completed",
+                    receipt.jobId(),
+                    attempt,
+                    normalizedStatus(request.status()),
+                    request.result_s3_key(),
+                    workerRequestId,
+                    elapsedMillis(startedAt)
+            );
         }
+    }
+
+    private void handleFailed(
+            PortalLinkDto.ScrapeResultCallbackRequest request,
+            String callbackMetadataJson,
+            Instant callbackReceivedAt,
+            Instant finishedAt,
+            int attempt,
+            String workerRequestId,
+            String bodyHash,
+            long startedAt
+    ) {
+        ScrapeResultCallbackTxService.CallbackReceipt receipt = receiveFailedCallback(
+                request,
+                callbackMetadataJson,
+                callbackReceivedAt,
+                finishedAt,
+                attempt,
+                bodyHash
+        );
+        if (receipt.duplicate()) {
+            handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
+            return;
+        }
+        log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
+                receipt.jobId(), request.error_code(), request.retryable(), attempt, workerRequestId);
+        logStage(
+                "completed",
+                receipt.jobId(),
+                attempt,
+                receipt.status(),
+                request.result_s3_key(),
+                workerRequestId,
+                elapsedMillis(startedAt)
+        );
     }
 
     private String fetchAndNormalizePayload(String resultS3Key) throws JsonProcessingException {
@@ -170,30 +269,20 @@ public class ScrapeResultCallbackService {
         return writeJson(normalized);
     }
 
-    private void handleDuplicate(ScrapeJob job, int attempt, String workerRequestId, String resultS3Key) {
-        meterRegistry.counter("scrape.job.callback.duplicate", "status", job.getStatus().name().toLowerCase(Locale.ROOT))
+    private void handleDuplicate(
+            ScrapeResultCallbackTxService.CallbackReceipt receipt,
+            int attempt,
+            String workerRequestId,
+            String resultS3Key
+    ) {
+        meterRegistry.counter("scrape.job.callback.duplicate", "status", receipt.status())
                 .increment();
         log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={} attempt={} requestId={} resultS3Key={}",
-                job.getJobId(), job.getStatus(), attempt, workerRequestId, resultS3Key);
-    }
-
-    private Double calculateQueuedAgeSeconds(ScrapeJob job, Instant finishedAt) {
-        if (job.getCreatedAt() == null || finishedAt == null) {
-            return null;
-        }
-        return Duration.between(job.getCreatedAt(), finishedAt).toMillis() / 1000.0;
+                receipt.jobId(), receipt.status(), attempt, workerRequestId, resultS3Key);
     }
 
     private String normalize(String status) {
         return status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private void recordQueuedAge(ScrapeJob job, Instant finishedAt) {
-        if (job.getCreatedAt() == null || finishedAt == null) {
-            return;
-        }
-        double queuedAgeSeconds = Duration.between(job.getCreatedAt(), finishedAt).toMillis() / 1000.0;
-        meterRegistry.summary("scrape.job.queued.age.seconds").record(queuedAgeSeconds);
     }
 
     private String extractJobId(String rawBody) {
@@ -251,6 +340,92 @@ public class ScrapeResultCallbackService {
         }
     }
 
+    private void verifyChecksum(String expectedChecksum, String payloadJson) {
+        if (expectedChecksum == null || expectedChecksum.isBlank()) {
+            return;
+        }
+
+        String normalizedExpected = expectedChecksum.trim().toLowerCase(Locale.ROOT);
+        String actualHash = hashRawBody(payloadJson);
+        String expectedHash = normalizedExpected.startsWith("sha256:")
+                ? normalizedExpected.substring("sha256:".length())
+                : normalizedExpected;
+        if (!actualHash.equals(expectedHash)) {
+            throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID);
+        }
+    }
+
+    private ScrapeResultCallbackTxService.CallbackReceipt receiveSuccessCallback(
+            PortalLinkDto.ScrapeResultCallbackRequest request,
+            String callbackMetadataJson,
+            Instant callbackReceivedAt,
+            int attempt,
+            String bodyHash
+    ) {
+        try {
+            return scrapeResultCallbackTxService.receiveSuccessCallback(
+                    request.job_id(),
+                    attempt,
+                    request.result_s3_key(),
+                    request.resultChecksum(),
+                    callbackMetadataJson,
+                    callbackReceivedAt
+            );
+        } catch (EntityNotFoundException exception) {
+            log.warn("[BIZ] scrape.job.callback.job_not_found jobId={} signatureValid=true rawBodyHash={}",
+                    request.job_id(), bodyHash);
+            throw exception;
+        }
+    }
+
+    private ScrapeResultCallbackTxService.CallbackReceipt receiveFailedCallback(
+            PortalLinkDto.ScrapeResultCallbackRequest request,
+            String callbackMetadataJson,
+            Instant callbackReceivedAt,
+            Instant finishedAt,
+            int attempt,
+            String bodyHash
+    ) {
+        try {
+            return scrapeResultCallbackTxService.receiveFailedCallback(
+                    request.job_id(),
+                    attempt,
+                    callbackMetadataJson,
+                    request.error_code(),
+                    request.error_message(),
+                    request.retryable(),
+                    callbackReceivedAt,
+                    finishedAt
+            );
+        } catch (EntityNotFoundException exception) {
+            log.warn("[BIZ] scrape.job.callback.job_not_found jobId={} signatureValid=true rawBodyHash={}",
+                    request.job_id(), bodyHash);
+            throw exception;
+        }
+    }
+
+    private void logStage(
+            String stage,
+            String jobId,
+            int attempt,
+            String status,
+            String resultS3Key,
+            String workerRequestId,
+            long elapsedMs
+    ) {
+        meterRegistry.timer("scrape.job.callback.stage", "stage", stage).record(Duration.ofMillis(elapsedMs));
+        log.info("[BIZ] scrape.job.callback.stage stage={} jobId={} attempt={} status={} resultS3Key={} requestId={} elapsed_ms={}",
+                stage, jobId, attempt, status, resultS3Key, workerRequestId, elapsedMs);
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return Duration.ofNanos(System.nanoTime() - startedAt).toMillis();
+    }
+
+    private String normalizedStatus(String status) {
+        return normalize(status);
+    }
+
     private JsonNode normalizeNodeKeys(JsonNode node) {
         if (node == null || node.isNull()) {
             return node;
@@ -294,6 +469,9 @@ public class ScrapeResultCallbackService {
     }
 
     private String writeJson(Object value) {
+        if (value == null) {
+            return null;
+        }
         try {
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException e) {

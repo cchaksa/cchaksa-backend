@@ -2,6 +2,7 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -42,6 +43,9 @@ class ScrapeResultCallbackServiceUnitTests {
 
     @Mock
     private ScrapeResultResultStoreClient resultStoreClient;
+
+    @Mock
+    private PortalSyncService portalSyncService;
 
     private SimpleMeterRegistry meterRegistry;
 
@@ -84,7 +88,6 @@ class ScrapeResultCallbackServiceUnitTests {
                   \"job_id\":\"%s\",
                   \"status\":\"succeeded\",
                   \"result_s3_key\":\"callbacks/%s/result.json\",
-                  \"result_checksum\":\"sha256:abc123\",
                   \"finished_at\":\"2026-03-14T10:01:00Z\"
                 }
                 """.formatted(job.getJobId(), job.getJobId());
@@ -114,7 +117,8 @@ class ScrapeResultCallbackServiceUnitTests {
                 any(),
                 any()
         );
-        assertThat(job.getResultPayloadJson()).isNotBlank();
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
+        assertThat(job.getResultS3Key()).isEqualTo("callbacks/%s/result.json".formatted(job.getJobId()));
     }
 
     @Test
@@ -183,8 +187,6 @@ class ScrapeResultCallbackServiceUnitTests {
                 }
                 """.formatted(job.getJobId());
 
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-
         assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
                 .isInstanceOf(CommonException.class)
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
@@ -204,7 +206,6 @@ class ScrapeResultCallbackServiceUnitTests {
                 }
                 """.formatted(job.getJobId());
 
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(resultStoreClient.validateLocation("invalid/key.json")).thenThrow(
                 new ScrapeResultPayloadAccessException("SCRAPE_S3_FAILURE", "prefix mismatch", false)
         );
@@ -267,9 +268,14 @@ class ScrapeResultCallbackServiceUnitTests {
 
     private ScrapeResultCallbackService createService() {
         HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
-        return new ScrapeResultCallbackService(
+        ScrapeResultCallbackTxService txService = new ScrapeResultCallbackTxService(
                 scrapeJobRepository,
+                portalSyncService,
+                meterRegistry
+        );
+        return new ScrapeResultCallbackService(
                 portalCallbackPostProcessor,
+                txService,
                 resultStoreClient,
                 verifier,
                 meterRegistry

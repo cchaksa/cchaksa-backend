@@ -15,6 +15,8 @@
 | 2 | `./gradlew test` | Success | 2026-04-10 |
 | 3 | `./gradlew test --tests com.chukchuk.haksa.application.portal.ScrapeResultCallbackServiceUnitTests` | Success | 2026-04-10 |
 | 4 | `./gradlew test` | Success | 2026-04-10 |
+| 5 | `./gradlew test --tests com.chukchuk.haksa.application.portal.ScrapeResultCallbackServiceUnitTests --tests com.chukchuk.haksa.application.portal.PortalCallbackPostProcessorTests --tests com.chukchuk.haksa.application.portal.ScrapeJobOutboxDispatcherUnitTests --tests com.chukchuk.haksa.application.portal.ScrapeJobStaleReconcilerUnitTests` | Success | 2026-04-11 |
+| 6 | `./gradlew test` | Success | 2026-04-11 |
 
 ## Notes
 - Observation: Phase 1 완료, clarify 답변(동기 처리/상태 코드) 반영됨. Phase 2에서 S3 검증~DB 반영을 단일 요청 안에서 구현해야 함.
