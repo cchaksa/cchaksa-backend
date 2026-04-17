@@ -13,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.transaction.annotation.Propagation;
@@ -43,7 +42,6 @@ public class ScrapeJobOutboxDispatcher {
     private final MeterRegistry meterRegistry;
     private final Environment environment;
 
-    @Scheduled(fixedDelayString = "${scraping.publisher.fixed-delay-ms:10000}")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatchEligibleOutboxes() {
         dispatchBatch("scheduled");
@@ -51,7 +49,7 @@ public class ScrapeJobOutboxDispatcher {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int dispatchOnce(String preferredOutboxId) {
-        return dispatchPreferredOutbox("after_commit", preferredOutboxId);
+        return dispatchPreferredOutbox("sync_request", preferredOutboxId);
     }
 
     private int dispatchPreferredOutbox(String trigger, String preferredOutboxId) {
