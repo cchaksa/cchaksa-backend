@@ -14,6 +14,8 @@
 | 1 | `./gradlew test --tests "com.chukchuk.haksa.application.portal.PortalLinkJobServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.PortalLinkJobTxServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.ScrapeJobOutboxDispatcherUnitTests"` | PASS | 2026-04-17 |
 | 2 | `./gradlew test` | PASS | 2026-04-17 |
 | 3 | `rg -n "ScrapeJobOutboxAfterCommitExecutor|after_commit|scrapeOutboxDispatchExecutor|scrapeOutboxRetryScheduler" src/main/java src/test/java` | PASS (no matches) | 2026-04-17 |
+| 4 | `./gradlew test --tests "com.chukchuk.haksa.application.portal.ScrapeResultCallbackServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.PortalCallbackPostProcessorTests" --tests "com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClientTests"` | PASS | 2026-04-17 |
 
 ## Notes
 - Observation: 기존 문제는 `scrape.outbox.dispatch.after_commit.start` 이후 publish 로그가 남지 않는 Lambda in-memory async 경계에서 발생했다.
+- Observation: 추가 리뷰 반영으로 callback의 HMAC 검증 순서, raw checksum 검증, jobId path segment 검증을 강화했다.

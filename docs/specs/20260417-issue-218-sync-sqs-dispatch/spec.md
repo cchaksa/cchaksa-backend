@@ -8,14 +8,16 @@
     - `after_commit + TaskExecutor/@Scheduled` 기반 outbox dispatch 제거
     - 기존 API Lambda 안에서 동기 SQS 발행 및 실패 처리 정리
     - outbox/job 상태 전이와 관련 로그/테스트 보강
+    - `/internal/scrape-results` callback 리뷰 반영(HMAC 순서, checksum 기준, S3 key 검증, 설정 정리)
   - Out:
-    - `/internal/scrape-results` callback 계약 변경
-    - worker/S3 처리 로직 변경
+    - `/internal/scrape-results` callback 계약 자체 변경
+    - worker/S3 처리의 비즈니스 의미 변경
     - 별도 Dispatcher Lambda 추가
 - Expected Impact:
   - `accepted` 이후 SQS 발행 성공/실패가 요청 안에서 결정된다.
   - Lambda in-memory 비동기 의존이 제거된다.
   - `QUEUED` 고착과 내부 dispatch 유실 가능성이 줄어든다.
+  - callback 경로의 보안/정합성 검증(HMAC, checksum, S3 key)이 강화된다.
 - Stakeholder Confirmation: 2026-04-17 사용자 지시 "기존 Lambda에서 동기 SQS 발행하도록 작업 시작해"를 구현 승인으로 기록한다.
 
 ## 2. Domain Rules

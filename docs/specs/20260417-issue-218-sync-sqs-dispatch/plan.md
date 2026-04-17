@@ -9,9 +9,11 @@
 - Infrastructure touchpoints:
   - `ScrapeJobPublisher`(`SqsScrapeJobPublisher`)는 그대로 사용한다.
   - 필요 시 outbox/job 상태 반영용 application tx service 추가
+  - S3 result store client/key 검증 로직 정리
 - Global/config changes:
-  - `ScrapeJobDispatchConfig`의 executor/scheduler bean 정리
+  - result store S3 client bean을 별도 config로 분리
   - `@Scheduled` dispatcher 의존 제거 여부 반영
+  - callback service/portal link service의 ObjectMapper bean 주입
 
 ## Data / Transactions
 - Repositories touched:
@@ -35,8 +37,8 @@
 - Integration/API tests:
   - `PortalLinkControllerApiIntegrationTest` 회귀 확인
 - Additional commands:
-  - `./gradlew test --tests "com.chukchuk.haksa.application.portal.PortalLinkJobServiceUnitTests"`
-  - `./gradlew test --tests "com.chukchuk.haksa.application.portal.ScrapeJobOutboxDispatcherUnitTests"`
+  - `./gradlew test --tests "com.chukchuk.haksa.application.portal.PortalLinkJobServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.PortalLinkJobTxServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.ScrapeJobOutboxDispatcherUnitTests"`
+  - `./gradlew test --tests "com.chukchuk.haksa.application.portal.ScrapeResultCallbackServiceUnitTests" --tests "com.chukchuk.haksa.application.portal.PortalCallbackPostProcessorTests" --tests "com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClientTests"`
   - `./gradlew test`
 
 ## Rollout Considerations
