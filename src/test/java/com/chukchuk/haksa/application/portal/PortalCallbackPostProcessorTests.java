@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -145,7 +146,6 @@ class PortalCallbackPostProcessorTests {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
         job.markPostProcessing("callbacks/" + job.getJobId() + "/result.json", null, null, 1, Instant.now());
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
         assertThatThrownBy(() -> processor.process(
             job.getJobId(),
@@ -161,7 +161,8 @@ class PortalCallbackPostProcessorTests {
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code()));
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
-        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
+        verify(scrapeJobRepository, never()).findForUpdateByJobId(job.getJobId());
     }
 
     private static ScrapeJob newJob(ScrapeJobOperationType operationType) {

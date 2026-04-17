@@ -6,9 +6,10 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
-import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultResultStoreClient;
+import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClient;
 import com.chukchuk.haksa.infrastructure.portal.exception.ScrapeResultPayloadAccessException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,7 +19,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -42,7 +46,7 @@ class ScrapeResultCallbackServiceUnitTests {
     private PortalCallbackPostProcessor portalCallbackPostProcessor;
 
     @Mock
-    private ScrapeResultResultStoreClient resultStoreClient;
+    private ScrapeResultStoreClient resultStoreClient;
 
     @Mock
     private PortalSyncService portalSyncService;
@@ -53,10 +57,11 @@ class ScrapeResultCallbackServiceUnitTests {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         lenient().when(resultStoreClient.validateLocation(any()))
-                .thenAnswer(invocation -> new ScrapeResultResultStoreClient.S3Location(
+                .thenAnswer(invocation -> new ScrapeResultStoreClient.S3Location(
                         "bucket",
                         invocation.getArgument(0, String.class)
                 ));
+        lenient().when(resultStoreClient.isJobScopedLocation(any(), any())).thenReturn(true);
     }
 
     @Test
@@ -67,6 +72,22 @@ class ScrapeResultCallbackServiceUnitTests {
 
         assertThatThrownBy(() -> service.handleCallback(
                 "{\"job_id\":\"job-1\",\"status\":\"failed\",\"error_code\":\"INVALID\"}",
+                timestamp,
+                "invalid-signature",
+                null,
+                null
+        )).isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.INVALID_CALLBACK_SIGNATURE.code()));
+    }
+
+    @Test
+    @DisplayName("HMAC 검증은 request parse보다 먼저 수행한다")
+    void handleCallback_verifiesSignatureBeforeParsing() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+
+        assertThatThrownBy(() -> service.handleCallback(
+                "{invalid-json}",
                 timestamp,
                 "invalid-signature",
                 null,
@@ -119,6 +140,39 @@ class ScrapeResultCallbackServiceUnitTests {
         );
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
         assertThat(job.getResultS3Key()).isEqualTo("callbacks/%s/result.json".formatted(job.getJobId()));
+    }
+
+    @Test
+    @DisplayName("checksum은 정규화 전 raw payload 기준으로 검증한다")
+    void handleCallback_verifiesChecksumOnRawPayload() {
+        ScrapeResultCallbackService service = createService();
+        UUID userId = UUID.randomUUID();
+        ScrapeJob job = createJob(userId);
+        String timestamp = Instant.now().toString();
+        String rawPayload = """
+                {
+                  "schema_version":"v1",
+                  "student":{"sno":"17019013","stud_nm":"홍길동","univ_cd":"01","univ_nm":"수원대학교","stud_grde":4},
+                  "semesters":[],
+                  "academic_records":{"list_smry":[]}
+                }
+                """;
+        String checksum = "sha256:" + sha256(rawPayload);
+        String rawBody = """
+                {
+                  "job_id":"%s",
+                  "status":"succeeded",
+                  "result_s3_key":"callbacks/%s/result.json",
+                  "result_checksum":"%s"
+                }
+                """.formatted(job.getJobId(), job.getJobId(), checksum);
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId()))).thenReturn(rawPayload);
+
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1");
+
+        verify(portalCallbackPostProcessor).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -216,6 +270,29 @@ class ScrapeResultCallbackServiceUnitTests {
     }
 
     @Test
+    @DisplayName("jobId가 path segment로 일치하지 않으면 SCRAPE_INVALID_S3_KEY를 반환한다")
+    void handleCallback_rejectsKeyWithoutExactJobSegment() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        String rawBody = """
+                {
+                  "job_id":"%s",
+                  "status":"succeeded",
+                  "result_s3_key":"callbacks/not-%s/result.json"
+                }
+                """.formatted(job.getJobId(), job.getJobId());
+
+        when(resultStoreClient.validateLocation("callbacks/not-%s/result.json".formatted(job.getJobId())))
+                .thenReturn(new ScrapeResultStoreClient.S3Location("bucket", "callbacks/not-%s/result.json".formatted(job.getJobId())));
+        when(resultStoreClient.isJobScopedLocation(any(), eq(job.getJobId()))).thenReturn(false);
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
+    }
+
+    @Test
     @DisplayName("S3 읽기 실패 시 FAILED_S3_READ로 저장하고 SCRAPE_RESULT_S3_FAILED 반환")
     void handleCallback_marksS3Failure() {
         ScrapeResultCallbackService service = createService();
@@ -278,7 +355,8 @@ class ScrapeResultCallbackServiceUnitTests {
                 txService,
                 resultStoreClient,
                 verifier,
-                meterRegistry
+                meterRegistry,
+                new ObjectMapper().findAndRegisterModules()
         );
     }
 
@@ -297,5 +375,14 @@ class ScrapeResultCallbackServiceUnitTests {
         String data = timestamp + "." + rawBody;
         HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
         return Base64.getEncoder().encodeToString(verifier.hmac(data));
+    }
+
+    private String sha256(String rawBody) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawBody.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 }

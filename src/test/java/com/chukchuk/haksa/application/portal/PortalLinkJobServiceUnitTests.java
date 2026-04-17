@@ -8,6 +8,7 @@ import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +42,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("새 요청은 job/outbox 저장 후 같은 요청에서 동기 publish 한다")
     void acceptLinkJob_dispatchesSynchronously() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService);
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", false, true);
 
@@ -69,7 +70,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("이미 RUNNING 이상인 동일 요청은 기존 job을 재사용하고 publish 하지 않는다")
     void acceptLinkJob_reusesExistingJobWithoutDispatch() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService);
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", true, false);
 
@@ -87,7 +88,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("동기 publish 후 SENT/RUNNING이 아니면 enqueue 실패로 처리한다")
     void acceptLinkJob_throwsWhenDispatchStateIsNotSent() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService);
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", false, true);
 
@@ -113,7 +114,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("동시성으로 최초 저장이 충돌하면 기존 job을 다시 조회해 같은 요청 흐름에서 publish 한다")
     void acceptLinkJob_resolvesConcurrentDuplicateAndDispatches() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService);
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", true, true);
 

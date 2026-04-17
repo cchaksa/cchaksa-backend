@@ -9,12 +9,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 @RequiredArgsConstructor
-public class ScrapeJobDispatchConfig {
+public class ScrapeResultStoreConfig {
 
     private final ScrapingProperties scrapingProperties;
 
     @Bean
-    public S3Client scrapeResultS3Client() {
+    public S3Client scrapeResultStoreS3Client() {
         ScrapingProperties.ResultStore store = scrapingProperties.getResultStore();
         return S3Client.builder()
                 .region(Region.of(store.getRegion()))

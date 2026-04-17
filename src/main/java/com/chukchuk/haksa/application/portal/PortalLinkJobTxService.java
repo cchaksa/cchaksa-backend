@@ -24,7 +24,7 @@ public class PortalLinkJobTxService {
 
     private final ScrapeJobRepository scrapeJobRepository;
     private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public PreparedJob createOrLoadJob(

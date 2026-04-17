@@ -27,7 +27,7 @@ public class PortalLinkJobService {
     private final PortalLinkJobTxService portalLinkJobTxService;
     private final ScrapeJobOutboxDispatcher scrapeJobOutboxDispatcher;
     private final UserService userService;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
 
     public PortalLinkDto.AcceptedResponse acceptJob(UUID userId, String idempotencyKey, PortalLinkDto.LinkRequest request) {
         validateRequest(idempotencyKey, request);

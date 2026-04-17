@@ -41,7 +41,7 @@ class PortalLinkJobTxServiceUnitTests {
     @DisplayName("새 job 생성 시 outbox payload에는 실제 job_id가 기록된다")
     void createOrLoadJob_createsJobAndOutboxPayload() throws Exception {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository);
+        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository, new ObjectMapper().findAndRegisterModules());
 
         when(scrapeJobRepository.findByUserIdAndIdempotencyKey(userId, "idem-1")).thenReturn(Optional.empty());
         when(scrapeJobRepository.save(any(ScrapeJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -72,7 +72,7 @@ class PortalLinkJobTxServiceUnitTests {
     @DisplayName("기존 QUEUED + RETRYABLE_FAILED job은 같은 idempotency key 재요청 시 다시 publish 대상이 된다")
     void loadExistingJob_marksQueuedRetryableAsDispatchRequired() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository);
+        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository, new ObjectMapper().findAndRegisterModules());
         ScrapeJob job = ScrapeJob.createQueued(
                 userId,
                 "suwon",
@@ -97,7 +97,7 @@ class PortalLinkJobTxServiceUnitTests {
     @DisplayName("기존 fingerprint가 다르면 conflict를 유지한다")
     void loadExistingJob_throwsConflictWhenFingerprintDiffers() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository);
+        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository, new ObjectMapper().findAndRegisterModules());
         ScrapeJob job = ScrapeJob.createQueued(
                 userId,
                 "suwon",
@@ -118,7 +118,7 @@ class PortalLinkJobTxServiceUnitTests {
     @DisplayName("기존 QUEUED job의 outbox가 DEAD면 enqueue 실패로 처리한다")
     void loadExistingJob_throwsWhenDeadOutbox() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository);
+        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository, new ObjectMapper().findAndRegisterModules());
         ScrapeJob job = ScrapeJob.createQueued(
                 userId,
                 "suwon",
@@ -141,7 +141,7 @@ class PortalLinkJobTxServiceUnitTests {
     @Test
     @DisplayName("dispatch snapshot은 job/outbox 현재 상태를 함께 반환한다")
     void loadDispatchSnapshot_returnsCurrentState() {
-        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository);
+        PortalLinkJobTxService service = new PortalLinkJobTxService(scrapeJobRepository, scrapeJobOutboxRepository, new ObjectMapper().findAndRegisterModules());
         UUID userId = UUID.randomUUID();
         ScrapeJob job = ScrapeJob.createQueued(userId, "suwon", ScrapeJobOperationType.LINK, "idem-1", "fingerprint", "{}");
         job.markRunning();

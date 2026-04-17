@@ -4,7 +4,7 @@ import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
-import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultResultStoreClient;
+import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClient;
 import com.chukchuk.haksa.infrastructure.portal.exception.ScrapeResultPayloadAccessException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -24,6 +24,8 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -32,24 +34,19 @@ public class ScrapeResultCallbackService {
 
     private static final String FAILED_S3_READ = "FAILED_S3_READ";
     private static final String FAILED_RESULT_SCHEMA = "FAILED_RESULT_SCHEMA";
+    private static final Pattern JOB_ID_PATTERN = Pattern.compile("\"job_id\"\\s*:\\s*\"([^\"]+)\"");
 
     private final PortalCallbackPostProcessor portalCallbackPostProcessor;
     private final ScrapeResultCallbackTxService scrapeResultCallbackTxService;
-    private final ScrapeResultResultStoreClient resultStoreClient;
+    private final ScrapeResultStoreClient resultStoreClient;
     private final HmacSignatureVerifier hmacSignatureVerifier;
     private final MeterRegistry meterRegistry;
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper;
 
     public void handleCallback(String rawBody, String timestamp, String signature, String attemptHeader, String workerRequestId) {
         long startedAt = System.nanoTime();
         String bodyHash = hashRawBody(rawBody);
         String hintedJobId = extractJobId(rawBody);
-        PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody, bodyHash);
-        int attempt = resolveAttempt(attemptHeader, request.attempt());
-        String normalizedWorkerRequestId = normalizeWorkerRequestId(workerRequestId);
-        String callbackMetadataJson = writeJson(request.metadata());
-        String normalizedStatus = normalize(request.status());
-        Instant callbackReceivedAt = Instant.now();
 
         try {
             hmacSignatureVerifier.verify(timestamp, rawBody, signature);
@@ -71,6 +68,12 @@ public class ScrapeResultCallbackService {
             throw exception;
         }
 
+        PortalLinkDto.ScrapeResultCallbackRequest request = parseRequest(rawBody, bodyHash);
+        int attempt = resolveAttempt(attemptHeader, request.attempt());
+        String normalizedWorkerRequestId = normalizeWorkerRequestId(workerRequestId);
+        String callbackMetadataJson = writeJson(request.metadata());
+        String normalizedStatus = normalize(request.status());
+        Instant callbackReceivedAt = Instant.now();
         Instant finishedAt = request.finished_at() == null ? Instant.now() : request.finished_at();
         logStage(
                 "validated",
@@ -140,8 +143,8 @@ public class ScrapeResultCallbackService {
 
         try {
             long s3StartedAt = System.nanoTime();
-            String normalizedPayloadJson = fetchAndNormalizePayload(request.result_s3_key());
-            verifyChecksum(request.resultChecksum(), normalizedPayloadJson);
+            PayloadBundle payloadBundle = fetchAndNormalizePayload(request.result_s3_key());
+            verifyChecksum(request.resultChecksum(), payloadBundle.rawPayloadJson());
             logStage(
                     "payload_ready",
                     receipt.jobId(),
@@ -153,7 +156,7 @@ public class ScrapeResultCallbackService {
             );
 
             meterRegistry.counter("scrape.job.callback.persisted").increment();
-            String payloadHash = hashRawBody(normalizedPayloadJson);
+            String payloadHash = hashRawBody(payloadBundle.rawPayloadJson());
             log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={}",
                     receipt.jobId(), attempt, workerRequestId, payloadHash);
 
@@ -162,7 +165,7 @@ public class ScrapeResultCallbackService {
                     receipt.jobId(),
                     receipt.userId(),
                     receipt.operationType(),
-                    normalizedPayloadJson,
+                    payloadBundle.normalizedPayloadJson(),
                     finishedAt,
                     receipt.queuedAgeSeconds(),
                     attempt,
@@ -179,7 +182,7 @@ public class ScrapeResultCallbackService {
                     elapsedMillis(postProcessStartedAt)
             );
         } catch (CommonException exception) {
-            if (ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code().equals(exception.getCode())) {
+            if (shouldMarkSchemaFailure(exception)) {
                 scrapeResultCallbackTxService.markFailed(
                         receipt.jobId(),
                         finishedAt,
@@ -262,11 +265,11 @@ public class ScrapeResultCallbackService {
         );
     }
 
-    private String fetchAndNormalizePayload(String resultS3Key) throws JsonProcessingException {
-        String payload = resultStoreClient.fetch(resultS3Key);
-        JsonNode original = objectMapper.readTree(payload);
+    private PayloadBundle fetchAndNormalizePayload(String resultS3Key) throws JsonProcessingException {
+        String rawPayload = resultStoreClient.fetch(resultS3Key);
+        JsonNode original = objectMapper.readTree(rawPayload);
         JsonNode normalized = normalizeNodeKeys(original);
-        return writeJson(normalized);
+        return new PayloadBundle(rawPayload, writeJson(normalized));
     }
 
     private void handleDuplicate(
@@ -286,11 +289,8 @@ public class ScrapeResultCallbackService {
     }
 
     private String extractJobId(String rawBody) {
-        try {
-            return objectMapper.readTree(rawBody).path("job_id").asText("");
-        } catch (Exception ignored) {
-            return "";
-        }
+        Matcher matcher = JOB_ID_PATTERN.matcher(rawBody);
+        return matcher.find() ? matcher.group(1) : "";
     }
 
     private String hashRawBody(String rawBody) {
@@ -326,7 +326,7 @@ public class ScrapeResultCallbackService {
         if (resultS3Key == null || resultS3Key.isBlank()) {
             throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY);
         }
-        ScrapeResultResultStoreClient.S3Location location;
+        ScrapeResultStoreClient.S3Location location;
         try {
             location = resultStoreClient.validateLocation(resultS3Key);
         } catch (ScrapeResultPayloadAccessException exception) {
@@ -334,7 +334,7 @@ public class ScrapeResultCallbackService {
                     jobId, resultS3Key, exception.getMessage());
             throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY, exception);
         }
-        if (!location.key().contains(jobId)) {
+        if (!resultStoreClient.isJobScopedLocation(location, jobId)) {
             log.warn("[BIZ] scrape.job.callback.s3_key_without_job jobId={} resultS3Key={}", jobId, resultS3Key);
             throw new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY);
         }
@@ -478,4 +478,11 @@ public class ScrapeResultCallbackService {
             throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
         }
     }
+
+    private boolean shouldMarkSchemaFailure(CommonException exception) {
+        return ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code().equals(exception.getCode())
+                && ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED != exception.getErrorCode();
+    }
+
+    private record PayloadBundle(String rawPayloadJson, String normalizedPayloadJson) {}
 }
