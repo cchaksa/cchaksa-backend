@@ -191,17 +191,23 @@ public class ScrapeResultCallbackService {
             }
             throw exception;
         } catch (ScrapeResultPayloadAccessException exception) {
+            if (exception.isRetryable()) {
+                log.error("[BIZ] scrape.job.s3.retryable jobId={} key={} attempt={} reason={}",
+                        receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
+                throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
+            }
+
             scrapeResultCallbackTxService.markFailed(
                     receipt.jobId(),
                     finishedAt,
                     receipt.queuedAgeSeconds(),
                     FAILED_S3_READ,
                     exception.getMessage(),
-                    exception.isRetryable()
+                    false
             );
-            log.error("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
+            log.warn("[BIZ] scrape.job.s3.non_retryable jobId={} key={} attempt={} reason={}",
                     receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
-            throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
+            throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_ACCESS_DENIED, exception);
         } catch (JsonProcessingException exception) {
             scrapeResultCallbackTxService.markFailed(
                     receipt.jobId(),

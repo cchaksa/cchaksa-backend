@@ -81,13 +81,39 @@ public class PortalCallbackPostProcessor {
             log.info("[BIZ] scrape.job.callback.postprocess.success jobId={} userId={} operationType={} studentCode={} elapsed_ms={}",
                     jobId, userId, operationType, studentCode, elapsedMs);
         } catch (EntityNotFoundException exception) {
-            recordFailure(jobId, finishedAt, queuedAgeSeconds, "user_missing", operationType, exception);
+            recordTerminalFailure(
+                    jobId,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    "user_missing",
+                    operationType,
+                    exception
+            );
         } catch (PortalScrapeException exception) {
-            recordFailure(jobId, finishedAt, queuedAgeSeconds, "portal_conn_fail", operationType, exception);
+            if (exception.getStatus().is5xxServerError()) {
+                recordRetryableFailure(jobId, operationType, "portal_conn_fail", exception);
+                throw exception;
+            }
+            recordTerminalFailure(
+                    jobId,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    "portal_conn_fail",
+                    operationType,
+                    exception
+            );
         } catch (DataIntegrityViolationException exception) {
-            recordFailure(jobId, finishedAt, queuedAgeSeconds, "data_integrity", operationType, exception);
+            recordTerminalFailure(
+                    jobId,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    "data_integrity",
+                    operationType,
+                    exception
+            );
         } catch (RuntimeException exception) {
-            recordFailure(jobId, finishedAt, queuedAgeSeconds, "unexpected", operationType, exception);
+            recordRetryableFailure(jobId, operationType, "unexpected", exception);
+            throw new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED, exception);
         }
     }
 
@@ -113,7 +139,7 @@ public class PortalCallbackPostProcessor {
         throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
     }
 
-    private void recordFailure(
+    private void recordTerminalFailure(
             String jobId,
             Instant finishedAt,
             Double queuedAgeSeconds,
@@ -133,7 +159,30 @@ public class PortalCallbackPostProcessor {
         );
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
                 jobId, operationType, reason, failureDetail, exception);
+        if (exception instanceof PortalScrapeException portalScrapeException) {
+            throw portalScrapeException;
+        }
+        if (exception instanceof EntityNotFoundException) {
+            throw new CommonException(ErrorCode.SCRAPE_JOB_NOT_FOUND, exception);
+        }
+        if (exception instanceof DataIntegrityViolationException) {
+            throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
+        }
+        if (exception instanceof CommonException commonException) {
+            throw commonException;
+        }
         throw new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED, exception);
+    }
+
+    private void recordRetryableFailure(
+            String jobId,
+            ScrapeJobOperationType operationType,
+            String reason,
+            Exception exception
+    ) {
+        meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", reason).increment();
+        log.error("[BIZ] scrape.job.callback.postprocess.retryable_fail jobId={} operationType={} reason={} detail={}",
+                jobId, operationType, reason, exception);
     }
 
     private PortalData toPortalData(String payloadJson) throws JsonProcessingException {
@@ -164,4 +213,5 @@ public class PortalCallbackPostProcessor {
         }
         return "PORTAL_CALLBACK_POSTPROCESS_ERROR";
     }
+
 }

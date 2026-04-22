@@ -21,6 +21,7 @@ public enum ErrorCode {
     SCRAPE_RESULT_SCHEMA_INVALID("C17", "스크래핑 결과 스키마가 유효하지 않습니다.", HttpStatus.UNPROCESSABLE_ENTITY),
     SCRAPE_RESULT_POST_PROCESSING_FAILED("C18", "스크래핑 결과 후처리에 실패했습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     SCRAPE_INVALID_CALLBACK_REQUEST("C19", "스크래핑 콜백 요청이 유효하지 않습니다.", HttpStatus.BAD_REQUEST),
+    SCRAPE_RESULT_S3_ACCESS_DENIED("C20", "S3에서 스크래핑 결과를 읽을 권한이 없습니다.", HttpStatus.FORBIDDEN),
 
     // 인증 및 세션 관련
     SESSION_EXPIRED("A04", "로그인 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED),
