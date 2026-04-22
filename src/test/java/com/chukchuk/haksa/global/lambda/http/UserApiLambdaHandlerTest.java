@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.global.lambda;
+package com.chukchuk.haksa.global.lambda.http;
 
 import com.amazonaws.serverless.proxy.model.AwsProxyResponse;
 import com.amazonaws.serverless.proxy.model.HttpApiV2HttpContext;
@@ -9,6 +9,7 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import com.chukchuk.haksa.global.lambda.LambdaSpringContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletRegistration;
@@ -17,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
@@ -26,7 +26,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class StreamLambdaHandlerTest {
+class UserApiLambdaHandlerTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -52,8 +52,8 @@ class StreamLambdaHandlerTest {
 
     @Test
     void registersDispatcherServlet() throws Exception {
-        StreamLambdaHandler handler = new StreamLambdaHandler();
-        SpringBootLambdaContainerHandler<?, ?> containerHandler = extractContainerHandler();
+        UserApiLambdaHandler handler = new UserApiLambdaHandler();
+        SpringBootLambdaContainerHandler<?, ?> containerHandler = LambdaSpringContext.handler();
 
         Map<String, ? extends ServletRegistration> registrations =
                 containerHandler.getServletContext().getServletRegistrations();
@@ -144,19 +144,13 @@ class StreamLambdaHandlerTest {
         request.setRequestContext(context);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        new StreamLambdaHandler().handleRequest(
+        new UserApiLambdaHandler().handleRequest(
                 new ByteArrayInputStream(OBJECT_MAPPER.writeValueAsBytes(request)),
                 output,
                 new DummyContext()
         );
 
         return OBJECT_MAPPER.readValue(output.toByteArray(), AwsProxyResponse.class);
-    }
-
-    private SpringBootLambdaContainerHandler<?, ?> extractContainerHandler() throws Exception {
-        Field field = StreamLambdaHandler.class.getDeclaredField("HANDLER");
-        field.setAccessible(true);
-        return (SpringBootLambdaContainerHandler<?, ?>) field.get(null);
     }
 
     private String decodedBody(AwsProxyResponse response) {
@@ -167,7 +161,7 @@ class StreamLambdaHandlerTest {
     }
 
     private String classpathResource(String resourcePath) throws Exception {
-        try (InputStream inputStream = StreamLambdaHandlerTest.class.getClassLoader().getResourceAsStream(resourcePath)) {
+        try (InputStream inputStream = UserApiLambdaHandlerTest.class.getClassLoader().getResourceAsStream(resourcePath)) {
             assertThat(inputStream).isNotNull();
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
@@ -230,12 +224,10 @@ class StreamLambdaHandlerTest {
             return new LambdaLogger() {
                 @Override
                 public void log(String message) {
-                    // no-op
                 }
 
                 @Override
                 public void log(byte[] message) {
-                    // no-op
                 }
             };
         }
