@@ -2,9 +2,7 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
-import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -12,12 +10,10 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
@@ -28,15 +24,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PortalLinkJobService {
 
     private final ScrapeJobRepository scrapeJobRepository;
-    private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
     private final UserService userService;
-    private final ScrapeJobOutboxAfterCommitExecutor scrapeJobOutboxAfterCommitExecutor;
+    private final ScrapeJobPublisher scrapeJobPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+    public PortalLinkJobService(
+            ScrapeJobRepository scrapeJobRepository,
+            UserService userService,
+            @Qualifier("requestScrapeJobPublisher") ScrapeJobPublisher scrapeJobPublisher
+    ) {
+        this.scrapeJobRepository = scrapeJobRepository;
+        this.userService = userService;
+        this.scrapeJobPublisher = scrapeJobPublisher;
+    }
 
     @Transactional
     public PortalLinkDto.AcceptedResponse acceptJob(UUID userId, String idempotencyKey, PortalLinkDto.LinkRequest request) {
@@ -66,28 +70,12 @@ public class PortalLinkJobService {
 
         try {
             ScrapeJob savedJob = scrapeJobRepository.save(job);
-            ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(
-                    savedJob.getJobId(),
-                    toOutboxPayloadJson(new ScrapeJobMessage(
-                            savedJob.getJobId(),
-                            userId.toString(),
-                            request.portal_type(),
-                            new ScrapeJobMessage.RequestPayload(request.username(), request.password()),
-                            requestedAt.toString()
-                    )),
-                    requestedAt
-            );
-            ScrapeJobOutbox savedOutbox = scrapeJobOutboxRepository.save(outbox);
-            scheduleDispatchAfterCommit(savedJob, savedOutbox);
+            enqueueScrapeJob(savedJob, userId, request, requestedAt);
             log.info("[BIZ] scrape.job.accepted jobId={} userId={} portalType={} operationType={} idempotencyKey={}",
                     savedJob.getJobId(), userId, request.portal_type(), operationType, idempotencyKey);
             return toAcceptedResponse(savedJob);
         } catch (DataIntegrityViolationException e) {
             return resolveConcurrentDuplicate(userId, request, idempotencyKey);
-        } catch (RuntimeException e) {
-            log.error("[BIZ] scrape.job.enqueue.fail userId={} portalType={} idempotencyKey={}",
-                    userId, request.portal_type(), idempotencyKey, e);
-            throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, e);
         }
     }
 
@@ -138,6 +126,22 @@ public class PortalLinkJobService {
         return toAcceptedResponse(existingJob);
     }
 
+    private String toRequestPayloadJson(String username, String password) {
+        try {
+            return objectMapper.writeValueAsString(new ScrapeJobMessage.RequestPayload(username, password));
+        } catch (JsonProcessingException e) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
+        }
+    }
+
+    private String toJobPayloadJson(ScrapeJobMessage message) {
+        try {
+            return objectMapper.writeValueAsString(message);
+        } catch (JsonProcessingException e) {
+            throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, e);
+        }
+    }
+
     private PortalLinkDto.AcceptedResponse resolveConcurrentDuplicate(
             UUID userId,
             PortalLinkDto.LinkRequest request,
@@ -148,22 +152,6 @@ public class PortalLinkJobService {
         return reuseExistingJob(concurrentJob, request);
     }
 
-    private String toRequestPayloadJson(String username, String password) {
-        try {
-            return objectMapper.writeValueAsString(new ScrapeJobMessage.RequestPayload(username, password));
-        } catch (JsonProcessingException e) {
-            throw new CommonException(ErrorCode.INVALID_ARGUMENT, e);
-        }
-    }
-
-    private String toOutboxPayloadJson(ScrapeJobMessage message) {
-        try {
-            return objectMapper.writeValueAsString(message);
-        } catch (JsonProcessingException e) {
-            throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, e);
-        }
-    }
-
     private PortalLinkDto.AcceptedResponse toAcceptedResponse(ScrapeJob job) {
         return new PortalLinkDto.AcceptedResponse(
                 job.getJobId(),
@@ -172,19 +160,30 @@ public class PortalLinkJobService {
         );
     }
 
-    private void scheduleDispatchAfterCommit(ScrapeJob job, ScrapeJobOutbox outbox) {
-        Runnable dispatchAction = () -> scrapeJobOutboxAfterCommitExecutor.dispatchAsync(job, outbox);
+    private void enqueueScrapeJob(ScrapeJob job, UUID userId, PortalLinkDto.LinkRequest request, Instant requestedAt) {
+        ScrapeJobMessage message = new ScrapeJobMessage(
+                job.getJobId(),
+                userId.toString(),
+                request.portal_type(),
+                new ScrapeJobMessage.RequestPayload(request.username(), request.password()),
+                requestedAt.toString(),
+                userId.toString(),
+                job.getJobId()
+        );
 
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    dispatchAction.run();
-                }
-            });
-            return;
+        String payloadJson = toJobPayloadJson(message);
+        try {
+            String queueMessageId = scrapeJobPublisher.publish(
+                    payloadJson,
+                    message.message_group_id(),
+                    message.message_deduplication_id()
+            );
+            log.info("[BIZ] scrape.job.publish.success jobId={} queueMessageId={} groupId={} dedupId={} idempotencyKey={}",
+                    job.getJobId(), queueMessageId, message.message_group_id(), message.message_deduplication_id(), job.getIdempotencyKey());
+        } catch (RuntimeException e) {
+            log.error("[BIZ] scrape.job.publish.fail jobId={} idempotencyKey={}",
+                    job.getJobId(), job.getIdempotencyKey(), e);
+            throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, e);
         }
-
-        dispatchAction.run();
     }
 }

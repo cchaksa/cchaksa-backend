@@ -12,7 +12,11 @@ public record ScrapeJobMessage(
         @JsonProperty("request_payload")
         RequestPayload request_payload,
         @JsonProperty("requested_at")
-        String requested_at
+        String requested_at,
+        @JsonProperty("message_group_id")
+        String message_group_id,
+        @JsonProperty("message_deduplication_id")
+        String message_deduplication_id
 ) {
 
     public record RequestPayload(

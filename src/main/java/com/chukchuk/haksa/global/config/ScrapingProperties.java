@@ -13,6 +13,7 @@ public class ScrapingProperties {
 
     private String mode = "sync";
     private final Job job = new Job();
+    private final RequestQueue requestQueue = new RequestQueue();
     private final Callback callback = new Callback();
     private final ResultStore resultStore = new ResultStore();
     private final Scheduler scheduler = new Scheduler();
@@ -22,6 +23,12 @@ public class ScrapingProperties {
     @Getter
     @Setter
     public static class Job {
+        private String queueUrl;
+    }
+
+    @Getter
+    @Setter
+    public static class RequestQueue {
         private String queueUrl;
     }
 

@@ -55,6 +55,8 @@ scraping:
   mode: ${SCRAPING_MODE:async}
   job:
     queue-url: ${SCRAPING_JOB_QUEUE_URL:}
+  request-queue:
+    queue-url: ${SCRAPING_REQUEST_QUEUE_URL:}
   callback:
     hmac-secret: ${SCRAPING_CALLBACK_HMAC_SECRET:}
     allowed-skew-seconds: ${SCRAPING_CALLBACK_ALLOWED_SKEW_SECONDS:300}

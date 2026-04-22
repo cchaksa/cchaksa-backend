@@ -5,15 +5,15 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
-@Qualifier("workerScrapeJobPublisher")
-public class SqsScrapeJobPublisher extends AbstractSqsPublisher {
+@Qualifier("requestScrapeJobPublisher")
+public class SqsRequestQueuePublisher extends AbstractSqsPublisher {
 
-    public SqsScrapeJobPublisher(ScrapingProperties scrapingProperties) {
+    public SqsRequestQueuePublisher(ScrapingProperties scrapingProperties) {
         super(scrapingProperties);
     }
 
     @Override
     protected String resolveQueueUrl() {
-        return scrapingProperties.getJob().getQueueUrl();
+        return scrapingProperties.getRequestQueue().getQueueUrl();
     }
 }
