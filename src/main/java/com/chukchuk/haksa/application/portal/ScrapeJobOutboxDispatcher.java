@@ -30,6 +30,9 @@ import java.util.Optional;
 @Slf4j
 public class ScrapeJobOutboxDispatcher {
 
+    private static final int MAX_INLINE_PUBLISH_ATTEMPTS = 3;
+    private static final long[] INLINE_PUBLISH_RETRY_DELAYS_MS = {200L, 500L};
+
     private static final List<ScrapeJobOutboxStatus> PUBLISHABLE_STATUSES = List.of(
             ScrapeJobOutboxStatus.PENDING,
             ScrapeJobOutboxStatus.RETRYABLE_FAILED
@@ -143,7 +146,7 @@ public class ScrapeJobOutboxDispatcher {
         try {
             log.info("[BIZ] scrape.outbox.publish.start trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
                     trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
-            String queueMessageId = scrapeJobPublisher.publish(outbox.getPayloadJson());
+            String queueMessageId = publishWithBoundedRetry(outbox, trigger);
             outbox.markSent(queueMessageId, attemptedAt);
             job.markRunning();
             meterRegistry.counter("scrape.outbox.publish.success").increment();
@@ -151,6 +154,42 @@ public class ScrapeJobOutboxDispatcher {
                     trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), queueMessageId);
         } catch (RuntimeException e) {
             handleFailure(outbox, job, attemptedAt, trigger, e);
+        }
+    }
+
+    private String publishWithBoundedRetry(ScrapeJobOutbox outbox, String trigger) {
+        RuntimeException lastException = null;
+        for (int publishAttempt = 1; publishAttempt <= MAX_INLINE_PUBLISH_ATTEMPTS; publishAttempt++) {
+            try {
+                return scrapeJobPublisher.publish(outbox.getPayloadJson());
+            } catch (RuntimeException exception) {
+                lastException = exception;
+                if (isPermanentFailure(exception) || publishAttempt == MAX_INLINE_PUBLISH_ATTEMPTS) {
+                    throw exception;
+                }
+
+                long delayMs = INLINE_PUBLISH_RETRY_DELAYS_MS[publishAttempt - 1];
+                log.warn("[BIZ] scrape.outbox.publish.retry trigger={} outboxId={} jobId={} publishAttempt={} maxPublishAttempts={} delayMs={} exceptionClass={} message={}",
+                        trigger,
+                        outbox.getOutboxId(),
+                        outbox.getJobId(),
+                        publishAttempt,
+                        MAX_INLINE_PUBLISH_ATTEMPTS,
+                        delayMs,
+                        exception.getClass().getSimpleName(),
+                        exception.getMessage());
+                sleepBeforeRetry(delayMs, exception);
+            }
+        }
+        throw new IllegalStateException("SQS publish attempts exhausted", lastException);
+    }
+
+    private void sleepBeforeRetry(long delayMs, RuntimeException publishException) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw publishException;
         }
     }
 

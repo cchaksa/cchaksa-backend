@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -67,12 +68,45 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
         assertThat(outbox.getQueueMessageId()).isEqualTo("msg-1");
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
+        verify(scrapeJobPublisher, times(1)).publish(outbox.getPayloadJson());
     }
 
     @Test
-    @DisplayName("일시적 publish 실패 시 outbox를 RETRYABLE_FAILED로 전이한다")
-    void dispatchEligibleOutboxes_marksRetryableFailed() {
+    @DisplayName("일시적 publish 실패 후 bounded retry 성공 시 outbox를 SENT로 전이한다")
+    void dispatchEligibleOutboxes_retriesTransientFailureAndMarksSent() {
+        ScrapingProperties properties = scrapingProperties();
+        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
+                scrapeJobOutboxRepository,
+                scrapeJobRepository,
+                scrapeJobPublisher,
+                properties,
+                new SimpleMeterRegistry(),
+                environment
+        );
+        ScrapeJob job = queuedJob();
+        ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
+
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(scrapeJobPublisher.publish(outbox.getPayloadJson()))
+                .thenThrow(SdkClientException.create("temporary failure"))
+                .thenReturn("msg-2");
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+
+        dispatcher.dispatchOnce(outbox.getOutboxId());
+
+        assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
+        assertThat(outbox.getQueueMessageId()).isEqualTo("msg-2");
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
+        verify(scrapeJobPublisher, times(2)).publish(outbox.getPayloadJson());
+    }
+
+    @Test
+    @DisplayName("일시적 publish 실패가 bounded retry를 모두 소진하면 outbox를 RETRYABLE_FAILED로 전이한다")
+    void dispatchEligibleOutboxes_marksRetryableFailedAfterBoundedRetries() {
         ScrapingProperties properties = scrapingProperties();
         ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
                 scrapeJobOutboxRepository,
@@ -94,6 +128,8 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.RETRYABLE_FAILED);
         assertThat(outbox.getNextAttemptAt()).isNotNull();
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        verify(scrapeJobPublisher, times(3)).publish(outbox.getPayloadJson());
     }
 
     @Test
@@ -120,8 +156,10 @@ class ScrapeJobOutboxDispatcherUnitTests {
         dispatcher.dispatchOnce(outbox.getOutboxId());
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.DEAD);
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("SCRAPE_JOB_ENQUEUE_FAILED");
+        verify(scrapeJobPublisher, times(1)).publish(outbox.getPayloadJson());
     }
 
     @Test
