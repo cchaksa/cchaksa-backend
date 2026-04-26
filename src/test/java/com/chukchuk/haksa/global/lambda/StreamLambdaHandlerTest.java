@@ -145,6 +145,28 @@ class StreamLambdaHandlerTest {
         assertThat(jsonNode.path("scheduled_at").asText()).isEqualTo("2026-04-26T00:00:00Z");
     }
 
+    @Test
+    void eventBridgeSchedulerMaintenanceEventAllowsMissingScheduledAt() throws Exception {
+        String event = """
+                {
+                  "source": "eventbridge.scheduler",
+                  "task": "REFRESH_TOKEN_CLEANUP"
+                }
+                """;
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        new StreamLambdaHandler().handleRequest(
+                new ByteArrayInputStream(event.getBytes(StandardCharsets.UTF_8)),
+                output,
+                new DummyContext()
+        );
+
+        JsonNode jsonNode = OBJECT_MAPPER.readTree(output.toByteArray());
+        assertThat(jsonNode.path("success").asBoolean()).isTrue();
+        assertThat(jsonNode.path("task").asText()).isEqualTo("REFRESH_TOKEN_CLEANUP");
+        assertThat(jsonNode.path("scheduled_at").isNull()).isTrue();
+    }
+
     private AwsProxyResponse invoke(String path, String method, String body) throws Exception {
         HttpApiV2ProxyRequest request = new HttpApiV2ProxyRequest();
         request.setVersion("2.0");

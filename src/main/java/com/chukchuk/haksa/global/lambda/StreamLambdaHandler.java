@@ -55,30 +55,33 @@ public class StreamLambdaHandler implements RequestStreamHandler {
     @Override
     public void handleRequest(InputStream input, OutputStream output, Context context) throws IOException {
         byte[] payload = input.readAllBytes();
-        if (isMaintenanceEvent(payload)) {
-            handleMaintenanceEvent(payload, output);
+        JsonNode jsonNode = readJsonNode(payload);
+        if (jsonNode != null && isMaintenanceEvent(jsonNode)) {
+            handleMaintenanceEvent(jsonNode, output);
             return;
         }
 
         HANDLER.proxyStream(new ByteArrayInputStream(payload), output, context);
     }
 
-    private boolean isMaintenanceEvent(byte[] payload) {
+    private JsonNode readJsonNode(byte[] payload) {
         try {
-            JsonNode jsonNode = OBJECT_MAPPER.readTree(payload);
-            return EVENTBRIDGE_SCHEDULER_SOURCE.equals(jsonNode.path("source").asText())
-                    && jsonNode.hasNonNull("task");
+            return OBJECT_MAPPER.readTree(payload);
         } catch (IOException e) {
-            return false;
+            return null;
         }
     }
 
-    private void handleMaintenanceEvent(byte[] payload, OutputStream output) throws IOException {
-        JsonNode jsonNode = OBJECT_MAPPER.readTree(payload);
+    private boolean isMaintenanceEvent(JsonNode jsonNode) {
+        return EVENTBRIDGE_SCHEDULER_SOURCE.equals(jsonNode.path("source").asText())
+                && jsonNode.hasNonNull("task");
+    }
+
+    private void handleMaintenanceEvent(JsonNode jsonNode, OutputStream output) throws IOException {
         MaintenanceTaskRequest request = new MaintenanceTaskRequest(
                 jsonNode.path("source").asText(),
                 jsonNode.path("task").asText(),
-                jsonNode.path("scheduled_at").isMissingNode() ? null : jsonNode.path("scheduled_at").asText(null)
+                jsonNode.path("scheduled_at").textValue()
         );
 
         try {
