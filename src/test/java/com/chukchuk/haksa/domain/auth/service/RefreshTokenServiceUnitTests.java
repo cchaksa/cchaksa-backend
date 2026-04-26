@@ -163,19 +163,21 @@ class RefreshTokenServiceUnitTests {
     void deletedExpiredTokens_executesDelete() {
         when(refreshTokenRepository.deleteByExpiryBefore(any(Date.class))).thenReturn(3);
 
-        refreshTokenService.deletedExpiredTokens();
+        int deleted = refreshTokenService.deletedExpiredTokens();
 
+        assertThat(deleted).isEqualTo(3);
         verify(refreshTokenRepository).deleteByExpiryBefore(any(Date.class));
     }
 
     @Test
-    @DisplayName("만료 토큰 정리 중 예외가 발생해도 예외를 전파하지 않는다")
-    void deletedExpiredTokens_swallowsException() {
+    @DisplayName("만료 토큰 정리 중 예외가 발생하면 호출자에게 전파한다")
+    void deletedExpiredTokens_propagatesException() {
         doThrow(new RuntimeException("db error"))
                 .when(refreshTokenRepository).deleteByExpiryBefore(any(Date.class));
 
-        refreshTokenService.deletedExpiredTokens();
-
+        assertThatThrownBy(() -> refreshTokenService.deletedExpiredTokens())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("db error");
         verify(refreshTokenRepository).deleteByExpiryBefore(any(Date.class));
     }
 }
