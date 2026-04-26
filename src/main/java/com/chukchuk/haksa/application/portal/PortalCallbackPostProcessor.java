@@ -24,7 +24,6 @@ import java.util.UUID;
 public class PortalCallbackPostProcessor {
 
     private static final String FAILED_POST_PROCESSING = "FAILED_POST_PROCESSING";
-    private static final String FAILED_RESULT_SCHEMA = "FAILED_RESULT_SCHEMA";
 
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
@@ -100,14 +99,6 @@ public class PortalCallbackPostProcessor {
             JsonProcessingException exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
-        scrapeResultCallbackTxService.markFailed(
-                jobId,
-                finishedAt,
-                queuedAgeSeconds,
-                FAILED_RESULT_SCHEMA,
-                exception.getOriginalMessage(),
-                false
-        );
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
                 jobId, userId, operationType, exception.getOriginalMessage(), exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);

@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ScrapeResultResultStoreClient {
+public class ScrapeResultStoreClient {
 
     private static final String ERROR_CODE = "SCRAPE_S3_FAILURE";
     private static final int MAX_ATTEMPTS = 3;
@@ -36,6 +36,27 @@ public class ScrapeResultResultStoreClient {
 
     public S3Location validateLocation(String requestedLocation) {
         return resolveLocation(requestedLocation, scrapingProperties.getResultStore());
+    }
+
+    public boolean isJobScopedLocation(S3Location location, String jobId) {
+        if (jobId == null || jobId.isBlank()) {
+            return false;
+        }
+        String key = location.key();
+        String prefix = scrapingProperties.getResultStore().getPrefix();
+        String remainder = key;
+        if (prefix != null && !prefix.isBlank()) {
+            if (!key.startsWith(prefix)) {
+                return false;
+            }
+            remainder = key.substring(prefix.length());
+        }
+
+        int slashIndex = remainder.indexOf('/');
+        if (slashIndex <= 0) {
+            return false;
+        }
+        return remainder.substring(0, slashIndex).equals(jobId);
     }
 
     private String fetchWithRetry(S3Location location) {
