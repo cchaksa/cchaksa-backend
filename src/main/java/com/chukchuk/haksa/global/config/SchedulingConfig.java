@@ -8,7 +8,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 @Configuration
 @EnableScheduling
-@ConditionalOnProperty(prefix = "scraping.scheduler", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "scraping.scheduler", name = "enabled", havingValue = "true")
 public class SchedulingConfig {
 
     @Bean

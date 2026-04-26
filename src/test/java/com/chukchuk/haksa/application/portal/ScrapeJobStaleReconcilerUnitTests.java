@@ -66,8 +66,9 @@ class ScrapeJobStaleReconcilerUnitTests {
                 .thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        reconciler.reconcileStaleQueuedJobs();
+        int affectedCount = reconciler.reconcileStaleQueuedJobs();
 
+        assertThat(affectedCount).isEqualTo(1);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("CALLBACK_TIMEOUT");
         assertThat(job.getRetryable()).isTrue();
