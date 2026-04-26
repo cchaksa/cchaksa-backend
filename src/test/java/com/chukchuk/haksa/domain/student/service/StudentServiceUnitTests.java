@@ -1,6 +1,8 @@
 package com.chukchuk.haksa.domain.student.service;
 
+import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
+import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.student.dto.StudentDto;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -39,6 +41,12 @@ class StudentServiceUnitTests {
 
     @Mock
     private StudentAcademicRecordRepository studentAcademicRecordRepository;
+
+    @Mock
+    private SemesterAcademicRecordRepository semesterAcademicRecordRepository;
+
+    @Mock
+    private StudentCourseRepository studentCourseRepository;
 
     @InjectMocks
     private StudentService studentService;
@@ -168,15 +176,16 @@ class StudentServiceUnitTests {
     }
 
     @Test
-    @DisplayName("학생 데이터 초기화 시 학기/과목을 reset하고 학업요약을 삭제한다")
-    void resetBy_resetsAndDeletesAcademicSummary() {
+    @DisplayName("학생 데이터 초기화 시 학기/과목/학업요약을 벌크 삭제한다")
+    void resetBy_deletesAcademicRecordsInBulk() {
         UUID studentId = UUID.randomUUID();
         Student student = org.mockito.Mockito.mock(Student.class);
         when(studentRepository.findById(studentId)).thenReturn(Optional.of(student));
 
         studentService.resetBy(studentId);
 
-        verify(student).resetAcademicData();
+        verify(studentCourseRepository).deleteByStudentId(studentId);
+        verify(semesterAcademicRecordRepository).deleteByStudentId(studentId);
         verify(studentAcademicRecordRepository).deleteByStudentId(studentId);
     }
 

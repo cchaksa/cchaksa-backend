@@ -28,4 +28,6 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, Lo
     );
 
     List<StudentCourse> findByStudent(Student student);
+
+    void deleteByStudentId(UUID studentId);
 }
