@@ -88,6 +88,11 @@ public class ScrapeJobOutbox extends BaseEntity {
         this.lastError = null;
     }
 
+    public void reserveForPublish(Instant reservedUntil, Instant attemptedAt) {
+        this.nextAttemptAt = reservedUntil;
+        this.lastAttemptAt = attemptedAt;
+    }
+
     public void markRetryableFailure(String lastError, Instant attemptedAt, Instant nextAttemptAt) {
         this.status = ScrapeJobOutboxStatus.RETRYABLE_FAILED;
         this.attemptCount += 1;
