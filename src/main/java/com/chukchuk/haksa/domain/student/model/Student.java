@@ -76,20 +76,6 @@ public class Student extends BaseEntity {
     @OneToMany(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
     private List<StudentCourse> studentCourses = new ArrayList<>();
 
-    /* Using Method */
-
-    // 회원 정보 초기화
-    public void resetAcademicData() {
-        // 학기별 성적 기록 삭제
-        this.semesterAcademicRecords.clear();
-
-        // 수강 과목 기록 삭제
-        this.studentCourses.clear();
-
-        // 누적 성적 기록 삭제
-//        this.studentAcademicRecord = null;
-    }
-
     @Builder
     public Student(String studentCode, String name, Department department, Department major, Department secondaryMajor,
                    Integer admissionYear, Integer semesterEnrolled, Boolean isTransferStudent, Boolean isGraduated,

@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.student.model.Student;
+import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.SocialAccount;
 import com.chukchuk.haksa.domain.user.model.User;
@@ -62,6 +63,9 @@ class UserServiceUnitTests {
 
     @Mock
     private OidcService oidcService;
+
+    @Mock
+    private StudentDeletionService studentDeletionService;
 
     @Test
     @DisplayName("userId로 사용자를 조회할 수 있다")
@@ -329,6 +333,7 @@ class UserServiceUnitTests {
                 refreshTokenService,
                 academicCache,
                 authTokenCache,
+                studentDeletionService,
                 Map.of(OidcProvider.KAKAO, oidcService)
         );
     }

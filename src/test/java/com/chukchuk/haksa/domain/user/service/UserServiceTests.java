@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.user.service;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.SocialAccountRepository;
@@ -42,6 +43,9 @@ class UserServiceTests {
 
     @Mock
     private RefreshTokenService refreshTokenService;
+
+    @Mock
+    private StudentDeletionService studentDeletionService;
 
     @Mock
     private AcademicCache academicCache;
@@ -84,6 +88,7 @@ class UserServiceTests {
                 refreshTokenService,
                 academicCache,
                 authTokenCache,
+                studentDeletionService,
                 Map.of(OidcProvider.APPLE, appleOidcService)
         );
 

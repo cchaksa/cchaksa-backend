@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.student.model.Student;
+import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.SocialAccount;
 import com.chukchuk.haksa.domain.user.model.User;
@@ -35,6 +36,7 @@ public class UserService {
     private final RefreshTokenService refreshTokenService;
     private final AcademicCache academicCache;
     private final AuthTokenCache authTokenCache;
+    private final StudentDeletionService studentDeletionService;
 
     private final Map<OidcProvider, OidcService> oidcServices;
 
@@ -68,8 +70,13 @@ public class UserService {
     public void deleteUserById(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
-        UUID studentId = user.getStudent().getId();
-        academicCache.deleteAllByStudentId(studentId);
+        Student student = user.getStudent();
+        UUID studentId = student != null ? student.getId() : null;
+
+        studentDeletionService.deleteByStudent(student);
+        if (studentId != null) {
+            academicCache.deleteAllByStudentId(studentId);
+        }
         authTokenCache.evictByUserId(userId.toString());
         socialAccountRepository.deleteByUser(user);
         userRepository.delete(user);
