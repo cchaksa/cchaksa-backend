@@ -55,6 +55,7 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/", "/health", "/error","/auth/kakao", "/sentry-test",
             "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh",
+            "/internal/scrape-results",
             "/actuator/prometheus", "/actuator/health", "/actuator/info"
     };
 

@@ -1,4 +1,4 @@
-name: Deploy to Dev EC2
+name: Deploy to Prod EC2 (Rollback)
 
 on:
   workflow_dispatch:
@@ -8,11 +8,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # dev 브랜치 최신 HEAD 고정
-      - name: Checkout dev branch
+      - name: Checkout main branch
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: main
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -46,22 +45,22 @@ jobs:
           JAR_PATH=$(find build/libs -name "*.jar" | head -n 1)
           cp "$JAR_PATH" deploy/app.jar
 
-      - name: Copy app.jar to Dev EC2
+      - name: Copy app.jar to Prod EC2
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           source: "deploy/app.jar"
           target: "/home/ubuntu/app"
           strip_components: 1
 
-      - name: Restart Dev server
+      - name: Restart Prod server
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DEV_EC2_HOST }}
-          username: ${{ secrets.DEV_EC2_USER }}
-          key: ${{ secrets.DEV_EC2_KEY }}
+          host: ${{ secrets.PROD_EC2_HOST }}
+          username: ${{ secrets.PROD_EC2_USER }}
+          key: ${{ secrets.PROD_EC2_KEY }}
           script: |
             bash -c '
               set +e

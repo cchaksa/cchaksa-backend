@@ -34,6 +34,14 @@ security:
 server:
   forward-headers-strategy: native
 
+management:
+  tracing:
+    enabled: false
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
 logging:
   level:
     org.hibernate.SQL: off

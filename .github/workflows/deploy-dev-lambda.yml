@@ -1,0 +1,157 @@
+name: Deploy to Dev Lambda
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.DEV_AWS_REGION }}
+      LAMBDA_FUNCTION_NAME: ${{ vars.DEV_LAMBDA_FUNCTION_NAME }}
+      LAMBDA_ALIAS: ${{ vars.DEV_LAMBDA_ALIAS }}
+      LAMBDA_ARTIFACT_BUCKET: ${{ vars.DEV_LAMBDA_ARTIFACT_BUCKET }}
+
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: ./gradlew test --stacktrace --no-daemon
+
+      - name: Build Lambda zip
+        run: ./gradlew clean lambdaZip -x test
+
+      - name: Capture deployment metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          COMMIT_SHA=$(git rev-parse HEAD)
+          S3_KEY="haksa-lambda/${COMMIT_SHA}/haksa-lambda.zip"
+          echo "commit_sha=$COMMIT_SHA" >> "$GITHUB_OUTPUT"
+          echo "s3_key=$S3_KEY" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload artifact to S3
+        run: |
+          set -euo pipefail
+          aws s3 cp build/distributions/haksa-lambda.zip "s3://${LAMBDA_ARTIFACT_BUCKET}/${{ steps.metadata.outputs.s3_key }}"
+
+      - name: Publish Lambda version
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_VERSION=$(aws lambda update-function-code \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --s3-bucket "${LAMBDA_ARTIFACT_BUCKET}" \
+            --s3-key "${{ steps.metadata.outputs.s3_key }}" \
+            --publish \
+            --query 'Version' \
+            --output text)
+
+          for attempt in $(seq 1 30); do
+            STATE=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'State' \
+              --output text)
+            LAST_UPDATE_STATUS=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'LastUpdateStatus' \
+              --output text)
+
+            if [ "${STATE}" = "Active" ] && [ "${LAST_UPDATE_STATUS}" = "Successful" ]; then
+              break
+            fi
+
+            if [ "${STATE}" = "Failed" ] || [ "${LAST_UPDATE_STATUS}" = "Failed" ]; then
+              echo "Published version ${NEW_VERSION} failed to become active." >&2
+              exit 1
+            fi
+
+            if [ "${attempt}" -eq 30 ]; then
+              echo "Timed out waiting for published version ${NEW_VERSION} to become active." >&2
+              exit 1
+            fi
+
+            sleep 2
+          done
+
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update alias to new version
+        run: |
+          set -euo pipefail
+          aws lambda update-alias \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --name "${LAMBDA_ALIAS}" \
+            --function-version "${{ steps.publish.outputs.new_version }}"
+
+      - name: Verify alias version
+        id: verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          ALIAS_VERSION=$(aws lambda get-alias \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --name "${LAMBDA_ALIAS}" \
+            --query 'FunctionVersion' \
+            --output text)
+
+          if [ "${ALIAS_VERSION}" != "${{ steps.publish.outputs.new_version }}" ]; then
+            echo "Alias verification failed: expected ${{ steps.publish.outputs.new_version }}, got ${ALIAS_VERSION}" >&2
+            exit 1
+          fi
+
+          echo "alias_version=${ALIAS_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Write deployment summary
+        shell: bash
+        run: |
+          {
+            echo "## Dev Lambda Deployment"
+            echo ""
+            echo "- Function name: \`${LAMBDA_FUNCTION_NAME}\`"
+            echo "- Alias: \`${LAMBDA_ALIAS}\`"
+            echo "- S3 key: \`${{ steps.metadata.outputs.s3_key }}\`"
+            echo "- Published version: \`${{ steps.publish.outputs.new_version }}\`"
+            echo "- Alias version: \`${{ steps.verify.outputs.alias_version }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write deployment metadata file
+        shell: bash
+        run: |
+          mkdir -p build/deployment-metadata
+          {
+            echo "function_name=${LAMBDA_FUNCTION_NAME}"
+            echo "alias=${LAMBDA_ALIAS}"
+            echo "s3_key=${{ steps.metadata.outputs.s3_key }}"
+            echo "published_version=${{ steps.publish.outputs.new_version }}"
+            echo "alias_version=${{ steps.verify.outputs.alias_version }}"
+          } > build/deployment-metadata/dev-lambda-deployment.txt
+
+      - name: Upload deployment metadata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-lambda-deployment-metadata
+          path: build/deployment-metadata/dev-lambda-deployment.txt

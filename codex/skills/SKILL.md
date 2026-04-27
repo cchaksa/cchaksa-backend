@@ -39,10 +39,11 @@ Lower-level documents must not violate higher-level documents.
 
 ## 3. Single Source of Truth
 
-- All feature development must be based on written Context documents.
-- Without Context, no work starts.
-- Codex must not infer or decide without updating Context.
-- Requirements not explicitly written in Context are treated as nonexistent.
+- 모든 작업은 `docs/specs/<YYYYMMDD-slug>/`에 존재하는 스펙 묶음을 기준으로 한다.
+- Standard: `spec.md`, `clarify.md`, `plan.md`, `tasks.md` 4개 파일이 모두 있어야 Phase 1이 완료된다.
+- Lite: Scope < 1 day 및 API 미변경 조건에서만 `spec-lite.md` 단일 파일로 시작할 수 있으며, 조건을 벗어나면 즉시 Standard로 승격한다.
+- 명세에 없는 요구사항은 존재하지 않는 것으로 취급한다. 모호점이 생기면 `clarify.md`에 기록하고 해결 후에만 다음 Phase로 이동한다.
+- Spec/Lite가 작성된 뒤에는 담당자의 승인(“OK to implement”)을 받고 해당 근거를 명시한 후에만 Phase 2로 넘어갈 수 있다.
 
 ---
 
@@ -61,10 +62,12 @@ Lower-level documents must not violate higher-level documents.
 ## 5. Workflow Compliance
 
 - Codex must not change or skip the order defined in `WORKFLOW.md`.
+- Phase 1에서는 스펙 묶음 생성 → clarify 해결 → plan/tasks 잠금 순서를 지킨다.
 - The following are explicitly forbidden:
   - Implementing before tests
   - Editing code without creating a branch
   - Ending work without a commit
+  - 진행 중 모호점을 `clarify.md`에 기록하지 않고 구두로만 처리하는 행위
 
 ---
 
@@ -74,6 +77,7 @@ If Context is unclear or conflicts:
 
 - Do not start work.
 - Stop code changes, branch creation, and commits.
+- 기록되지 않은 정보는 `clarify.md`에 질문/선택지/영향을 명시한 뒤 답변을 채워야만 효력이 생긴다.
 - Ask questions in the following format only:
 
   - What is unclear
@@ -109,14 +113,15 @@ Layer access rules:
 ## 9. Git Rules
 
 - All work must be done on a branch.
-  Example: `feat/156`
-- Commit messages must include the branch number.
+- Branch names must always follow `feat/{github-issue-number}` (e.g., `feat/123`) and map 1:1 to the user-specified GitHub Issue number. If the issue number has not been provided, stop and ask the user for it before creating or switching branches.
+- Each branch must have exactly one matching `docs/specs/<YYYYMMDD-slug>` directory.
+- Commit messages must include the branch identifier.
 - Commit messages must be written in Korean.
   - Format: `{branch} {type}: {message}`
-    - Example: `156 feat: 게시판 기능 개발`
+    - Example: `20260327-auth-studentid-separation feat: 게시판 기능 개발`
 - One PR per Context.
 - Auto-generated PRs must include:
-  - Context summary
+  - Context summary (spec bundle link)
   - Change list
   - Test results
 

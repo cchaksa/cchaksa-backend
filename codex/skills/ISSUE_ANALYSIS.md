@@ -16,8 +16,9 @@ Use this skill when the user requests investigation before implementation.
 - Investigation question
 - Scope and constraints
 - Available evidence sources (logs, metrics, code paths, incidents)
+- Spec stub reference: 분석 결과가 구현으로 이어질 가능성이 있으면 `docs/specs/<date-slug>/`에 `spec-lite.md`를 먼저 만들어 질문/가설을 기록한다.
 
-If scope is missing, ask focused clarification before deep analysis.
+If scope is missing, ask focused clarification before deep analysis and capture it in `clarify.md` (or the lite stub).
 
 ---
 
@@ -32,6 +33,7 @@ If scope is missing, ask focused clarification before deep analysis.
    - move to `BUG_FIX.md`
    - move to `FEATURE_DEVELOPMENT.md`
    - move to `REFACTORING.md`
+   - 스펙이 필요하다면 바로 `docs/specs/<date-slug>/` Standard bundle로 승격
 
 ---
 

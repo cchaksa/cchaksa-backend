@@ -1,0 +1,53 @@
+name: CI (Gradle)
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  gradle:
+    name: ci-gradle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Run Gradle check (tests included)
+        run: ./gradlew check --stacktrace --no-daemon
+
+      - name: Publish CI summary
+        if: ${{ always() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## CI (Gradle)"
+            echo "- Status: ${JOB_STATUS}"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Event: $GITHUB_EVENT_NAME"
+            if [ "${JOB_STATUS}" = "failure" ]; then
+              printf '\n### Next steps\n'
+              echo "- 확인: 'Run unit tests'와 'Run static checks' 로그에서 첫 실패 원인을 찾아 수정"
+              echo "- 재시도: 문제 해결 후 PR 업데이트 혹은 rerun"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

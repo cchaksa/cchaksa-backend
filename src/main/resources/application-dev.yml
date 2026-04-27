@@ -4,14 +4,15 @@ spring:
     username: ${DEV_DB_USERNAME}
     password: ${DEV_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 10
-      minimum-idle: 1
-      connection-timeout: 5000
-      validation-timeout: 5000
-      idle-timeout: 300000     # 5m
-      max-lifetime: 900000     # 15m
-      keepalive-time: 120000   # 2m
+    hikari: # Lamdba 환경을 고려하여 설정
+      minimum-idle: 0
+      maximum-pool-size: 1
+      connection-timeout: 3000
+      validation-timeout: 2000
+      idle-timeout: 10000
+      max-lifetime: 55000
+      keepalive-time: 0
+      leak-detection-threshold: 3000
       pool-name: HikariPool-ChukChuk
 
   jpa:

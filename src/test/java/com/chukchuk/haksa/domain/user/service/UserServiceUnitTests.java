@@ -250,7 +250,7 @@ class UserServiceUnitTests {
         when(jwtProvider.createRefreshToken(existingUser.getId().toString()))
                 .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh-token", new Date()));
 
-        AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest("id-token", "nonce"));
+        AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest(OidcProvider.KAKAO, "id-token", "nonce"));
 
         assertThat(response.accessToken()).isEqualTo("access-token");
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
@@ -283,7 +283,7 @@ class UserServiceUnitTests {
         when(jwtProvider.createRefreshToken(savedUser.getId().toString()))
                 .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh-token", new Date()));
 
-        AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest("id-token", "nonce"));
+        AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest(OidcProvider.KAKAO, "id-token", "nonce"));
 
         ArgumentCaptor<SocialAccount> socialCaptor = ArgumentCaptor.forClass(SocialAccount.class);
         verify(socialAccountRepository).save(socialCaptor.capture());

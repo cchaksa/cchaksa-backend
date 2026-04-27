@@ -5,9 +5,8 @@ spring:
     password:
     driver-class-name: org.h2.Driver
   jpa:
-    generate-ddl: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
 
 security:
   jwt:

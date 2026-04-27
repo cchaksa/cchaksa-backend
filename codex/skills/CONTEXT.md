@@ -1,24 +1,22 @@
-# Context Template
+# Spec Bundle Template (Context)
 
-Context is the basis for all decisions.  
-Requirements not explicitly written in Context are treated as nonexistent.  
-No work starts without Context.
+Context는 `docs/specs/<date-slug>/` 아래의 스펙 묶음으로 구성된다.  
+아래 항목은 `spec.md` 안에서 작성하며, 모호점은 `clarify.md`, 구현 전략은 `plan.md`, 작업 분해는 `tasks.md`로 분리한다.
 
 ---
 
 ## 1. Feature Overview (Required)
 
-- Purpose: (One sentence describing the problem this feature solves)
+- Purpose:
 - Scope:
   - In:
   - Out:
-- Expected Impact: (Quantitative or qualitative)
-
-If this section is empty, stop the work.
+- Expected Impact:
+- Stakeholder Confirmation:
 
 ---
 
-## 2. Domain Rules (Highest Priority, Required)
+## 2. Domain Rules (Required)
 
 - Rule 1:
 - Rule 2:
@@ -26,8 +24,6 @@ If this section is empty, stop the work.
 
 - Mutable Rules:
 - Immutable Rules:
-
-If at least one rule is not specified, stop the work.
 
 ---
 
@@ -47,7 +43,7 @@ If at least one rule is not specified, stop the work.
 
 ---
 
-## 4. Transaction and Consistency Policy (Required)
+## 4. Transaction / Consistency Policy (Required)
 
 - Transaction Start Point:
 - Transaction End Point:
@@ -56,7 +52,7 @@ If at least one rule is not specified, stop the work.
 
 ---
 
-## 5. API List (Optional / Required When Present)
+## 5. API List (When Applicable)
 
 - Endpoint:
   - Method:
@@ -79,7 +75,7 @@ If at least one rule is not specified, stop the work.
 
 ## 7. Phase Checklist
 
-- [ ] Phase 1 Context: requirements, domain rules, exception policy fixed
+- [ ] Phase 1 Spec fixed (spec.md + clarify.md + plan.md + tasks.md created)
 - [ ] Phase 2 Domain: models, services, exceptions, pure tests written
 - [ ] Phase 3 Application: orchestration, transactions, repository interface validation
 - [ ] Phase 4 Infrastructure: persistence, external integration, technical implementation validated
@@ -88,10 +84,10 @@ If at least one rule is not specified, stop the work.
 
 ---
 
-## 8. Generated File List (Required)
+## 8. Generated File List
 
 - Path:
-- Description:
-- Layer:
+  - Description:
+  - Layer:
 
-The generated file list must match the actual commit contents.
+> 참고: Lite 스펙은 `spec-lite.md` 하나로 시작하지만, 범위를 넘어서면 즉시 본 템플릿으로 승격한다.
