@@ -147,6 +147,7 @@ public class ScrapeJobOutboxDispatcher {
                     trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
             String queueMessageId = scrapeJobPublisher.publish(outbox.getPayloadJson());
             outbox.markSent(queueMessageId, attemptedAt);
+            job.markRunning();
             meterRegistry.counter("scrape.outbox.publish.success").increment();
             log.info("[BIZ] scrape.outbox.sent trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
                     trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), queueMessageId);

@@ -42,7 +42,7 @@ public class ScrapeJobStaleReconciler {
         List<ScrapeJobOutbox> staleOutboxes = scrapeJobOutboxRepository.findStaleSentTargetsForUpdate(
                 ScrapeJobOutboxStatus.SENT,
                 threshold,
-                ScrapeJobStatus.QUEUED,
+                ScrapeJobStatus.RUNNING,
                 PageRequest.of(0, scrapingProperties.getStale().getBatchSize())
         );
 

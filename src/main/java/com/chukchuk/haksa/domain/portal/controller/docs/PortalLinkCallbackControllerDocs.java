@@ -19,12 +19,15 @@ public interface PortalLinkCallbackControllerDocs {
 
     @Operation(
             summary = "[Internal] 스크래핑 결과 콜백 수신",
-            description = "스크래핑 워커가 API Gateway를 통해 전달하는 결과 payload를 검증하고 DB에 반영합니다.\n"
+            description = "스크래핑 워커가 API Gateway를 통해 전달하는 job 상태와 result_s3_key를 검증하고 DB에 반영합니다.\n"
+                    + "실제 결과 payload는 result_s3_key 기반으로 백엔드가 S3에서 조회합니다.\n"
                     + "HMAC 서명 규칙: signature = HMAC_SHA256(\"{timestamp}.{rawBody}\").",
             responses = {
                     @ApiResponse(responseCode = "200", description = "콜백 처리 완료",
                             content = @Content(schema = @Schema(implementation = MessageOnlyResponse.class))),
                     @ApiResponse(responseCode = "400", description = "서명 검증 실패 (INVALID_CALLBACK_SIGNATURE)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(responseCode = "400", description = "잘못된 콜백 요청 (SCRAPE_INVALID_CALLBACK_REQUEST)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
                     @ApiResponse(responseCode = "404", description = "job 미존재 (PORTAL_JOB_NOT_FOUND)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
