@@ -12,7 +12,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +29,10 @@ public class ScrapeJobStaleReconciler {
     private final ScrapingProperties scrapingProperties;
     private final MeterRegistry meterRegistry;
 
-    @Scheduled(fixedDelayString = "${scraping.stale.fixed-delay-ms:60000}")
     @Transactional
-    public void reconcileStaleQueuedJobs() {
+    public int reconcileStaleQueuedJobs() {
         if (!scrapingProperties.getStale().isEnabled()) {
-            return;
+            return 0;
         }
 
         Instant now = Instant.now();
@@ -46,6 +44,7 @@ public class ScrapeJobStaleReconciler {
                 PageRequest.of(0, scrapingProperties.getStale().getBatchSize())
         );
 
+        int affectedCount = 0;
         for (ScrapeJobOutbox outbox : staleOutboxes) {
             ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
             if (job == null || job.isCompleted()) {
@@ -60,9 +59,11 @@ public class ScrapeJobStaleReconciler {
             );
             meterRegistry.counter("scrape.job.callback.timeout").increment();
             recordQueuedAge(job, now);
+            affectedCount++;
             log.warn("[BIZ] scrape.job.callback.timeout jobId={} outboxId={} attempt={} outboxStatus={} queueMessageId={}",
                     job.getJobId(), outbox.getOutboxId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
         }
+        return affectedCount;
     }
 
     private void recordQueuedAge(ScrapeJob job, Instant finishedAt) {

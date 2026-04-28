@@ -66,7 +66,7 @@ scraping:
     api-call-timeout-seconds: ${SCRAPING_RESULT_API_CALL_TIMEOUT_SECONDS:30}
     api-call-attempt-timeout-seconds: ${SCRAPING_RESULT_API_CALL_ATTEMPT_TIMEOUT_SECONDS:3}
   scheduler:
-    enabled: ${SCRAPING_SCHEDULER_ENABLED:true}
+    enabled: ${SCRAPING_SCHEDULER_ENABLED:false}
   publisher:
     enabled: ${SCRAPING_PUBLISHER_ENABLED:true}
     fixed-delay-ms: ${SCRAPING_PUBLISHER_FIXED_DELAY_MS:10000}
