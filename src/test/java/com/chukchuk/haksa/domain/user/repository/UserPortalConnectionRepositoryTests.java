@@ -41,13 +41,15 @@ class UserPortalConnectionRepositoryTests {
     @DisplayName("기존 Student 가 있으면 재사용하여 중복 삽입을 막는다")
     void initializePortalConnection_reusesExistingStudent() {
         UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
         User user = User.builder().id(userId).email("test@example.com").profileNickname("tester").build();
         Student existingStudent = mock(Student.class);
+        when(existingStudent.getId()).thenReturn(studentId);
         when(studentService.findPortalPendingStudent(userId)).thenReturn(Optional.of(existingStudent));
 
         repository.initializePortalConnection(user, sampleStudentData());
 
-        verify(existingStudent).resetAcademicData();
+        verify(studentService).resetBy(studentId);
         verify(existingStudent).updateUser(user);
         verify(studentService).save(existingStudent);
         verify(userService).save(user);
