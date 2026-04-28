@@ -76,11 +76,6 @@ public class Student extends BaseEntity {
     @OneToMany(mappedBy = "student", cascade = {CascadeType.PERSIST, REMOVE}, orphanRemoval = true)
     private List<StudentCourse> studentCourses = new ArrayList<>();
 
-    public void clearAcademicAssociations() {
-        this.semesterAcademicRecords.clear();
-        this.studentCourses.clear();
-    }
-
     @Builder
     public Student(String studentCode, String name, Department department, Department major, Department secondaryMajor,
                    Integer admissionYear, Integer semesterEnrolled, Boolean isTransferStudent, Boolean isGraduated,

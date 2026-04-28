@@ -50,7 +50,6 @@ class UserPortalConnectionRepositoryTests {
         repository.initializePortalConnection(user, sampleStudentData());
 
         verify(studentService).resetBy(studentId);
-        verify(existingStudent).clearAcademicAssociations();
         verify(existingStudent).updateUser(user);
         verify(studentService).save(existingStudent);
         verify(userService).save(user);
