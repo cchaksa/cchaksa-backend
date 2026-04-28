@@ -1,20 +1,14 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
-import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.user.model.User;
-import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.mapper.PortalDataMapper;
-import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,18 +36,17 @@ import java.util.UUID;
 public class ScrapeResultCallbackService {
 
     private final ScrapeJobRepository scrapeJobRepository;
-    private final PortalSyncService portalSyncService;
-    private final UserService userService;
-    private final StudentService studentService;
-    private final AcademicCache academicCache;
+    private final PortalCallbackPostProcessor portalCallbackPostProcessor;
     private final HmacSignatureVerifier hmacSignatureVerifier;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Transactional
-    public void handleCallback(String rawBody, String timestamp, String signature) {
+    public void handleCallback(String rawBody, String timestamp, String signature, String attemptHeader, String workerRequestId) {
         String bodyHash = hashRawBody(rawBody);
         String hintedJobId = extractJobId(rawBody);
+        int attempt = parseAttempt(attemptHeader);
+        String normalizedWorkerRequestId = normalizeWorkerRequestId(workerRequestId);
 
         try {
             hmacSignatureVerifier.verify(timestamp, rawBody, signature);
@@ -82,8 +75,11 @@ public class ScrapeResultCallbackService {
                     return new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND);
                 });
 
-        if (job.isCompleted()) {
-            log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={}", job.getJobId(), job.getStatus());
+        log.info("[BIZ] scrape.job.callback.received jobId={} status={} attempt={} requestId={} rawBodyHash={}",
+                job.getJobId(), job.getStatus(), attempt, normalizedWorkerRequestId, bodyHash);
+
+        if (job.isCompleted() || job.hasWorkerResult()) {
+            handleDuplicate(job, attempt, normalizedWorkerRequestId);
             return;
         }
 
@@ -91,15 +87,15 @@ public class ScrapeResultCallbackService {
         String normalizedStatus = normalize(request.status());
 
         if ("succeeded".equals(normalizedStatus)) {
-            handleSucceeded(job, request, finishedAt, bodyHash);
+            handleSucceeded(job, request, finishedAt, bodyHash, attempt, normalizedWorkerRequestId);
             return;
         }
 
         if ("failed".equals(normalizedStatus)) {
             job.markFailed(request.error_code(), request.error_message(), request.retryable(), finishedAt);
             recordQueuedAge(job, finishedAt);
-            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={}",
-                    job.getJobId(), request.error_code(), request.retryable());
+            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
+                    job.getJobId(), request.error_code(), request.retryable(), attempt, normalizedWorkerRequestId);
             return;
         }
 
@@ -116,7 +112,14 @@ public class ScrapeResultCallbackService {
         }
     }
 
-    private void handleSucceeded(ScrapeJob job, PortalLinkDto.ScrapeResultCallbackRequest request, Instant finishedAt, String bodyHash) {
+    private void handleSucceeded(
+            ScrapeJob job,
+            PortalLinkDto.ScrapeResultCallbackRequest request,
+            Instant finishedAt,
+            String bodyHash,
+            int attempt,
+            String workerRequestId
+    ) {
         try {
             if (request.result_payload() == null || request.result_payload().isNull()) {
                 log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_missing jobId={} rawBodyHash={}",
@@ -125,17 +128,27 @@ public class ScrapeResultCallbackService {
             }
             JsonNode normalizedPayload = normalizeNodeKeys(request.result_payload());
             RawPortalData rawPortalData = objectMapper.treeToValue(normalizedPayload, RawPortalData.class);
-            PortalData portalData = PortalDataMapper.toPortalData(rawPortalData);
+            PortalDataMapper.toPortalData(rawPortalData); // validate payload before persisting
 
-            if (job.getOperationType() == ScrapeJobOperationType.LINK) {
-                applyLink(job, portalData);
-            } else {
-                applyRefresh(job, portalData);
-            }
-
-            job.markSucceeded(writeJson(normalizedPayload), finishedAt);
+            String payloadJson = writeJson(normalizedPayload);
+            String payloadHash = hashRawBody(payloadJson);
+            job.recordWorkerResult(payloadJson, finishedAt);
+            Double queuedAgeSeconds = calculateQueuedAgeSeconds(job, finishedAt);
             recordQueuedAge(job, finishedAt);
-            log.info("[BIZ] scrape.job.succeeded jobId={} operationType={}", job.getJobId(), job.getOperationType());
+            meterRegistry.counter("scrape.job.callback.persisted").increment();
+            log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={} queuedAgeSeconds={}",
+                    job.getJobId(), attempt, workerRequestId, payloadHash, queuedAgeSeconds);
+            portalCallbackPostProcessor.process(
+                    job.getJobId(),
+                    job.getUserId(),
+                    job.getOperationType(),
+                    payloadJson,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    attempt,
+                    workerRequestId,
+                    payloadHash
+            );
         } catch (BaseException | IllegalArgumentException e) {
             job.markFailed("BUSINESS_RULE_VIOLATION", e.getMessage(), false, finishedAt);
             recordQueuedAge(job, finishedAt);
@@ -153,22 +166,18 @@ public class ScrapeResultCallbackService {
         }
     }
 
-    private void applyLink(ScrapeJob job, PortalData portalData) {
-        UUID userId = job.getUserId();
-        User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
-        if (Boolean.TRUE.equals(mergedUser.getPortalConnected())) {
-            log.info("[BIZ] scrape.job.link.skip jobId={} mergedUserId={} reason=already_connected",
-                    job.getJobId(), mergedUser.getId());
-            return;
-        }
-
-        portalSyncService.syncWithPortal(mergedUser.getId(), portalData);
+    private void handleDuplicate(ScrapeJob job, int attempt, String workerRequestId) {
+        meterRegistry.counter("scrape.job.callback.duplicate", "status", job.getStatus().name().toLowerCase(Locale.ROOT))
+                .increment();
+        log.info("[BIZ] scrape.job.callback.duplicate jobId={} status={} attempt={} requestId={}",
+                job.getJobId(), job.getStatus(), attempt, workerRequestId);
     }
 
-    private void applyRefresh(ScrapeJob job, PortalData portalData) {
-        portalSyncService.refreshFromPortal(job.getUserId(), portalData);
-        UUID studentId = studentService.getRequiredStudentIdByUserId(job.getUserId());
-        academicCache.deleteAllByStudentId(studentId);
+    private Double calculateQueuedAgeSeconds(ScrapeJob job, Instant finishedAt) {
+        if (job.getCreatedAt() == null || finishedAt == null) {
+            return null;
+        }
+        return Duration.between(job.getCreatedAt(), finishedAt).toMillis() / 1000.0;
     }
 
     private String writeJson(Object value) {
@@ -206,6 +215,23 @@ public class ScrapeResultCallbackService {
         } catch (Exception ignored) {
             return "";
         }
+    }
+
+    private int parseAttempt(String attemptHeader) {
+        if (attemptHeader == null || attemptHeader.isBlank()) {
+            return 1;
+        }
+        try {
+            int value = Integer.parseInt(attemptHeader);
+            return value <= 0 ? 1 : value;
+        } catch (NumberFormatException e) {
+            log.warn("[BIZ] scrape.job.callback.attempt.parse_fail header={} message={}", attemptHeader, e.getMessage());
+            return 1;
+        }
+    }
+
+    private String normalizeWorkerRequestId(String workerRequestId) {
+        return workerRequestId == null ? "" : workerRequestId;
     }
 
     private JsonNode normalizeNodeKeys(JsonNode node) {

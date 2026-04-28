@@ -1,0 +1,23 @@
+# Plan
+
+## Architecture / Layering
+- Domain impact: ScrapeJob 은 성공 콜백 저장 시 `recordWorkerResult` 까지만 수행하며, 같은 요청 안에서 포털 동기화가 완료돼야 `markSucceeded`/`markFailed` 된다.
+- Application orchestration: ScrapeResultCallbackService 가 서명 검증 → 결과 적재 → PortalCallbackPostProcessor.process 동기 호출까지 모두 수행하고, PortalCallbackPostProcessor 는 REQUIRES_NEW 트랜잭션으로 portal sync/refresh 후 상태를 확정한다.
+- Infrastructure touchpoints: PortalCallbackPostProcessor 는 ScrapeJobRepository/PortalSyncService 를 묶어 실행하며, 실패 시 동일 트랜잭션에서 Job 상태를 FAILED 로 기록한다.
+- Global/config changes: Lambda 함수 timeout/메모리 상향(별도 IaC), portalCallbackExecutor 제거.
+
+## Data / Transactions
+- Repositories touched: `ScrapeJobRepository`, `StudentRepository`, `UserRepository`, `StudentCourseRepository`, `StudentCourseBulkRepository`.
+- Transaction scope: `/internal/scrape-results` 트랜잭션이 worker 결과 기록과 portal sync 호출을 모두 수행하고, PortalCallbackPostProcessor 내부에서 REQUIRES_NEW 트랜잭션으로 최종 상태를 커밋한다.
+- Consistency expectations: 성공 콜백이 수신되면 portal sync 결과에 따라 즉시 `ScrapeJobStatus.SUCCEEDED/FAILED` 로 확정되며, 후처리 실패도 동일 요청 안에서 사용자에게 반영된다(HTTP 200 + 상태 FAILED).
+
+## Testing Strategy
+- Domain tests: ScrapeJob `markSucceeded`/`recordWorkerResult` 조합이 중복 호출에도 idempotent 한지 검증.
+- Application tests: ScrapeResultCallbackService 는 성공 콜백에서 즉시 SUCCEEDED 가 되며, duplicate 요청/FAILED 상태에서도 idempotent 하게 처리되는지 확인.
+- Integration/tests: PortalCallbackPostProcessor 는 성공 시 포털 동기화를 실행하고 실패 시에도 Job 상태가 변하지 않는지, shadow 시나리오(중복 callback)에서 타임아웃 없이 응답하는지 검증.
+- Additional commands: `./gradlew test`.
+
+## Rollout Considerations
+- Backward compatibility: API 응답 202 유지, 단 callback 응답 속도가 빨라지므로 워커 timeout 설정과 맞춰 운영 확인 필요.
+- Observability / metrics: `scrape.job.callback.persisted`, `scrape.job.callback.duplicate`, `scrape.job.callback.postprocess.fail` 등 새로운 카운터를 대시보드/알림에 연동한다.
+- Feature flags / toggles: 없음, 모든 환경에 동일 로직 적용.
