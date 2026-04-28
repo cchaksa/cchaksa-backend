@@ -55,6 +55,7 @@ public class UserPortalConnectionRepository {
 
     private void reuseExistingStudent(Student student, User user, StudentInitializationDataType studentData) {
         studentService.resetBy(student.getId());
+        student.clearAcademicAssociations();
         student.updateInfo(
                 studentData.getName(),
                 studentData.getDepartment(),

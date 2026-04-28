@@ -11,7 +11,7 @@
 ## 2. Domain Rules
 - Rule 1: 기존 학생을 다른 사용자 포털 연결에 재사용할 때 이전 학사 기록은 제거되어야 한다.
 - Rule 2: 학사 기록 삭제는 `StudentService.resetBy(UUID studentId)`의 명시 삭제 쿼리를 사용한다.
-- Rule 3: 학생 기본 정보 갱신과 사용자 연결 갱신은 기존 `reuseExistingStudent` 트랜잭션 안에서 유지한다.
+- Rule 3: 명시 삭제 후 현재 영속성 컨텍스트의 `Student` 학사 연관관계 컬렉션도 비운다.
 - Mutable Rules: 포털 연결 중 기존 학생 재사용 시점의 초기화 호출 위치.
 - Immutable Rules: 외부 API 계약, 엔티티 필드, 트랜잭션 경계, 학생-사용자 연결 정책.
 
@@ -58,9 +58,15 @@
 - [ ] Phase 6 API/Controller complete
 
 ## 8. Generated File List
+- Path: `src/main/java/com/chukchuk/haksa/domain/student/model/Student.java`
+  - Description: 현재 영속성 컨텍스트의 학사 연관관계 컬렉션을 비우는 메서드 추가.
+  - Layer: Domain model.
 - Path: `src/main/java/com/chukchuk/haksa/domain/user/repository/UserPortalConnectionRepository.java`
-  - Description: 기존 학생 재사용 시 삭제된 엔티티 메서드 대신 `StudentService.resetBy` 호출.
+  - Description: 기존 학생 재사용 시 `StudentService.resetBy` 호출 후 엔티티 컬렉션 상태 초기화.
   - Layer: Domain service orchestration.
 - Path: `src/test/java/com/chukchuk/haksa/domain/user/repository/UserPortalConnectionRepositoryTests.java`
-  - Description: 기존 학생 재사용 시 `StudentService.resetBy` 호출 검증.
+  - Description: 기존 학생 재사용 시 `StudentService.resetBy`와 컬렉션 초기화 호출 검증.
+  - Layer: Domain test.
+- Path: `src/test/java/com/chukchuk/haksa/domain/student/model/StudentTests.java`
+  - Description: `Student` 학사 연관관계 컬렉션 초기화 동작 검증.
   - Layer: Domain test.
