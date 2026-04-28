@@ -8,7 +8,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +16,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
+@ConditionalOnBean(TaskScheduler.class)
 @RequiredArgsConstructor
 @Slf4j
 public class ScrapeJobOutboxMetricsReporter {
@@ -23,8 +24,7 @@ public class ScrapeJobOutboxMetricsReporter {
     private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
     private final MeterRegistry meterRegistry;
     private final ScrapingProperties scrapingProperties;
-    @Qualifier("scrapeOutboxRetryScheduler")
-    private final TaskScheduler scrapeOutboxRetryScheduler;
+    private final TaskScheduler taskScheduler;
 
     private final AtomicLong deadCount = new AtomicLong();
     private final AtomicLong retryableCount = new AtomicLong();
@@ -35,7 +35,7 @@ public class ScrapeJobOutboxMetricsReporter {
         meterRegistry.gauge("scrape.outbox.dead.count", deadCount);
         meterRegistry.gauge("scrape.outbox.retryable_failed.count", retryableCount);
         long refreshMs = scrapingProperties.getPublisher().getMetricsRefreshMs();
-        refreshFuture = scrapeOutboxRetryScheduler.scheduleAtFixedRate(this::refreshSafely, refreshMs);
+        refreshFuture = taskScheduler.scheduleAtFixedRate(this::refreshSafely, refreshMs);
     }
 
     @PreDestroy

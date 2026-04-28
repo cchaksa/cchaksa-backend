@@ -1,57 +1,40 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
-import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
-import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
-import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
-import com.chukchuk.haksa.global.exception.code.ErrorCode;
-import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
-import org.springframework.dao.CannotAcquireLockException;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.CannotCreateTransactionException;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-import software.amazon.awssdk.core.exception.SdkClientException;
-import software.amazon.awssdk.services.sqs.model.SqsException;
 
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ScrapeJobOutboxDispatcher {
 
+    private static final int MAX_INLINE_PUBLISH_ATTEMPTS = 3;
+    private static final long[] INLINE_PUBLISH_RETRY_DELAYS_MS = {200L, 500L};
+
     private static final List<ScrapeJobOutboxStatus> PUBLISHABLE_STATUSES = List.of(
             ScrapeJobOutboxStatus.PENDING,
             ScrapeJobOutboxStatus.RETRYABLE_FAILED
     );
 
-    private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
-    private final ScrapeJobRepository scrapeJobRepository;
+    private final ScrapeJobOutboxDispatchTxService dispatchTxService;
     private final ScrapeJobPublisher scrapeJobPublisher;
     private final ScrapingProperties scrapingProperties;
-    private final MeterRegistry meterRegistry;
     private final Environment environment;
 
-    @Scheduled(fixedDelayString = "${scraping.publisher.fixed-delay-ms:10000}")
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void dispatchEligibleOutboxes() {
         dispatchBatch("scheduled");
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int dispatchOnce(String preferredOutboxId) {
-        return dispatchPreferredOutbox("after_commit", preferredOutboxId);
+        return dispatchPreferredOutbox("sync_request", preferredOutboxId);
     }
 
     private int dispatchPreferredOutbox(String trigger, String preferredOutboxId) {
@@ -69,12 +52,12 @@ public class ScrapeJobOutboxDispatcher {
         try {
             log.info("[BIZ] scrape.outbox.dispatch.db_lookup.start trigger={} preferredOutboxId={} batchSize={}",
                     trigger, preferredOutboxId, batchSize);
-            Optional<ScrapeJobOutbox> preferred = scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
+            ScrapeJobOutboxDispatchPlan plan = dispatchTxService.reservePreferred(
                     preferredOutboxId,
                     PUBLISHABLE_STATUSES,
                     now
             );
-            if (preferred.isEmpty()) {
+            if (plan.dispatchedCount() == 0) {
                 log.info("[BIZ] scrape.outbox.dispatch.preferred_missing trigger={} preferredOutboxId={} foundCount=0",
                         trigger, preferredOutboxId);
                 log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId={} dispatchedCount=0",
@@ -84,10 +67,10 @@ public class ScrapeJobOutboxDispatcher {
 
             log.info("[BIZ] scrape.outbox.dispatch.db_lookup.success trigger={} preferredOutboxId={} foundCount=1",
                     trigger, preferredOutboxId);
-            dispatchSingle(preferred.get(), now, trigger);
+            publishCandidates(plan.candidates(), now, trigger);
             log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId={} dispatchedCount={}",
-                    trigger, preferredOutboxId, 1);
-            return 1;
+                    trigger, preferredOutboxId, plan.dispatchedCount());
+            return plan.dispatchedCount();
         } catch (RuntimeException exception) {
             logDispatchFailure(trigger, preferredOutboxId, batchSize, now, exception);
             throw exception;
@@ -108,111 +91,78 @@ public class ScrapeJobOutboxDispatcher {
         try {
             log.info("[BIZ] scrape.outbox.dispatch.db_lookup.start trigger={} preferredOutboxId=null batchSize={}",
                     trigger, batchSize);
-            List<ScrapeJobOutbox> outboxes = scrapeJobOutboxRepository.findPublishTargetsForUpdate(
+            ScrapeJobOutboxDispatchPlan plan = dispatchTxService.reserveBatch(
                     PUBLISHABLE_STATUSES,
                     now,
-                    PageRequest.of(0, batchSize)
+                    batchSize
             );
             log.info("[BIZ] scrape.outbox.dispatch.db_lookup.success trigger={} preferredOutboxId=null foundCount={}",
-                    trigger, outboxes.size());
+                    trigger, plan.dispatchedCount());
 
-            int dispatched = 0;
-            for (ScrapeJobOutbox outbox : outboxes) {
-                dispatchSingle(outbox, now, trigger);
-                dispatched++;
-            }
-
+            publishCandidates(plan.candidates(), now, trigger);
             log.info("[BIZ] scrape.outbox.dispatch.end trigger={} preferredOutboxId=null dispatchedCount={}",
-                    trigger, dispatched);
-            return dispatched;
+                    trigger, plan.dispatchedCount());
+            return plan.dispatchedCount();
         } catch (RuntimeException exception) {
             logDispatchFailure(trigger, null, batchSize, now, exception);
             throw exception;
         }
     }
 
-    private void dispatchSingle(ScrapeJobOutbox outbox, Instant attemptedAt, String trigger) {
-        ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
-        if (job == null) {
-            outbox.markDead("missing scrape job", attemptedAt);
-            meterRegistry.counter("scrape.outbox.publish.fail").increment();
-            meterRegistry.counter("scrape.outbox.dead").increment();
-            log.error("[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} reason=missing_job",
-                    trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
-            return;
+    private void publishCandidates(List<ScrapeJobOutboxPublishCandidate> candidates, Instant attemptedAt, String trigger) {
+        for (ScrapeJobOutboxPublishCandidate candidate : candidates) {
+            publishSingle(candidate, attemptedAt, trigger);
         }
+    }
 
+    private void publishSingle(ScrapeJobOutboxPublishCandidate candidate, Instant attemptedAt, String trigger) {
         try {
             log.info("[BIZ] scrape.outbox.publish.start trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
-                    trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
-            String queueMessageId = scrapeJobPublisher.publish(outbox.getPayloadJson());
-            outbox.markSent(queueMessageId, attemptedAt);
-            job.markRunning();
-            meterRegistry.counter("scrape.outbox.publish.success").increment();
-            log.info("[BIZ] scrape.outbox.sent trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
-                    trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), queueMessageId);
+                    trigger, candidate.outboxId(), candidate.jobId(), candidate.attemptCount(), candidate.status(), candidate.queueMessageId());
+            String queueMessageId = publishWithBoundedRetry(candidate, trigger);
+            dispatchTxService.markSent(candidate.outboxId(), queueMessageId, attemptedAt, trigger);
         } catch (RuntimeException e) {
-            handleFailure(outbox, job, attemptedAt, trigger, e);
+            dispatchTxService.markFailed(candidate.outboxId(), attemptedAt, trigger, e);
         }
     }
 
-    private void handleFailure(ScrapeJobOutbox outbox, ScrapeJob job, Instant attemptedAt, String trigger, RuntimeException exception) {
-        meterRegistry.counter("scrape.outbox.publish.fail").increment();
+    private String publishWithBoundedRetry(ScrapeJobOutboxPublishCandidate candidate, String trigger) {
+        int publishAttempt = 1;
+        while (true) {
+            try {
+                return scrapeJobPublisher.publish(candidate.payloadJson());
+            } catch (RuntimeException exception) {
+                if (isPermanentFailure(exception) || publishAttempt == MAX_INLINE_PUBLISH_ATTEMPTS) {
+                    throw exception;
+                }
 
-        boolean permanentFailure = isPermanentFailure(exception);
-        boolean maxAttemptsReached = outbox.getAttemptCount() + 1 >= scrapingProperties.getPublisher().getMaxAttempts();
-        String summary = summarizeException(exception);
-
-        if (permanentFailure || maxAttemptsReached) {
-            outbox.markDead(summary, attemptedAt);
-            if (!job.isCompleted()) {
-                job.markFailed(
-                        ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED.name(),
-                        ErrorCode.SCRAPE_JOB_OUTBOX_DEAD.message(),
-                        true,
-                        attemptedAt
-                );
+                long delayMs = INLINE_PUBLISH_RETRY_DELAYS_MS[publishAttempt - 1];
+                log.warn("[BIZ] scrape.outbox.publish.retry trigger={} outboxId={} jobId={} publishAttempt={} maxPublishAttempts={} delayMs={} exceptionClass={} message={}",
+                        trigger,
+                        candidate.outboxId(),
+                        candidate.jobId(),
+                        publishAttempt,
+                        MAX_INLINE_PUBLISH_ATTEMPTS,
+                        delayMs,
+                        exception.getClass().getSimpleName(),
+                        exception.getMessage());
+                sleepBeforeRetry(delayMs, exception);
+                publishAttempt++;
             }
-            meterRegistry.counter("scrape.outbox.dead").increment();
-            log.error("[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} reason={}",
-                    trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId(), summary);
-            return;
         }
-
-        Instant nextAttemptAt = attemptedAt.plusSeconds(calculateBackoffSeconds(outbox.getAttemptCount() + 1));
-        outbox.markRetryableFailure(summary, attemptedAt, nextAttemptAt);
-        meterRegistry.counter("scrape.outbox.retry").increment();
-        log.warn("[BIZ] scrape.outbox.retry trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} nextAttemptAt={} reason={}",
-                trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId(), nextAttemptAt, summary);
     }
 
-    private long calculateBackoffSeconds(int attemptCount) {
-        long initial = scrapingProperties.getPublisher().getInitialBackoffSeconds();
-        long max = scrapingProperties.getPublisher().getMaxBackoffSeconds();
-        long calculated = initial * (1L << Math.max(0, attemptCount - 1));
-        return Math.min(calculated, max);
+    private void sleepBeforeRetry(long delayMs, RuntimeException publishException) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException interruptedException) {
+            Thread.currentThread().interrupt();
+            throw publishException;
+        }
     }
 
     private boolean isPermanentFailure(RuntimeException exception) {
-        if (exception instanceof IllegalStateException || exception instanceof IllegalArgumentException) {
-            return true;
-        }
-        if (exception instanceof CannotCreateTransactionException || exception instanceof CannotAcquireLockException) {
-            return false;
-        }
-        if (exception instanceof SqsException sqsException) {
-            int statusCode = sqsException.statusCode();
-            return statusCode >= 400 && statusCode < 500 && statusCode != 429;
-        }
-        return !(exception instanceof SdkClientException);
-    }
-
-    private String summarizeException(RuntimeException exception) {
-        String message = exception.getMessage();
-        if (message == null || message.isBlank()) {
-            return exception.getClass().getSimpleName();
-        }
-        return exception.getClass().getSimpleName() + ": " + message;
+        return ScrapeJobOutboxPublisherFailures.isPermanentFailure(exception);
     }
 
     private void logDispatchFailure(String trigger, String preferredOutboxId, int batchSize, Instant now, RuntimeException exception) {
