@@ -61,7 +61,7 @@ public class StudentDto {
                     studentInfoDto.gradeLevel() != null ? studentInfoDto.gradeLevel() : 0,
                     currentSemester,
                     studentInfoDto.status(),
-                    studentInfoDto.updatedAt().toString(),
+                    studentInfoDto.updatedAt() != null ? studentInfoDto.updatedAt().toString() : "",
                     lastSyncedAt,
                     studentInfoDto.reconnectionRequired()
             );
