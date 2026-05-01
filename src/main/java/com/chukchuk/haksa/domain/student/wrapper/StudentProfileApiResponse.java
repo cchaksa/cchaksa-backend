@@ -15,13 +15,13 @@ public class StudentProfileApiResponse extends SuccessResponse<StudentProfileRes
                 "20231234",               // studentCode
                 "컴퓨터공학과",           // departmentName
                 "컴퓨터SW학과",           // majorName
-                "경영학과",             // dualMajorName
+                "경영학과",               // dualMajorName
                 3,                        // gradeLevel
-                6,                        // currentSemester
-                StudentStatus.재학,               // status
-                "2024-04-25T10:00:00Z",    // lastUpdatedAt
-                "2024-04-25T08:00:00Z",     // lastSyncedAt
-                true
+                2,                        // currentSemester
+                StudentStatus.재학,       // status
+                "2026-04-16T12:00:00Z",   // lastUpdatedAt
+                "2026-04-16T11:30:00Z",   // lastSyncedAt
+                false
         ), "요청 성공");
     }
 }
