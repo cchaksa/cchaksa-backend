@@ -1,16 +1,17 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
-import com.chukchuk.haksa.domain.student.service.StudentService;
-import com.chukchuk.haksa.domain.user.model.User;
-import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClient;
+import com.chukchuk.haksa.infrastructure.portal.exception.ScrapeResultPayloadAccessException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,15 +19,19 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.security.MessageDigest;
 import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,16 +43,26 @@ class ScrapeResultCallbackServiceUnitTests {
     private ScrapeJobRepository scrapeJobRepository;
 
     @Mock
+    private PortalCallbackPostProcessor portalCallbackPostProcessor;
+
+    @Mock
+    private ScrapeResultStoreClient resultStoreClient;
+
+    @Mock
     private PortalSyncService portalSyncService;
 
-    @Mock
-    private UserService userService;
+    private SimpleMeterRegistry meterRegistry;
 
-    @Mock
-    private StudentService studentService;
-
-    @Mock
-    private AcademicCache academicCache;
+    @BeforeEach
+    void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        lenient().when(resultStoreClient.validateLocation(any()))
+                .thenAnswer(invocation -> new ScrapeResultStoreClient.S3Location(
+                        "bucket",
+                        invocation.getArgument(0, String.class)
+                ));
+        lenient().when(resultStoreClient.isJobScopedLocation(any(), any())).thenReturn(true);
+    }
 
     @Test
     @DisplayName("잘못된 HMAC 서명은 거부한다")
@@ -56,119 +71,133 @@ class ScrapeResultCallbackServiceUnitTests {
         String timestamp = Instant.now().toString();
 
         assertThatThrownBy(() -> service.handleCallback(
-                "{\"job_id\":\"job-1\",\"status\":\"failed\",\"error_code\":\"INVALID_PAYLOAD\",\"error_message\":\"bad\",\"retryable\":false,\"finished_at\":\"2026-03-14T10:01:00Z\"}",
+                "{\"job_id\":\"job-1\",\"status\":\"failed\",\"error_code\":\"INVALID\"}",
                 timestamp,
-                "invalid-signature"
+                "invalid-signature",
+                null,
+                null
         )).isInstanceOf(CommonException.class)
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.INVALID_CALLBACK_SIGNATURE.code()));
     }
 
     @Test
-    @DisplayName("성공 callback이면 LINK job을 성공 처리한다")
-    void handleCallback_marksLinkJobSucceeded() {
+    @DisplayName("HMAC 검증은 request parse보다 먼저 수행한다")
+    void handleCallback_verifiesSignatureBeforeParsing() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+
+        assertThatThrownBy(() -> service.handleCallback(
+                "{invalid-json}",
+                timestamp,
+                "invalid-signature",
+                null,
+                null
+        )).isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.INVALID_CALLBACK_SIGNATURE.code()));
+    }
+
+    @Test
+    @DisplayName("성공 callback은 S3를 읽어 후처리를 동기 실행한다")
+    void handleCallback_fetchesS3Synchronously() {
         ScrapeResultCallbackService service = createService();
         UUID userId = UUID.randomUUID();
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
+        ScrapeJob job = createJob(userId);
+
+        String rawBody = """
+                {
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"callbacks/%s/result.json\",
+                  \"finished_at\":\"2026-03-14T10:01:00Z\"
+                }
+                """.formatted(job.getJobId(), job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId())))
+                .thenReturn("""
+                        {
+                          \"schema_version\":\"v1\",
+                          \"student\":{\"sno\":\"17019013\",\"stud_nm\":\"홍길동\",\"univ_cd\":\"01\",\"univ_nm\":\"수원대학교\",\"stud_grde\":4},
+                          \"semesters\":[{\"semester\":\"2024-10\",\"courses\":[{\"subjt_cd\":\"C101\",\"subjt_nm\":\"자료구조\"}]}],
+                          \"academic_records\":{\"listSmrCretSumTabYearSmr\":[{\"cretGainYear\":\"2024\",\"gainPoint\":\"18\"}]}
+                        }
+                        """);
+
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), "2", "req-1");
+
+        verify(resultStoreClient).fetch("callbacks/%s/result.json".formatted(job.getJobId()));
+        verify(portalCallbackPostProcessor).process(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                anyInt(),
+                any(),
+                any()
         );
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
+        assertThat(job.getResultS3Key()).isEqualTo("callbacks/%s/result.json".formatted(job.getJobId()));
+    }
+
+    @Test
+    @DisplayName("checksum은 정규화 전 raw payload 기준으로 검증한다")
+    void handleCallback_verifiesChecksumOnRawPayload() {
+        ScrapeResultCallbackService service = createService();
+        UUID userId = UUID.randomUUID();
+        ScrapeJob job = createJob(userId);
+        String timestamp = Instant.now().toString();
+        String rawPayload = """
+                {
+                  "schema_version":"v1",
+                  "student":{"sno":"17019013","stud_nm":"홍길동","univ_cd":"01","univ_nm":"수원대학교","stud_grde":4},
+                  "semesters":[],
+                  "academic_records":{"list_smry":[]}
+                }
+                """;
+        String checksum = "sha256:" + sha256(rawPayload);
         String rawBody = """
                 {
                   "job_id":"%s",
                   "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
-                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  "result_s3_key":"callbacks/%s/result.json",
+                  "result_checksum":"%s"
                 }
-                """.formatted(job.getJobId());
+                """.formatted(job.getJobId(), job.getJobId(), checksum);
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId()))).thenReturn(rawPayload);
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1");
 
-        assertThat(job.isCompleted()).isTrue();
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+        verify(portalCallbackPostProcessor).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
-    @DisplayName("성공 callback 처리 중 RuntimeException이 발생해도 FAILED로 마킹된다")
-    void handleCallback_runtimeDuringSync_marksJobFailed() {
+    @DisplayName("이미 처리된 attempt면 중복으로 간주한다")
+    void handleCallback_ignoresDuplicateAttempt() {
         ScrapeResultCallbackService service = createService();
-        UUID userId = UUID.randomUUID();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        job.recordCallbackAttempt(1, Instant.now());
+        job.markFailed("FAILED_S3_READ", "fail", true, Instant.now());
+
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
-        );
         String rawBody = """
                 {
-                  "job_id":"%s",
-                  "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
-                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"callbacks/%s/result.json\"
                 }
-                """.formatted(job.getJobId());
-
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
-        RuntimeException boom = new RuntimeException("unexpected");
-        doThrow(boom).when(portalSyncService).syncWithPortal(any(UUID.class), any());
-
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
-
-        assertThat(job.getStatus().name()).isEqualTo("FAILED");
-        assertThat(job.getErrorCode()).isEqualTo("INTERNAL_ERROR");
-    }
-
-    @Test
-    @DisplayName("완료된 job의 중복 callback은 무시한다")
-    void handleCallback_ignoresDuplicateCallback() {
-        ScrapeResultCallbackService service = createService();
-        String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                UUID.randomUUID(),
-                "suwon",
-                ScrapeJobOperationType.REFRESH,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
-        );
-        job.markFailed("INVALID_PAYLOAD", "bad", false, Instant.parse("2026-03-14T10:01:00Z"));
-
-        String rawBody = """
-                {
-                  "job_id":"%s",
-                  "status":"failed",
-                  "error_code":"INVALID_PAYLOAD",
-                  "error_message":"bad",
-                  "retryable":false,
-                  "finished_at":"2026-03-14T10:01:00Z"
-                }
-                """.formatted(job.getJobId());
+                """.formatted(job.getJobId(), job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), "1", "req-1");
 
-        verify(portalSyncService, never()).refreshFromPortal(any(UUID.class), any());
+        verify(resultStoreClient, never()).fetch(any());
+        verify(portalCallbackPostProcessor, never()).process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
     }
 
     @Test
@@ -176,167 +205,184 @@ class ScrapeResultCallbackServiceUnitTests {
     void handleCallback_marksJobFailed() {
         ScrapeResultCallbackService service = createService();
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                UUID.randomUUID(),
-                "suwon",
-                ScrapeJobOperationType.REFRESH,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
-        );
+        ScrapeJob job = createJob(UUID.randomUUID());
         String rawBody = """
                 {
-                  "job_id":"%s",
-                  "status":"failed",
-                  "error_code":"PORTAL_AUTH_FAILED",
-                  "error_message":"invalid credential",
-                  "retryable":false,
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  \"job_id\":\"%s\",
+                  \"status\":\"failed\",
+                  \"error_code\":\"PORTAL_AUTH_FAILED\",
+                  \"error_message\":\"invalid credential\",
+                  \"retryable\":false,
+                  \"finished_at\":\"2026-03-14T10:01:00Z\"
                 }
                 """.formatted(job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
+        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("PORTAL_AUTH_FAILED");
         assertThat(job.getRetryable()).isFalse();
+        verify(resultStoreClient, never()).fetch(any());
     }
 
     @Test
-    @DisplayName("성공 callback이면 REFRESH job을 재연동 흐름으로 처리한다")
-    void handleCallback_marksRefreshJobSucceeded() {
+    @DisplayName("result_s3_key 없이 성공 콜백이 오면 SCRAPE_INVALID_S3_KEY")
+    void handleCallback_requiresS3Key() {
         ScrapeResultCallbackService service = createService();
-        UUID userId = UUID.randomUUID();
-        UUID studentId = UUID.randomUUID();
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.REFRESH,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
+        ScrapeJob job = createJob(UUID.randomUUID());
+
+        String rawBody = """
+                {
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\"
+                }
+                """.formatted(job.getJobId());
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
+    }
+
+    @Test
+    @DisplayName("S3 key 형식 검증이 실패하면 SCRAPE_INVALID_S3_KEY를 반환한다")
+    void handleCallback_rejectsInvalidS3KeyFormat() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        String rawBody = """
+                {
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"invalid/key.json\"
+                }
+                """.formatted(job.getJobId());
+
+        when(resultStoreClient.validateLocation("invalid/key.json")).thenThrow(
+                new ScrapeResultPayloadAccessException("SCRAPE_S3_FAILURE", "prefix mismatch", false)
         );
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
+    }
+
+    @Test
+    @DisplayName("jobId가 path segment로 일치하지 않으면 SCRAPE_INVALID_S3_KEY를 반환한다")
+    void handleCallback_rejectsKeyWithoutExactJobSegment() {
+        ScrapeResultCallbackService service = createService();
+        String timestamp = Instant.now().toString();
+        ScrapeJob job = createJob(UUID.randomUUID());
         String rawBody = """
                 {
                   "job_id":"%s",
                   "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
-                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  "result_s3_key":"callbacks/not-%s/result.json"
                 }
-                """.formatted(job.getJobId());
+                """.formatted(job.getJobId(), job.getJobId());
 
-        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
+        when(resultStoreClient.validateLocation("callbacks/not-%s/result.json".formatted(job.getJobId())))
+                .thenReturn(new ScrapeResultStoreClient.S3Location("bucket", "callbacks/not-%s/result.json".formatted(job.getJobId())));
+        when(resultStoreClient.isJobScopedLocation(any(), eq(job.getJobId()))).thenReturn(false);
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
-
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).refreshFromPortal(eq(userId), any());
-        verify(academicCache).deleteAllByStudentId(studentId);
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_INVALID_S3_KEY.code()));
     }
 
     @Test
-    @DisplayName("성공 callback의 result_payload가 snake_case여도 성공 처리한다")
-    void handleCallback_acceptsSnakeCaseResultPayload() {
+    @DisplayName("S3 읽기 실패 시 FAILED_S3_READ로 저장하고 SCRAPE_RESULT_S3_FAILED 반환")
+    void handleCallback_marksS3Failure() {
         ScrapeResultCallbackService service = createService();
-        UUID userId = UUID.randomUUID();
+        ScrapeJob job = createJob(UUID.randomUUID());
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
-        );
+
         String rawBody = """
                 {
-                  "job_id":"%s",
-                  "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","stud_nm":"홍길동","univ_cd":"01","univ_nm":"수원대학교","dpmj_cd":"D1","dpmj_nm":"컴퓨터학부","mjor_cd":"M1","mjor_nm":"컴퓨터학과","the2_mjor_cd":null,"the2_mjor_nm":null,"scrg_stat_nm":"재학","ensc_year":"2021","ensc_smr_cd":"10","ensc_dvcd":"신입","stud_grde":4,"fac_smr_cnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjt_cd":"C101","subjt_nm":"자료구조","ltr_prfs_nm":"김교수","estb_dpmj_nm":"컴퓨터학부","point":3,"cret_grd_cd":"A+","refac_year_smr":"-","timt_smry_cn":"월1-2","fac_dvnm":"전공","clt_terr_nm":"0영역","clt_terr_cd":"0","subjt_estb_smr_cd":"10","subjt_estb_year_smr":"2024-10","dicl_no":"01","gain_pont":"95","cret_del_cd":null,"cret_del_nm":null}]}],
-                    "academic_records":{"list_smr_cret_sum_tab_year_smr":[{"cret_gain_year":"2024","cret_smr_cd":"10","gain_point":"18","appl_point":"18","gain_avmk":"4.2","gain_tavg_pont":"95","dpmj_ordp":"1/100"}],"select_smr_cret_sum_tab_sj_total":{"gain_point":"120","appl_point":"130","gain_avmk":"3.8","gain_tavg_pont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"callbacks/%s/result.json\"
                 }
-                """.formatted(job.getJobId());
+                """.formatted(job.getJobId(), job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId())))
+                .thenThrow(new ScrapeResultPayloadAccessException("SCRAPE_S3_FAILURE", "missing", true));
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
-
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_S3_FAILED.code()));
+        assertThat(job.getErrorCode()).isEqualTo("FAILED_S3_READ");
     }
 
     @Test
-    @DisplayName("성공 callback의 course에 extra field가 있어도 성공 처리한다")
-    void handleCallback_ignoresUnknownCourseField() {
+    @DisplayName("후처리 실패는 SCRAPE_RESULT_POST_PROCESSING_FAILED로 전달된다")
+    void handleCallback_propagatesPostProcessingFailure() {
         ScrapeResultCallbackService service = createService();
-        UUID userId = UUID.randomUUID();
+        ScrapeJob job = createJob(UUID.randomUUID());
         String timestamp = Instant.now().toString();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "fingerprint",
-                "{\"username\":\"17019013\",\"password\":\"pw\"}"
-        );
         String rawBody = """
                 {
-                  "job_id":"%s",
-                  "status":"succeeded",
-                  "result_payload":{
-                    "student":{"sno":"17019013","studNm":"홍길동","univCd":"01","univNm":"수원대학교","dpmjCd":"D1","dpmjNm":"컴퓨터학부","mjorCd":"M1","mjorNm":"컴퓨터학과","the2MjorCd":null,"the2MjorNm":null,"scrgStatNm":"재학","enscYear":"2021","enscSmrCd":"10","enscDvcd":"신입","studGrde":4,"facSmrCnt":8},
-                    "semesters":[{"semester":"2024-10","courses":[{"subjtCd":"C101","subjtNm":"자료구조","ltrPrfsNm":"김교수","estbDpmjNm":"컴퓨터학부","point":3,"cretGrdCd":"A+","refacYearSmr":"-","timtSmryCn":"월1-2","facDvnm":"전공","cltTerrNm":"0영역","cltTerrCd":"0","subjtEstbYear":"2024","subjtEstbSmrCd":"10","subjtEstbYearSmr":"2024-10","diclNo":"01","gainPont":"95","cretDelCd":null,"cretDelNm":null}]}],
-                    "academicRecords":{"listSmrCretSumTabYearSmr":[{"cretGainYear":"2024","cretSmrCd":"10","gainPoint":"18","applPoint":"18","gainAvmk":"4.2","gainTavgPont":"95","dpmjOrdp":"1/100"}],"selectSmrCretSumTabSjTotal":{"gainPoint":"120","applPoint":"130","gainAvmk":"3.8","gainTavgPont":"90"}}
-                  },
-                  "finished_at":"2026-03-14T10:01:00Z"
+                  \"job_id\":\"%s\",
+                  \"status\":\"succeeded\",
+                  \"result_s3_key\":\"callbacks/%s/result.json\"
                 }
-                """.formatted(job.getJobId());
+                """.formatted(job.getJobId(), job.getJobId());
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(disconnectedUser(userId));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId())))
+                .thenReturn("{\"schema_version\":\"v1\"}");
+        doThrow(new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED))
+                .when(portalCallbackPostProcessor)
+                .process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
 
-        service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody));
-
-        assertThat(job.getStatus().name()).isEqualTo("SUCCEEDED");
-        verify(portalSyncService).syncWithPortal(any(UUID.class), any());
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED.code()));
     }
 
     private ScrapeResultCallbackService createService() {
-        return new ScrapeResultCallbackService(
+        HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
+        ScrapeResultCallbackTxService txService = new ScrapeResultCallbackTxService(
                 scrapeJobRepository,
                 portalSyncService,
-                userService,
-                studentService,
-                academicCache,
-                new HmacSignatureVerifier("test-callback-secret", 300),
-                new SimpleMeterRegistry()
+                meterRegistry
+        );
+        return new ScrapeResultCallbackService(
+                portalCallbackPostProcessor,
+                txService,
+                resultStoreClient,
+                verifier,
+                meterRegistry,
+                new ObjectMapper().findAndRegisterModules()
         );
     }
 
-    private static User disconnectedUser(UUID userId) {
-        return User.builder()
-                .id(userId)
-                .email("user@example.com")
-                .profileNickname("tester")
-                .build();
+    private ScrapeJob createJob(UUID userId) {
+        return ScrapeJob.createQueued(
+                userId,
+                "suwon",
+                ScrapeJobOperationType.LINK,
+                "idem-1",
+                "fingerprint",
+                "{\"username\":\"170\",\"password\":\"pw\"}"
+        );
     }
 
-    private static String sign(String timestamp, String rawBody) {
-        HmacSignatureVerifier verifier = new HmacSignatureVerifier("test-callback-secret", 300);
-        byte[] signatureBytes = verifier.hmac(timestamp + "." + rawBody);
-        return Base64.getEncoder().encodeToString(signatureBytes);
+    private String sign(String timestamp, String rawBody) {
+        String data = timestamp + "." + rawBody;
+        HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
+        return Base64.getEncoder().encodeToString(verifier.hmac(data));
+    }
+
+    private String sha256(String rawBody) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(rawBody.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 }

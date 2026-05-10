@@ -3,6 +3,7 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
@@ -13,9 +14,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.env.Environment;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -43,22 +46,26 @@ class ScrapeJobOutboxDispatcherUnitTests {
     private Environment environment;
 
     @Test
+    @DisplayName("dispatch 진입점은 네트워크 I/O가 트랜잭션 안에서 실행되지 않도록 @Transactional을 갖지 않는다")
+    void dispatchEntrypoints_areNotTransactional() throws Exception {
+        Method dispatchOnce = ScrapeJobOutboxDispatcher.class.getMethod("dispatchOnce", String.class);
+        Method dispatchEligibleOutboxes = ScrapeJobOutboxDispatcher.class.getMethod("dispatchEligibleOutboxes");
+
+        assertThat(dispatchOnce.isAnnotationPresent(Transactional.class)).isFalse();
+        assertThat(dispatchEligibleOutboxes.isAnnotationPresent(Transactional.class)).isFalse();
+    }
+
+    @Test
     @DisplayName("publish 성공 시 outbox를 SENT로 전이한다")
     void dispatchEligibleOutboxes_marksSent() {
         ScrapingProperties properties = scrapingProperties();
-        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
-                scrapeJobOutboxRepository,
-                scrapeJobRepository,
-                scrapeJobPublisher,
-                properties,
-                new SimpleMeterRegistry(),
-                environment
-        );
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(scrapeJobOutboxRepository.findForUpdateByOutboxId(outbox.getOutboxId())).thenReturn(Optional.of(outbox));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenReturn("msg-1");
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
@@ -66,25 +73,47 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
         assertThat(outbox.getQueueMessageId()).isEqualTo("msg-1");
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
+        verify(scrapeJobPublisher, times(1)).publish(outbox.getPayloadJson());
     }
 
     @Test
-    @DisplayName("일시적 publish 실패 시 outbox를 RETRYABLE_FAILED로 전이한다")
-    void dispatchEligibleOutboxes_marksRetryableFailed() {
+    @DisplayName("일시적 publish 실패 후 bounded retry 성공 시 outbox를 SENT로 전이한다")
+    void dispatchEligibleOutboxes_retriesTransientFailureAndMarksSent() {
         ScrapingProperties properties = scrapingProperties();
-        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
-                scrapeJobOutboxRepository,
-                scrapeJobRepository,
-                scrapeJobPublisher,
-                properties,
-                new SimpleMeterRegistry(),
-                environment
-        );
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(scrapeJobOutboxRepository.findForUpdateByOutboxId(outbox.getOutboxId())).thenReturn(Optional.of(outbox));
+        when(scrapeJobPublisher.publish(outbox.getPayloadJson()))
+                .thenThrow(SdkClientException.create("temporary failure"))
+                .thenReturn("msg-2");
+        when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
+
+        dispatcher.dispatchOnce(outbox.getOutboxId());
+
+        assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
+        assertThat(outbox.getQueueMessageId()).isEqualTo("msg-2");
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.RUNNING);
+        verify(scrapeJobPublisher, times(2)).publish(outbox.getPayloadJson());
+    }
+
+    @Test
+    @DisplayName("일시적 publish 실패가 bounded retry를 모두 소진하면 outbox를 RETRYABLE_FAILED로 전이한다")
+    void dispatchEligibleOutboxes_marksRetryableFailedAfterBoundedRetries() {
+        ScrapingProperties properties = scrapingProperties();
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
+        ScrapeJob job = queuedJob();
+        ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
+
+        when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(scrapeJobOutboxRepository.findForUpdateByOutboxId(outbox.getOutboxId())).thenReturn(Optional.of(outbox));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(SdkClientException.create("temporary failure"));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
@@ -92,6 +121,8 @@ class ScrapeJobOutboxDispatcherUnitTests {
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.RETRYABLE_FAILED);
         assertThat(outbox.getNextAttemptAt()).isNotNull();
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        verify(scrapeJobPublisher, times(3)).publish(outbox.getPayloadJson());
     }
 
     @Test
@@ -99,41 +130,30 @@ class ScrapeJobOutboxDispatcherUnitTests {
     void dispatchEligibleOutboxes_marksDeadAndJobFailed() {
         ScrapingProperties properties = scrapingProperties();
         properties.getPublisher().setMaxAttempts(1);
-        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
-                scrapeJobOutboxRepository,
-                scrapeJobRepository,
-                scrapeJobPublisher,
-                properties,
-                new SimpleMeterRegistry(),
-                environment
-        );
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
         ScrapeJob job = queuedJob();
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
 
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(scrapeJobOutboxRepository.findForUpdateByOutboxId(outbox.getOutboxId())).thenReturn(Optional.of(outbox));
         when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(new IllegalStateException("missing queue-url"));
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         dispatcher.dispatchOnce(outbox.getOutboxId());
 
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.DEAD);
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("SCRAPE_JOB_ENQUEUE_FAILED");
+        verify(scrapeJobPublisher, times(1)).publish(outbox.getPayloadJson());
     }
 
     @Test
     @DisplayName("조회 예외는 one-shot dispatch 예외로 노출한다")
     void dispatchOnce_throwsWhenLookupFails() {
         ScrapingProperties properties = scrapingProperties();
-        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
-                scrapeJobOutboxRepository,
-                scrapeJobRepository,
-                scrapeJobPublisher,
-                properties,
-                new SimpleMeterRegistry(),
-                environment
-        );
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
 
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq("outbox-1"), any(), any()))
                 .thenThrow(new org.springframework.dao.InvalidDataAccessApiUsageException("tx required"));
@@ -148,14 +168,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
     void dispatchOnce_publishesPreferredOutboxEvenWhenNotInBatchWindow() {
         ScrapingProperties properties = scrapingProperties();
         properties.getPublisher().setBatchSize(1);
-        ScrapeJobOutboxDispatcher dispatcher = new ScrapeJobOutboxDispatcher(
-                scrapeJobOutboxRepository,
-                scrapeJobRepository,
-                scrapeJobPublisher,
-                properties,
-                new SimpleMeterRegistry(),
-                environment
-        );
+        ScrapeJobOutboxDispatcher dispatcher = dispatcher(properties);
         ScrapeJob preferredJob = queuedJob();
         ScrapeJobOutbox preferredOutbox = ScrapeJobOutbox.createPending(
                 preferredJob.getJobId(),
@@ -172,6 +185,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(preferredOutbox.getOutboxId()), any(), any()))
                 .thenReturn(Optional.of(preferredOutbox));
         when(scrapeJobRepository.findForUpdateByJobId(preferredJob.getJobId())).thenReturn(Optional.of(preferredJob));
+        when(scrapeJobOutboxRepository.findForUpdateByOutboxId(preferredOutbox.getOutboxId())).thenReturn(Optional.of(preferredOutbox));
         when(scrapeJobPublisher.publish(preferredOutbox.getPayloadJson())).thenReturn("msg-preferred");
         when(environment.getActiveProfiles()).thenReturn(new String[]{"develop-shadow"});
 
@@ -181,6 +195,22 @@ class ScrapeJobOutboxDispatcherUnitTests {
         assertThat(preferredOutbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.SENT);
         verify(scrapeJobPublisher).publish(preferredOutbox.getPayloadJson());
         verify(scrapeJobRepository, never()).findForUpdateByJobId(otherJob.getJobId());
+    }
+
+    private ScrapeJobOutboxDispatcher dispatcher(ScrapingProperties properties) {
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        ScrapeJobOutboxDispatchTxService txService = new ScrapeJobOutboxDispatchTxService(
+                scrapeJobOutboxRepository,
+                scrapeJobRepository,
+                properties,
+                meterRegistry
+        );
+        return new ScrapeJobOutboxDispatcher(
+                txService,
+                scrapeJobPublisher,
+                properties,
+                environment
+        );
     }
 
     private static ScrapingProperties scrapingProperties() {

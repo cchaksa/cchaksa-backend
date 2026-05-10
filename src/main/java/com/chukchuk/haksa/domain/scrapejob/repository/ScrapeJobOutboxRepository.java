@@ -19,6 +19,14 @@ public interface ScrapeJobOutboxRepository extends JpaRepository<ScrapeJobOutbox
 
     Optional<ScrapeJobOutbox> findByJobId(String jobId);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select outbox
+            from ScrapeJobOutbox outbox
+            where outbox.outboxId = :outboxId
+            """)
+    Optional<ScrapeJobOutbox> findForUpdateByOutboxId(@Param("outboxId") String outboxId);
+
     long countByStatus(ScrapeJobOutboxStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

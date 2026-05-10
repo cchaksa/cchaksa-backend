@@ -33,10 +33,8 @@ class InternalScrapeResultControllerApiIntegrationTest extends ApiControllerWebM
         String body = """
                 {
                   "job_id":"job-1",
-                  "status":"failed",
-                  "error_code":"INVALID_PAYLOAD",
-                  "error_message":"bad",
-                  "retryable":false,
+                  "status":"succeeded",
+                  "result_s3_key":"callbacks/job-1/result.json",
                   "finished_at":"2026-03-14T10:01:00Z"
                 }
                 """;
@@ -45,10 +43,12 @@ class InternalScrapeResultControllerApiIntegrationTest extends ApiControllerWebM
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("X-Timestamp", "2026-03-14T10:01:00Z")
                         .header("X-Signature", "signature")
+                        .header("X-Callback-Attempt", "2")
+                        .header("X-Request-Id", "req-1")
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
-        verify(scrapeResultCallbackService).handleCallback(eq(body), eq("2026-03-14T10:01:00Z"), eq("signature"));
+        verify(scrapeResultCallbackService).handleCallback(eq(body), eq("2026-03-14T10:01:00Z"), eq("signature"), eq("2"), eq("req-1"));
     }
 }

@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,31 +33,31 @@ public class PortalSyncService {
     @Transactional
     public ScrapingResponse syncWithPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
+        User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
+        UUID activeUserId = mergedUser.getId();
 
         // 1. 포털 초기화
-        PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(userId, portalData);
+        PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(activeUserId, portalData);
         if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.sync.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
+            log.warn("[BIZ] portal.sync.conn.fail userId={} msg={}", activeUserId, LogSanitizer.arg(conn.error()));
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
         // 2. 학업 이력 동기화
-        SyncAcademicRecordResult sync = syncAcademicRecordService.executeWithPortalData(userId, portalData);
+        SyncAcademicRecordResult sync = syncAcademicRecordService.executeWithPortalData(activeUserId, portalData);
         if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.sync.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
+            log.warn("[BIZ] portal.sync.sync.fail userId={} msg={}", activeUserId, LogSanitizer.arg(sync.getError()));
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
         // 3. 포털 연결 마킹
-        User user = userService.getUserById(userId);
+        User user = userService.getUserById(activeUserId);
         user.markPortalConnected(Instant.now());
         userService.save(user);
         studentService.markReconnectedByUser(user);
 
         long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.sync.done userId={} took_ms={}", userId, tookMs);
-        }
+        log.info("[BIZ] portal.sync.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
         // 4. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
@@ -68,31 +66,31 @@ public class PortalSyncService {
     @Transactional
     public ScrapingResponse refreshFromPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
+        User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
+        UUID activeUserId = mergedUser.getId();
 
         // 1. 포털 연동 정보 갱신
-        PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(userId, portalData);
+        PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(activeUserId, portalData);
         if (!conn.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.conn.fail userId={} msg={}", userId, LogSanitizer.arg(conn.error()));
+            log.warn("[BIZ] portal.refresh.conn.fail userId={} msg={}", activeUserId, LogSanitizer.arg(conn.error()));
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
         // 2. 학업 이력 재동기화
-        SyncAcademicRecordResult sync = syncAcademicRecordService.executeForRefreshPortalData(userId, portalData);
+        SyncAcademicRecordResult sync = syncAcademicRecordService.executeForRefreshPortalData(activeUserId, portalData);
         if (!sync.isSuccess()) {
-            log.warn("[BIZ] portal.refresh.sync.fail userId={} msg={}", userId, LogSanitizer.arg(sync.getError()));
+            log.warn("[BIZ] portal.refresh.sync.fail userId={} msg={}", activeUserId, LogSanitizer.arg(sync.getError()));
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
         // 3. 마지막 동기화 시간만 업데이트 (포털 연결은 유지)
-        User user = userService.getUserById(userId);
+        User user = userService.getUserById(activeUserId);
         user.updateLastSyncedAt(Instant.now());
         userService.save(user);
         studentService.markReconnectedByUser(user);
 
         long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] portal.refresh.done userId={} took_ms={}", userId, tookMs);
-        }
+        log.info("[BIZ] portal.refresh.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
         // 4. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());

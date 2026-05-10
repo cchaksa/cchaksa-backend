@@ -20,12 +20,16 @@ public class UserPortalConnectionRepository {
 
     @Transactional
     public void initializePortalConnection(User user, StudentInitializationDataType studentData) {
-        // 학과 및 전공 정보는 StudentInitializationDataType에서 이미 전달됨
-        Department department = studentData.getDepartment(); // 학과 객체
-        Department major = studentData.getMajor();          // 전공 객체
-        Department secondaryMajor = studentData.getSecondaryMajor(); // 복수 전공 객체
+        Student existingStudent = studentService.findPortalPendingStudent(user.getId()).orElse(user.getStudent());
+        if (existingStudent != null) {
+            reuseExistingStudent(existingStudent, user, studentData);
+            return;
+        }
 
-        // 학생 정보 설정
+        Department department = studentData.getDepartment();
+        Department major = studentData.getMajor();
+        Department secondaryMajor = studentData.getSecondaryMajor();
+
         Student student = Student.builder()
                 .studentCode(studentData.getStudentCode())
                 .name(studentData.getName())
@@ -40,15 +44,36 @@ public class UserPortalConnectionRepository {
                 .gradeLevel(studentData.getGradeLevel())
                 .completedSemesters(studentData.getCompletedSemesters())
                 .admissionType(studentData.getAdmissionType())
-                .user(user) // User와 연관 관계 설정
+                .user(user)
                 .build();
 
-        // User와 Student 연관 관계 설정
         user.setStudent(student);
-
-        // DB에 저장
         userService.save(user);
         studentService.save(student);
+        userService.evictUserDetailsCache(user.getId());
+    }
+
+    private void reuseExistingStudent(Student student, User user, StudentInitializationDataType studentData) {
+        studentService.resetBy(student.getId());
+        student.updateInfo(
+                studentData.getName(),
+                studentData.getDepartment(),
+                studentData.getMajor(),
+                studentData.getSecondaryMajor(),
+                studentData.getAdmissionYear(),
+                studentData.getSemesterEnrolled(),
+                studentData.isTransferStudent(),
+                studentData.isGraduated(),
+                studentData.getStatus(),
+                studentData.getGradeLevel(),
+                studentData.getCompletedSemesters(),
+                studentData.getAdmissionType()
+        );
+        student.updateUser(user);
+        user.setStudent(student);
+
+        studentService.save(student);
+        userService.save(user);
         userService.evictUserDetailsCache(user.getId());
     }
 

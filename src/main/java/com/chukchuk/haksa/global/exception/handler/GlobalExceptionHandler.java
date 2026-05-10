@@ -3,6 +3,7 @@ package com.chukchuk.haksa.global.exception.handler;
 import com.chukchuk.haksa.global.common.response.ErrorResponse;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.BaseException;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.logging.sentry.SentryMdcTagBinder;
@@ -21,26 +22,35 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
+import java.util.Set;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private static final Set<String> SCRAPE_JOB_CLIENT_ERROR_CODES = Set.of(
+            ErrorCode.SCRAPE_JOB_FAILED_RESULT.code(),
+            ErrorCode.SCRAPE_JOB_NOT_COMPLETED.code(),
+            ErrorCode.SCRAPE_JOB_NOT_FOUND.code()
+    );
+
     /** 비즈니스 예외(대부분 4xx)*/
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ErrorResponse> handleBase(BaseException ex, HttpServletRequest req) {
 
-        Sentry.withScope(scope -> {
-            scope.setTag("error.type", "BASE_EXCEPTION");
-            scope.setTag("error.code", ex.getCode());
-            scope.setFingerprint(List.of("BASE_EXCEPTION", ex.getCode()));
-            scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
+        if (shouldReportBaseException(ex)) {
+            Sentry.withScope(scope -> {
+                scope.setTag("error.type", "BASE_EXCEPTION");
+                scope.setTag("error.code", ex.getCode());
+                scope.setFingerprint(List.of("BASE_EXCEPTION", ex.getCode()));
+                scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
 
-            // MDC → Sentry Tag 승격 (있을 때만)
-            SentryMdcTagBinder.bind(scope);
+                // MDC → Sentry Tag 승격 (있을 때만)
+                SentryMdcTagBinder.bind(scope);
 
-            Sentry.captureException(ex);
-        });
+                Sentry.captureException(ex);
+            });
+        }
 
         return ResponseEntity.status(ex.getStatus())
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage(), null));
@@ -132,4 +142,11 @@ public class GlobalExceptionHandler {
     }
 
     private String nvl(String s) { return s == null ? "" : s; }
+
+    boolean shouldReportBaseException(BaseException ex) {
+        if (ex instanceof CommonException) {
+            return !SCRAPE_JOB_CLIENT_ERROR_CODES.contains(ex.getCode());
+        }
+        return true;
+    }
 }

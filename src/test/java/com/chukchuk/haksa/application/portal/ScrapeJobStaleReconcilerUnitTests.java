@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
@@ -58,14 +59,16 @@ class ScrapeJobStaleReconcilerUnitTests {
                 "{\"username\":\"17019013\",\"password\":\"pw\"}"
         );
         ScrapeJobOutbox outbox = ScrapeJobOutbox.createPending(job.getJobId(), "{\"job_id\":\"" + job.getJobId() + "\"}", Instant.now());
+        job.markRunning();
         outbox.markSent("msg-1", Instant.now().minusSeconds(120));
 
-        when(scrapeJobOutboxRepository.findStaleSentTargetsForUpdate(eq(ScrapeJobOutboxStatus.SENT), any(), any(), any(Pageable.class)))
+        when(scrapeJobOutboxRepository.findStaleSentTargetsForUpdate(eq(ScrapeJobOutboxStatus.SENT), any(), eq(ScrapeJobStatus.RUNNING), any(Pageable.class)))
                 .thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        reconciler.reconcileStaleQueuedJobs();
+        int affectedCount = reconciler.reconcileStaleQueuedJobs();
 
+        assertThat(affectedCount).isEqualTo(1);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("CALLBACK_TIMEOUT");
         assertThat(job.getRetryable()).isTrue();

@@ -67,6 +67,7 @@ dependencies {
     implementation 'io.opentelemetry:opentelemetry-sdk'
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
     implementation 'software.amazon.awssdk:sqs:2.31.72'
+    implementation 'software.amazon.awssdk:s3:2.31.72'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -52,9 +52,7 @@ public class StudentController implements StudentControllerDocs {
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
         long t0 = LogTime.start();
-        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
-
-        StudentProfileResponse response = studentService.getStudentProfile(studentId);
+        StudentProfileResponse response = studentService.getStudentProfileByUserId(userDetails.getId());
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {

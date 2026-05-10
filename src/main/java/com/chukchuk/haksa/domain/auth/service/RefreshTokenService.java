@@ -13,7 +13,6 @@ import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,16 +79,12 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
     }
 
-    /* 일정 시간마다 유효기간이 지난 RefreshToken 정보 삭제 */
+    /* 유효기간이 지난 RefreshToken 정보 삭제 */
     @Transactional
-    @Scheduled(cron = "0 0 * * * *", zone = "Asia/Seoul") // 정각 실행
-    public void deletedExpiredTokens() {
-        try {
-            Date now = new Date();
-            int deleted = refreshTokenRepository.deleteByExpiryBefore(now);
-            log.info("[BIZ] auth.refresh.cleanup.deleted count={}", deleted);
-        } catch (Exception e) {
-            log.error("[BIZ] auth.refresh.cleanup.error", e);
-        }
+    public int deletedExpiredTokens() {
+        Date now = new Date();
+        int deleted = refreshTokenRepository.deleteByExpiryBefore(now);
+        log.info("[BIZ] auth.refresh.cleanup.deleted count={}", deleted);
+        return deleted;
     }
 }

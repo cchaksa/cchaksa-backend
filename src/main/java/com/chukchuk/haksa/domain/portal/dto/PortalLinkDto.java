@@ -81,14 +81,19 @@ public class PortalLinkDto {
             @JsonProperty("job_id")
             String job_id,
             String status,
-            @JsonProperty("result_payload")
-            JsonNode result_payload,
+            Integer attempt,
+            @JsonProperty("result_s3_key")
+            String result_s3_key,
+            @JsonProperty("result_checksum")
+            String resultChecksum,
             @JsonProperty("error_code")
             String error_code,
             @JsonProperty("error_message")
             String error_message,
             Boolean retryable,
             @JsonProperty("finished_at")
-            Instant finished_at
+            Instant finished_at,
+            @JsonProperty("metadata")
+            JsonNode metadata
     ) {}
 }
