@@ -1,5 +1,6 @@
 ALTER TABLE scrape_jobs
-    ADD COLUMN result_checksum VARCHAR(255) NULL;
-
-ALTER TABLE scrape_jobs
-    ADD COLUMN callback_metadata_json TEXT NULL;
+    ADD COLUMN IF NOT EXISTS result_s3_key VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS result_checksum VARCHAR(255) NULL,
+    ADD COLUMN IF NOT EXISTS callback_attempt INTEGER NULL,
+    ADD COLUMN IF NOT EXISTS callback_received_at TIMESTAMP WITH TIME ZONE NULL,
+    ADD COLUMN IF NOT EXISTS callback_metadata_json TEXT NULL;
