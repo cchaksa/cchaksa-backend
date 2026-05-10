@@ -3,6 +3,9 @@ package com.chukchuk.haksa.domain.student.controller;
 import com.chukchuk.haksa.domain.student.dto.StudentDto;
 import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.support.ApiControllerWebMvcTestSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,9 +39,7 @@ class StudentControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         authenticate(userId, studentId);
-        when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
-
-        when(studentService.getStudentProfile(studentId)).thenReturn(
+        when(studentService.getStudentProfileByUserId(userId)).thenReturn(
                 new StudentDto.StudentProfileResponse(
                         "홍길동",
                         "20201234",
@@ -58,6 +59,34 @@ class StudentControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.studentCode").value("20201234"));
+    }
+
+    @Test
+    @DisplayName("student profile 조회 시 학생 미연결 사용자는 U04 응답을 반환한다")
+    void getProfile_notConnected() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        when(studentService.getStudentProfileByUserId(userId))
+                .thenThrow(new CommonException(ErrorCode.USER_NOT_CONNECTED));
+
+        mockMvc.perform(get("/api/student/profile"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("U04"));
+    }
+
+    @Test
+    @DisplayName("student profile 조회 시 사용자가 없으면 U01 응답을 반환한다")
+    void getProfile_userNotFound() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        when(studentService.getStudentProfileByUserId(userId))
+                .thenThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+
+        mockMvc.perform(get("/api/student/profile"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("U01"));
     }
 
     @Test

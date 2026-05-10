@@ -7,6 +7,7 @@ import com.chukchuk.haksa.domain.student.dto.StudentDto;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
+import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class StudentService {
 
     private final StudentRepository studentRepository;
+    private final UserRepository userRepository;
     private final UserService userService;
     private final StudentAcademicRecordRepository studentAcademicRecordRepository;
     private final SemesterAcademicRecordRepository semesterAcademicRecordRepository;
@@ -81,13 +83,19 @@ public class StudentService {
         Student student = studentRepository.findProfileByIdWithAssociations(studentId)
                 .orElseThrow(() -> new CommonException(ErrorCode.STUDENT_NOT_FOUND));
 
-        StudentDto.StudentInfoDto studentInfo = StudentDto.StudentInfoDto.from(student);
-        int currentSemester = getCurrentSemester(studentInfo.gradeLevel(), studentInfo.completedSemesters());
+        return buildStudentProfileResponse(student, student.getUser());
+    }
 
-        User user = student.getUser();
-        String lastSyncedAt = user.getLastSyncedAt() != null ? user.getLastSyncedAt().toString() : "";
+    public StudentDto.StudentProfileResponse getStudentProfileByUserId(UUID userId) {
+        User user = userRepository.findProfileByIdWithAssociations(userId)
+                .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
 
-        return StudentDto.StudentProfileResponse.from(studentInfo, currentSemester, lastSyncedAt);
+        Student student = user.getStudent();
+        if (student == null) {
+            throw new CommonException(ErrorCode.USER_NOT_CONNECTED);
+        }
+
+        return buildStudentProfileResponse(student, user);
     }
 
     @Transactional
@@ -119,5 +127,13 @@ public class StudentService {
             return 2;
         }
         return currentSemester;
+    }
+
+    private StudentDto.StudentProfileResponse buildStudentProfileResponse(Student student, User user) {
+        StudentDto.StudentInfoDto studentInfo = StudentDto.StudentInfoDto.from(student);
+        int currentSemester = getCurrentSemester(studentInfo.gradeLevel(), studentInfo.completedSemesters());
+        String lastSyncedAt = user != null && user.getLastSyncedAt() != null ? user.getLastSyncedAt().toString() : "";
+
+        return StudentDto.StudentProfileResponse.from(studentInfo, currentSemester, lastSyncedAt);
     }
 }

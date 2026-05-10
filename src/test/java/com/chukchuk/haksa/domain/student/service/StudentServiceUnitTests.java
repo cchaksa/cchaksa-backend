@@ -10,6 +10,7 @@ import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.domain.student.model.embeddable.AcademicInfo;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
+import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
@@ -38,6 +39,9 @@ class StudentServiceUnitTests {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private StudentAcademicRecordRepository studentAcademicRecordRepository;
@@ -176,6 +180,65 @@ class StudentServiceUnitTests {
     }
 
     @Test
+    @DisplayName("userId 기준 프로필 조회 성공 시 현재 연결된 학생 프로필을 반환한다")
+    void getStudentProfileByUserId_success() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = profileStudent(3, 6, Instant.parse("2026-02-22T00:00:00Z"),
+                Instant.parse("2026-02-22T12:00:00Z"), "경영학과");
+        user.setStudent(student);
+        user.updateLastSyncedAt(Instant.parse("2026-02-22T12:00:00Z"));
+
+        when(userRepository.findProfileByIdWithAssociations(userId)).thenReturn(Optional.of(user));
+
+        StudentDto.StudentProfileResponse response = studentService.getStudentProfileByUserId(userId);
+
+        assertThat(response.studentCode()).isEqualTo("20201234");
+        assertThat(response.currentSemester()).isEqualTo(2);
+        assertThat(response.dualMajorName()).isEqualTo("경영학과");
+        assertThat(response.lastSyncedAt()).isEqualTo("2026-02-22T12:00:00Z");
+    }
+
+    @Test
+    @DisplayName("프로필 조회 대상 사용자가 없으면 USER_NOT_FOUND 예외를 던진다")
+    void getStudentProfileByUserId_userNotFound_throws() {
+        UUID userId = UUID.randomUUID();
+        when(userRepository.findProfileByIdWithAssociations(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> studentService.getStudentProfileByUserId(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .satisfies(ex -> assertThat(((EntityNotFoundException) ex).getCode()).isEqualTo(ErrorCode.USER_NOT_FOUND.code()));
+    }
+
+    @Test
+    @DisplayName("프로필 조회 대상 사용자가 학생과 연결되지 않았으면 USER_NOT_CONNECTED 예외를 던진다")
+    void getStudentProfileByUserId_userNotConnected_throws() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        when(userRepository.findProfileByIdWithAssociations(userId)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> studentService.getStudentProfileByUserId(userId))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.USER_NOT_CONNECTED.code()));
+    }
+
+    @Test
+    @DisplayName("프로필 응답의 lastUpdatedAt과 lastSyncedAt은 null일 때 빈 문자열로 내려간다")
+    void getStudentProfileByUserId_nullTimestamps_returnsEmptyString() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = profileStudent(3, 5, null, null);
+        user.setStudent(student);
+
+        when(userRepository.findProfileByIdWithAssociations(userId)).thenReturn(Optional.of(user));
+
+        StudentDto.StudentProfileResponse response = studentService.getStudentProfileByUserId(userId);
+
+        assertThat(response.lastUpdatedAt()).isEmpty();
+        assertThat(response.lastSyncedAt()).isEmpty();
+    }
+
+    @Test
     @DisplayName("학생 데이터 초기화 시 학기/과목/학업요약을 벌크 삭제한다")
     void resetBy_deletesAcademicRecordsInBulk() {
         UUID studentId = UUID.randomUUID();
@@ -198,10 +261,16 @@ class StudentServiceUnitTests {
     }
 
     private Student profileStudent(int gradeLevel, int completedSemesters, Instant updatedAt, Instant lastSyncedAt) {
+        return profileStudent(gradeLevel, completedSemesters, updatedAt, lastSyncedAt, null);
+    }
+
+    private Student profileStudent(int gradeLevel, int completedSemesters, Instant updatedAt, Instant lastSyncedAt,
+                                   String secondaryMajorName) {
         Student student = org.mockito.Mockito.mock(Student.class);
         User user = User.builder().id(UUID.randomUUID()).email("user@example.com").profileNickname("user").build();
         Department department = new Department("CS", "컴퓨터학과");
         Department major = new Department("CS", "컴퓨터학과");
+        Department secondaryMajor = secondaryMajorName != null ? new Department("BUS", secondaryMajorName) : null;
         AcademicInfo academicInfo = AcademicInfo.builder()
                 .admissionYear(2020)
                 .status(StudentStatus.재학)
@@ -214,11 +283,11 @@ class StudentServiceUnitTests {
         when(student.getName()).thenReturn("홍길동");
         when(student.getDepartment()).thenReturn(department);
         when(student.getMajor()).thenReturn(major);
-        when(student.getSecondaryMajor()).thenReturn(null);
+        when(student.getSecondaryMajor()).thenReturn(secondaryMajor);
         when(student.getAcademicInfo()).thenReturn(academicInfo);
         when(student.getUpdatedAt()).thenReturn(updatedAt);
         when(student.isReconnectionRequired()).thenReturn(false);
-        when(student.getUser()).thenReturn(user);
+        org.mockito.Mockito.lenient().when(student.getUser()).thenReturn(user);
         user.updateLastSyncedAt(lastSyncedAt);
         return student;
     }

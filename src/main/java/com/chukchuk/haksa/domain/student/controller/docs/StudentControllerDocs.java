@@ -52,7 +52,9 @@ public interface StudentControllerDocs {
             responses = {
                     @ApiResponse(responseCode = "200", description = "사용자 프로필 정보 조회 성공",
                             content = @Content(schema = @Schema(implementation = StudentProfileApiResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "학생 정보 없음 (ErrorCode: S01, STUDENT_NOT_FOUND)",
+                    @ApiResponse(responseCode = "400", description = "학생 미연결 사용자 (ErrorCode: U04, USER_NOT_CONNECTED)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(responseCode = "404", description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
                             content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
     )
