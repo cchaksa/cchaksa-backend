@@ -50,7 +50,7 @@ class AcademicRecordControllerApiIntegrationTest extends ApiControllerWebMvcTest
         when(academicRecordService.getAcademicRecord(studentId, 2024, 1))
                 .thenReturn(new AcademicRecordResponse(
                         null,
-                        new AcademicRecordResponse.Courses(List.of(), List.of())
+                        new AcademicRecordResponse.Courses(List.of(), List.of(), List.of())
                 ));
 
         mockMvc.perform(get("/api/academic/record")

@@ -47,15 +47,24 @@ class AcademicRecordServiceUnitTests {
                 "2", "글쓰기", "LBA101", FacultyDivision.중핵, 2, "김교수", "B+", 2,
                 false, false, 2024, 1, 88, false
         );
+        StudentCourseDto.CourseDetailDto etc = new StudentCourseDto.CourseDetailDto(
+                "3", "특별과정", "ETC101", FacultyDivision.기타, 1, "최교수", "P", 1,
+                false, false, 2024, 1, 80, false
+        );
+        StudentCourseDto.CourseDetailDto etcUnknown = new StudentCourseDto.CourseDetailDto(
+                "4", "미지정과정", "UNK001", null, 1, "미지정", "P", 1,
+                false, false, 2024, 1, 70, false
+        );
 
         when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
-        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(major, liberal));
+        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(major, liberal, etc, etcUnknown));
 
         AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
 
         assertThat(result.semesterGrade()).isEqualTo(grade);
         assertThat(result.courses().major()).containsExactly(major);
         assertThat(result.courses().liberal()).containsExactly(liberal);
+        assertThat(result.courses().etc()).containsExactly(etc, etcUnknown);
     }
 
     @Test
@@ -79,5 +88,6 @@ class AcademicRecordServiceUnitTests {
 
         assertThat(result.courses().major()).isEmpty();
         assertThat(result.courses().liberal()).containsExactly(liberal);
+        assertThat(result.courses().etc()).isEmpty();
     }
 }
