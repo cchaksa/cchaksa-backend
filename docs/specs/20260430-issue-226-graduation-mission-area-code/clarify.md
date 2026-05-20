@@ -17,11 +17,15 @@
 | 3 | (변경) 본 스펙은 `CourseDto` 레벨 필드를 추가한다. 매퍼 `toCourseResponseDto`가 단일전공·복수전공 양쪽에서 공유되므로, 코드 변경 자체는 두 흐름에 자동 반영되는 점을 인지함. | 위치 변경에 따른 자연스러운 귀결. | 2026-04-30 |
 | 4 | 단일전공뿐 아니라 복수전공 흐름(`getDualMajorAreaProgress`)에도 적용한다 — Q3의 (i)안. 매퍼를 분리하지 않고 공유 그대로 둠. | PO 추가 결정. 매퍼 분리는 코드 중복을 만들고, 복수전공 졸업요건에 선교 영역이 등장한다면 단일전공과 동일하게 노출되는 것이 일관적임. | 2026-04-30 |
 | 5 | `CourseDto`에 클래스 레벨 `@JsonInclude(JsonInclude.Include.NON_NULL)` 적용. | 글로벌 Jackson `default-property-inclusion` 미설정. 기존 응답 DTO(`ErrorResponse`/`SuccessResponse`/`ErrorDetail`)가 동일 패턴을 사용하므로 컨벤션 일치. | 2026-04-30 |
+| 6 | 선교 영역 area_code historical NULL 정합성 보강 작업을 본 #226에 같은 spec/branch로 추가 (E-2). | PO 결정. liberalAreaCode 노출의 데이터 정합성 보강이라는 같은 맥락. | 2026-05-20 |
+| 7 | Backfill 범위는 `faculty_division_name = 선교` 한정 (D-1). 다른 교양 영역(중핵/기교/소교/전교 등)은 본 작업 범위 외. | PO 명시. 본 spec의 응답 노출 의도가 선교 중심. 다른 영역에서 같은 문제 발견 시 가드 한 줄 풀어 별도 이슈로 확장 가능. | 2026-05-20 |
+| 8 | CourseOffering immutable 원칙을 backfill 전용 도메인 메서드 한 점에 한해 양보. 메서드 이름(`backfillMissionLiberalAreaCode`)·내부 가드(선교 검증/idempotent/null 검증)·Javadoc 4겹 방어선으로 다른 용도 차단. | PO 가드레일 "이 이슈에서만 깨지도록 방어적 처리". raw JDBC 우회는 JPA 1차 캐시 불일치 위험이 있어 비채택. | 2026-05-20 |
+| 9 | Backfill 트리거는 사용자가 발생시키는 첫 연결/재연결 sync 흐름 한정. 운영 일회성 SQL backfill은 비채택. | PO 명시 — 다른 record의 값을 참조해서 채우는 방식은 잘못된 매핑 위험. 정확한 정정은 portal 재스크래핑 페이로드에서만 가능. | 2026-05-20 |
 
 ## Risks / Unknowns
-- Item: course_offerings.area_code의 historical NULL 데이터 잔존 (이전 분석에서 2025-07-20 fbc286f 이전 row가 NULL 가능성 확인됨)
+- Item: course_offerings.area_code의 historical NULL 데이터 잔존 (2025-07-20 17:53 `10b6ef7` 이전 row 가 NULL)
   - Impact: 선교 과목 일부 또는 전부가 NULL로 노출 → 해당 row의 `liberalAreaCode` 키가 omit됨
-  - Mitigation: nullable 정책으로 응답 자체는 정상 처리. 별도 backfill은 본 스펙 범위 외로 분리.
+  - Mitigation: 2차 작업으로 재스크래핑 시 NULL → non-null 단방향 backfill 분기 추가 (Decision 6~9 참조). 사용자가 자발적으로 재연결하지 않으면 backfill되지 않는 한계는 PO 인지 사항.
 - Item: 복수전공 흐름의 응답 변경 영향도
   - Impact: PO 결정으로 dual-major에도 적용됨(Decision 4). dual-major 졸업 요건에 선교 영역이 등장한다면 단일전공과 동일하게 노출된다.
   - Mitigation: prod에서 dual-major × 선교 조합이 실제 발생하는지 데이터로 사전 검증 권장(Follow-up 항목).

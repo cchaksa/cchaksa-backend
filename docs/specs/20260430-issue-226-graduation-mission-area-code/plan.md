@@ -1,6 +1,6 @@
 # Plan
 
-## Architecture / Layering
+## Architecture / Layering (1차 작업 — 응답 노출)
 - Domain impact: 없음. `CourseOffering`, `LiberalArtsAreaCode`, `FacultyDivision` enum 모델/규칙 변경 없음.
 - Application orchestration: 없음. graduation 모듈은 controller→repository 직결 구조이며 `GraduationService`는 단순 위임이라 변경 불요.
 - Infrastructure touchpoints:
@@ -28,6 +28,17 @@
     - 비-선교 영역 row → `CourseDto.liberalAreaCode = null`.
     - 한 학생이 선교 N건 + 비-선교 M건 → 각 row의 area_code가 독립적으로 패스스루됨.
     - 단일전공 시나리오(`getStudentAreaProgress`)와 복수전공 시나리오(`getDualMajorAreaProgress`) 모두에서 매퍼가 동일하게 동작함을 검증.
+  - **`CourseOfferingService.backfill` 테스트 (2차 작업, 6 케이스)**:
+    - T1: 선교 + existing.area_code == null + cmd.areaCode == 6 → backfill 호출됨, dirty checking으로 UPDATE
+    - T2: 선교 + existing.area_code 이미 존재 → backfill 호출 안 됨 (Service 가드 1차 차단)
+    - T3: 비-선교(예: 전공필수) + existing.area_code == null + cmd.areaCode == 6 → backfill 호출 안 됨
+    - T4: 선교 + existing.area_code == null + cmd.areaCode == null → backfill 호출 안 됨
+    - T5: 선교 + existing.area_code == null + cmd.areaCode == 0 → backfill 호출 안 됨
+    - T6: 기존 신규 INSERT 경로 회귀 — 분기 추가 후에도 새 row 생성 흐름이 동일하게 동작
+  - **CourseOffering 도메인 메서드 단위 테스트** (선택, 가드 동작 검증):
+    - 비-선교 facultyDivisionName에서 호출 → IllegalStateException
+    - 이미 area 있을 때 호출 → no-op (변경 없음)
+    - 새 area == null → IllegalArgumentException
   - 컨트롤러 e2e 테스트는 기존이 있으면 응답 스키마 변경 검증을 추가, 없으면 본 스펙에서는 신설하지 않음.
 - Additional commands: `./gradlew test`. 글로벌 Jackson 설정 변경 시 `./gradlew build`도 수행.
 
@@ -37,3 +48,44 @@
 - Feature flags / toggles: 미사용. 단순 추가 nullable 필드라 토글 불요.
 - Data risk: 이전 분석상 `course_offerings.area_code`에 historical NULL 데이터가 잔존할 수 있으나 본 스펙은 표시 전용이라 영향이 격리됨. backfill은 별도 이슈로 분리(clarify.md Follow-ups 참조).
 - Cross-flow note: `toCourseResponseDto` 공유로 인해 단일전공·복수전공 응답에 동시 반영됨 (Decision 4). dual-major 졸업 요건에 선교 영역이 등장하는 학과라면 응답에 동일하게 노출된다.
+
+---
+
+## Architecture / Layering (2차 작업 — 선교 area_code backfill, 2026-05-20 추가)
+
+- Domain impact: **있음 (제한적)** — `CourseOffering`에 도메인 메서드 `backfillMissionLiberalAreaCode(LiberalArtsAreaCode)` 1개 추가. 4겹 방어선:
+  1. 좁은 메서드 이름으로 호출 의도 한정
+  2. `facultyDivisionName != 선교` → `IllegalStateException`
+  3. 이미 `liberalArtsAreaCode != null` → idempotent no-op (return)
+  4. 새 `area == null` → `IllegalArgumentException`
+  5. Javadoc에 Issue #226 backfill 전용임을 명시
+- Application orchestration: 없음. CourseOfferingService는 service 계층으로 분류되지만 application layer 분리는 없음.
+- Infrastructure touchpoints:
+  - `CourseOfferingService.getOrCreateAll` — 기존 row reuse 루프 안에 `shouldBackfillMissionAreaCode(existing, cmd)` private 가드 분기 추가. 통과 시 `liberalArtsAreaCodeRepository.getReferenceById(cmd.areaCode())`로 프록시 로드 후 도메인 메서드 호출.
+  - 명시 save 불필요 — `@Transactional` dirty checking으로 자동 flush.
+- Global/config changes: 없음.
+
+### Backfill Trigger 흐름
+
+```
+사용자 첫 연결 / 재연결
+   ↓
+PortalSyncService.syncWithPortal | refreshFromPortal
+   ↓
+SyncAcademicRecordService.executeWithPortalData | executeForRefreshPortalData
+   ↓
+sync(...) → processCurriculumData
+   ↓
+courseOfferingService.getOrCreateAll(commands)
+   ↓
+[기존 row reuse 루프]
+   ├─ shouldBackfillMissionAreaCode(existing, cmd)? 4개 가드 통과
+   │    ├─ existing.facultyDivisionName == FacultyDivision.선교
+   │    ├─ existing.liberalArtsAreaCode == null
+   │    ├─ cmd.areaCode() != null
+   │    └─ cmd.areaCode() != 0
+   ├─ yes → liberalArtsAreaCodeRepository.getReferenceById(cmd.areaCode())
+   │       → existing.backfillMissionLiberalAreaCode(area)
+   │       → @Transactional dirty checking으로 UPDATE flush
+   └─ no  → no-op, 기존 동작 그대로
+```
