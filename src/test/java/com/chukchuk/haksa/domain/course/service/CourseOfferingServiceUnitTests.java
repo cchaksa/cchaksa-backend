@@ -240,4 +240,142 @@ class CourseOfferingServiceUnitTests {
                 "컴퓨터학과"
         );
     }
+
+    // ====================================================================
+    // Issue #226 2차 작업 — 재스크래핑 시 선교 영역 area_code 단방향 backfill
+    // ====================================================================
+
+    @Test
+    @DisplayName("T1 backfill: 선교 + area_code null + cmd.areaCode=6 → backfillMissionLiberalAreaCode 호출됨")
+    void getOrCreateAll_missionAndAreaCodeNull_backfillsFromCmd() {
+        CreateOfferingCommand cmd = missionCommand(50L, 60L, 6);
+        CourseOffering existing = missionExistingMock(50L, 60L, null);
+        LiberalArtsAreaCode areaProxy = mock(LiberalArtsAreaCode.class);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(50L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+        when(liberalArtsAreaCodeRepository.getReferenceById(6)).thenReturn(areaProxy);
+
+        courseOfferingService.getOrCreateOffering(cmd);
+
+        verify(existing, times(1)).backfillMissionLiberalAreaCode(areaProxy);
+        verify(courseOfferingRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("T2 backfill: 선교 + area_code 이미 존재 → backfill 호출 안 됨")
+    void getOrCreateAll_missionAndAreaCodeAlreadyPresent_skipsBackfill() {
+        CreateOfferingCommand cmd = missionCommand(51L, 61L, 6);
+        LiberalArtsAreaCode existingArea = mock(LiberalArtsAreaCode.class);
+        CourseOffering existing = missionExistingMock(51L, 61L, existingArea);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(51L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        courseOfferingService.getOrCreateOffering(cmd);
+
+        verify(existing, never()).backfillMissionLiberalAreaCode(any());
+        verify(liberalArtsAreaCodeRepository, never()).getReferenceById(any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("T3 backfill: 비-선교(전핵) cmd + 비-선교 existing → backfill 호출 안 됨")
+    void getOrCreateAll_nonMissionFacultyDivision_skipsBackfill() {
+        // 키가 매칭되어 기존 row reuse 가 되도록 cmd·existing 모두 비-선교(전핵)로 정렬
+        CreateOfferingCommand cmd = command(52L, 62L, null, 6); // facultyDivisionName="전핵"
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(52L);
+        when(professor.getId()).thenReturn(62L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn("01");
+        when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
+        when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(52L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        courseOfferingService.getOrCreateOffering(cmd);
+
+        verify(existing, never()).backfillMissionLiberalAreaCode(any());
+        verify(liberalArtsAreaCodeRepository, never()).getReferenceById(any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("T4 backfill: 선교 + area_code null + cmd.areaCode=null → backfill 호출 안 됨")
+    void getOrCreateAll_missionAndCmdAreaCodeNull_skipsBackfill() {
+        CreateOfferingCommand cmd = missionCommand(53L, 63L, null);
+        CourseOffering existing = missionExistingMock(53L, 63L, null);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(53L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        courseOfferingService.getOrCreateOffering(cmd);
+
+        verify(existing, never()).backfillMissionLiberalAreaCode(any());
+        verify(liberalArtsAreaCodeRepository, never()).getReferenceById(any(Integer.class));
+    }
+
+    @Test
+    @DisplayName("T5 backfill: 선교 + area_code null + cmd.areaCode=0 → backfill 호출 안 됨")
+    void getOrCreateAll_missionAndCmdAreaCodeZero_skipsBackfill() {
+        CreateOfferingCommand cmd = missionCommand(54L, 64L, 0);
+        CourseOffering existing = missionExistingMock(54L, 64L, null);
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(54L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        courseOfferingService.getOrCreateOffering(cmd);
+
+        verify(existing, never()).backfillMissionLiberalAreaCode(any());
+        verify(liberalArtsAreaCodeRepository, never()).getReferenceById(any(Integer.class));
+    }
+
+    // --- helpers (mission backfill) ---
+
+    private CreateOfferingCommand missionCommand(Long courseId, Long professorId, Integer areaCode) {
+        return new CreateOfferingCommand(
+                courseId,
+                2024,
+                1,
+                "01",
+                professorId,
+                null,
+                "월 1-2",
+                "ABSOLUTE",
+                false,
+                20241,
+                "선교",
+                areaCode,
+                100,
+                3,
+                "교양학과"
+        );
+    }
+
+    private CourseOffering missionExistingMock(Long courseId, Long professorId, LiberalArtsAreaCode currentArea) {
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(courseId);
+        when(professor.getId()).thenReturn(professorId);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn("01");
+        when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.선교);
+        when(existing.getHostDepartment()).thenReturn("교양학과");
+        when(existing.getLiberalArtsAreaCode()).thenReturn(currentArea);
+        return existing;
+    }
 }
