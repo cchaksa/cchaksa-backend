@@ -109,8 +109,7 @@ public class PortalSyncService {
         Student student = studentService.getStudentByUserId(activeUserId);
         studentGraduationProgressService.syncLanguageCert(
                 student,
-                portalData.student().languageCertFulfilled(),
-                Instant.now()
+                portalData.student().languageCertFulfilled()
         );
     }
 }

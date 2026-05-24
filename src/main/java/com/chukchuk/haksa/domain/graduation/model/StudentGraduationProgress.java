@@ -45,22 +45,19 @@ public class StudentGraduationProgress extends BaseEntity {
     @JoinColumn(name = "student_id")
     private Student student;
 
-    private StudentGraduationProgress(Student student, Boolean languageCertFulfilled, Instant checkedAt) {
+    private StudentGraduationProgress(Student student, Boolean languageCertFulfilled) {
         this.student = student;
         this.languageCertFulfilled = languageCertFulfilled;
-        this.checkedAt = checkedAt;
     }
 
     public static StudentGraduationProgress createForLanguageCert(
             Student student,
-            boolean languageCertFulfilled,
-            Instant checkedAt
+            boolean languageCertFulfilled
     ) {
-        return new StudentGraduationProgress(student, languageCertFulfilled, checkedAt);
+        return new StudentGraduationProgress(student, languageCertFulfilled);
     }
 
-    public void updateLanguageCert(boolean languageCertFulfilled, Instant checkedAt) {
+    public void updateLanguageCert(boolean languageCertFulfilled) {
         this.languageCertFulfilled = languageCertFulfilled;
-        this.checkedAt = checkedAt;
     }
 }

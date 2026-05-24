@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,7 +21,7 @@ public class StudentGraduationProgressService {
     private final AcademicCache academicCache;
 
     @Transactional
-    public void syncLanguageCert(Student student, Boolean languageCertFulfilled, Instant checkedAt) {
+    public void syncLanguageCert(Student student, Boolean languageCertFulfilled) {
         if (languageCertFulfilled == null) {
             return;
         }
@@ -30,13 +29,12 @@ public class StudentGraduationProgressService {
         UUID studentId = student.getId();
         StudentGraduationProgress progress = repository.findByStudentId(studentId)
                 .map(existing -> {
-                    existing.updateLanguageCert(languageCertFulfilled, checkedAt);
+                    existing.updateLanguageCert(languageCertFulfilled);
                     return existing;
                 })
                 .orElseGet(() -> StudentGraduationProgress.createForLanguageCert(
                         student,
-                        languageCertFulfilled,
-                        checkedAt
+                        languageCertFulfilled
                 ));
 
         repository.save(progress);
