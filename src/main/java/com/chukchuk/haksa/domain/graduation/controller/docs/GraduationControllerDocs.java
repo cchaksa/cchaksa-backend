@@ -19,7 +19,7 @@ public interface GraduationControllerDocs {
 
     @Operation(
             summary = "졸업 요건 진행 상황 조회",
-            description = "로그인된 사용자의 졸업 요건 충족 여부를 조회합니다.",
+            description = "로그인된 사용자의 졸업 요건 충족 여부와 외국어 졸업 인증 통과 여부를 조회합니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
