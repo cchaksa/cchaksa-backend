@@ -40,7 +40,8 @@ public class PortalDataMapper {
                         s.facSmrCnt(),
                         DEFAULT_TOTAL_CREDITS,
                         DEFAULT_GPA
-                )
+                ),
+                parseLanguageCertFulfilled(s.flangPassGb())
         );
     }
 
@@ -175,6 +176,22 @@ public class PortalDataMapper {
             log.debug("parseDouble 실패: {}", str);
             return 0.0;
         }
+    }
+
+    private static Boolean parseLanguageCertFulfilled(String flangPassGb) {
+        if (flangPassGb == null || flangPassGb.isBlank()) {
+            return null;
+        }
+
+        String normalized = flangPassGb.trim();
+        if ("Y".equalsIgnoreCase(normalized)) {
+            return true;
+        }
+        if ("N".equalsIgnoreCase(normalized)) {
+            return false;
+        }
+
+        throw new IllegalArgumentException("알 수 없는 외국어 인증 값: " + flangPassGb);
     }
 
     private static Ranking parseRanking(String ordp) {
