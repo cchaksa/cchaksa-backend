@@ -13,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,41 +36,39 @@ class StudentGraduationProgressServiceTests {
     @DisplayName("외국어 인증 row가 없으면 새로 생성하고 학생 캐시를 무효화한다")
     void syncLanguageCertCreatesProgressWhenMissing() {
         UUID studentId = UUID.randomUUID();
-        Instant checkedAt = Instant.parse("2026-05-25T00:00:00Z");
         StudentGraduationProgressService service = new StudentGraduationProgressService(repository, academicCache);
 
         when(student.getId()).thenReturn(studentId);
         when(repository.findByStudentId(studentId)).thenReturn(Optional.empty());
 
-        service.syncLanguageCert(student, true, checkedAt);
+        service.syncLanguageCert(student, true);
 
         ArgumentCaptor<StudentGraduationProgress> captor = ArgumentCaptor.forClass(StudentGraduationProgress.class);
         verify(repository).save(captor.capture());
         StudentGraduationProgress saved = captor.getValue();
         assertThat(saved.getStudent()).isEqualTo(student);
         assertThat(saved.getLanguageCertFulfilled()).isTrue();
-        assertThat(saved.getCheckedAt()).isEqualTo(checkedAt);
+        assertThat(saved.getCheckedAt()).isNull();
         verify(academicCache).deleteAllByStudentId(studentId);
     }
 
     @Test
-    @DisplayName("외국어 인증 row가 있으면 외국어 인증 값과 확인 시각만 갱신한다")
+    @DisplayName("외국어 인증 row가 있으면 외국어 인증 값만 갱신한다")
     void syncLanguageCertUpdatesExistingProgressOnlyForLanguageCert() {
         UUID studentId = UUID.randomUUID();
-        Instant oldCheckedAt = Instant.parse("2026-05-01T00:00:00Z");
-        Instant newCheckedAt = Instant.parse("2026-05-25T00:00:00Z");
         StudentGraduationProgress existing =
-                StudentGraduationProgress.createForLanguageCert(student, false, oldCheckedAt);
+                StudentGraduationProgress.createForLanguageCert(student, false);
+        ReflectionTestUtils.setField(existing, "checkedAt", java.time.Instant.parse("2026-05-01T00:00:00Z"));
         ReflectionTestUtils.setField(existing, "gpaFulfilled", Boolean.TRUE);
         StudentGraduationProgressService service = new StudentGraduationProgressService(repository, academicCache);
 
         when(student.getId()).thenReturn(studentId);
         when(repository.findByStudentId(studentId)).thenReturn(Optional.of(existing));
 
-        service.syncLanguageCert(student, true, newCheckedAt);
+        service.syncLanguageCert(student, true);
 
         assertThat(existing.getLanguageCertFulfilled()).isTrue();
-        assertThat(existing.getCheckedAt()).isEqualTo(newCheckedAt);
+        assertThat(existing.getCheckedAt()).isEqualTo(java.time.Instant.parse("2026-05-01T00:00:00Z"));
         assertThat(existing.getGpaFulfilled()).isTrue();
         verify(repository).save(existing);
         verify(academicCache).deleteAllByStudentId(studentId);
@@ -82,7 +79,7 @@ class StudentGraduationProgressServiceTests {
     void syncLanguageCertSkipsWhenValueIsNull() {
         StudentGraduationProgressService service = new StudentGraduationProgressService(repository, academicCache);
 
-        service.syncLanguageCert(student, null, Instant.parse("2026-05-25T00:00:00Z"));
+        service.syncLanguageCert(student, null);
 
         org.mockito.Mockito.verifyNoInteractions(repository, academicCache);
     }

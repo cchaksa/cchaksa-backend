@@ -19,10 +19,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -75,7 +73,7 @@ class PortalSyncServiceTests {
         service.syncWithPortal(userId, portalData);
 
         verify(studentGraduationProgressService)
-                .syncLanguageCert(eq(student), eq(true), any(Instant.class));
+                .syncLanguageCert(eq(student), eq(true));
     }
 
     @Test
@@ -101,7 +99,7 @@ class PortalSyncServiceTests {
         service.refreshFromPortal(userId, portalData);
 
         verify(studentGraduationProgressService)
-                .syncLanguageCert(eq(student), eq(false), any(Instant.class));
+                .syncLanguageCert(eq(student), eq(false));
     }
 
     private PortalSyncService newService() {
