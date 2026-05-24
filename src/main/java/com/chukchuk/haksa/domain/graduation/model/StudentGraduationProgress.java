@@ -44,4 +44,23 @@ public class StudentGraduationProgress extends BaseEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id")
     private Student student;
+
+    private StudentGraduationProgress(Student student, Boolean languageCertFulfilled, Instant checkedAt) {
+        this.student = student;
+        this.languageCertFulfilled = languageCertFulfilled;
+        this.checkedAt = checkedAt;
+    }
+
+    public static StudentGraduationProgress createForLanguageCert(
+            Student student,
+            boolean languageCertFulfilled,
+            Instant checkedAt
+    ) {
+        return new StudentGraduationProgress(student, languageCertFulfilled, checkedAt);
+    }
+
+    public void updateLanguageCert(boolean languageCertFulfilled, Instant checkedAt) {
+        this.languageCertFulfilled = languageCertFulfilled;
+        this.checkedAt = checkedAt;
+    }
 }
