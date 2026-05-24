@@ -44,11 +44,13 @@ class GraduationControllerApiIntegrationTest extends ApiControllerWebMvcTestSupp
         when(studentService.getRequiredStudentIdByUserId(userId)).thenReturn(studentId);
 
         when(graduationService.getGraduationProgress(studentId))
-                .thenReturn(new GraduationProgressResponse(List.of()));
+                .thenReturn(new GraduationProgressResponse(List.of(), true));
 
         mockMvc.perform(get("/api/graduation/progress"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.languageCertFulfilled").value(true))
+                .andExpect(jsonPath("$.data.languageCertNeedsRefresh").value(false));
     }
 
     @Test
