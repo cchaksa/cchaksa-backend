@@ -36,6 +36,7 @@ public class GraduationService {
     private final GraduationMajorResolver graduationMajorResolver;
     private final GraduationQueryRepository graduationQueryRepository;
     private final AcademicCache academicCache;
+    private final StudentGraduationProgressService studentGraduationProgressService;
 
     /* 졸업 요건 진행 상황 조회 */
     public GraduationProgressResponse getGraduationProgress(UUID studentId) {
@@ -72,7 +73,12 @@ public class GraduationService {
                 );
 
         GraduationProgressResponse response =
-                new GraduationProgressResponse(areaProgress);
+                new GraduationProgressResponse(
+                        areaProgress,
+                        studentGraduationProgressService
+                                .getLanguageCertFulfilled(studentId)
+                                .orElse(null)
+                );
 
         // 5. 특이 졸업 요건 여부 표시
         if (isDifferentGradRequirement(
