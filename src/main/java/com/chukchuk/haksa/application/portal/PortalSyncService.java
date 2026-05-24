@@ -35,6 +35,10 @@ public class PortalSyncService {
         long t0 = LogTime.start();
         User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
         UUID activeUserId = mergedUser.getId();
+        if (Boolean.TRUE.equals(mergedUser.getPortalConnected())) {
+            log.info("[BIZ] portal.sync.refresh_after_merge userId={} activeUserId={}", userId, activeUserId);
+            return refreshActiveUserFromPortal(userId, activeUserId, portalData, t0);
+        }
 
         // 1. 포털 초기화
         PortalConnectionResult conn = initializePortalConnectionService.executeWithPortalData(activeUserId, portalData);
@@ -68,7 +72,10 @@ public class PortalSyncService {
         long t0 = LogTime.start();
         User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
         UUID activeUserId = mergedUser.getId();
+        return refreshActiveUserFromPortal(userId, activeUserId, portalData, t0);
+    }
 
+    private ScrapingResponse refreshActiveUserFromPortal(UUID userId, UUID activeUserId, PortalData portalData, long t0) {
         // 1. 포털 연동 정보 갱신
         PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(activeUserId, portalData);
         if (!conn.isSuccess()) {
