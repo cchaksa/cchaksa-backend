@@ -14,8 +14,9 @@
 |------|---------|--------|------|
 | 1 | `./gradlew compileTestJava` | passed after expected RED failures were implemented | 2026-05-25 |
 | 2 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test --tests "*PortalDataMapperTests" --tests "*StudentGraduationProgressServiceTests" --tests "*PortalSyncServiceTests" --tests "*GraduationServiceTests" --tests "*GraduationControllerApiIntegrationTest"` | passed | 2026-05-25 |
-| 3 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test` | passed | 2026-05-25 |
+| 3 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test` | passed after removing `checked_at` updates | 2026-05-25 |
 | 4 | `ruby -e 'require "yaml"; YAML.load_file("src/main/resources/public/openapi.yaml")'` | passed | 2026-05-25 |
+| 5 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test --tests "*StudentGraduationProgressServiceTests" --tests "*PortalSyncServiceTests"` | passed | 2026-05-25 |
 
 ## Notes
 - Observation: 커밋은 사용자가 직접 수행한다.

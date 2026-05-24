@@ -6,3 +6,4 @@
 - 2026-05-25: raw payload는 기존 `student`와 사용자 언급의 `studentInfo`를 모두 받을 수 있도록 `@JsonAlias("studentInfo")`를 사용했다.
 - 2026-05-25: 테스트 실행은 Java 17로 Gradle을 실행해야 통과한다. 기본 Java 24에서는 Gradle test task 구성 오류가 발생한다.
 - 2026-05-25: 정적 Swagger 문서 `src/main/resources/public/openapi.yaml`에 졸업 요건 조회 endpoint와 외국어 인증 응답 필드를 추가했다.
+- 2026-05-25: `checked_at`은 이번 기능 요구사항에 필요 없고 의미가 애매해 외국어 인증 동기화에서 변경하지 않도록 수정했다.

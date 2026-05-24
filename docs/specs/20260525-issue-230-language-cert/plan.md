@@ -9,7 +9,7 @@
 ## Data / Transactions
 - Repositories touched: `StudentGraduationProgressRepository` 추가.
 - Transaction scope: 기존 포털 동기화 트랜잭션에 참여한다.
-- Consistency expectations: 저장 후 학생 학업 캐시를 삭제해 다음 조회가 최신 값을 읽는다.
+- Consistency expectations: 저장 후 학생 학업 캐시를 삭제해 다음 조회가 최신 값을 읽는다. 외국어 인증 동기화는 `checked_at`을 변경하지 않는다.
 
 ## Testing Strategy
 - Domain tests: 외국어 인증 row 생성/갱신.

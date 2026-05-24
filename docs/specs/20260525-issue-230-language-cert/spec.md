@@ -11,7 +11,7 @@
 ## 2. Domain Rules
 - Rule 1: 크롤러 `flangPassGb`의 `Y`는 통과, `N`은 미통과로 변환한다.
 - Rule 2: 기존 사용자처럼 저장값이 없으면 새로고침 필요 상태로 응답한다.
-- Rule 3: 외국어 인증 동기화는 다른 졸업 진행 상태 필드를 변경하지 않는다.
+- Rule 3: 외국어 인증 동기화는 다른 졸업 진행 상태 필드와 `checked_at`을 변경하지 않는다.
 - Mutable Rules: 응답 필드명, backfill 방식.
 - Immutable Rules: 외국어 인증은 학점 영역이 아니므로 `AreaProgressDto`에 포함하지 않는다.
 
