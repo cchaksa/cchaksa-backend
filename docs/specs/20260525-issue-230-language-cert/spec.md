@@ -101,9 +101,6 @@
 - Path: `src/main/java/com/chukchuk/haksa/domain/graduation/dto/LanguageCertRequirementResponse.java`
   - Description: 외국어 인증 기준 조회 응답 DTO.
   - Layer: Domain DTO
-- Path: `docs/sql/20260527-language-cert-policy-ddl.sql`
-  - Description: 외국어 인증 기준 운영 테이블 생성 SQL.
-  - Layer: SQL document
-- Path: `docs/sql/20260527-language-cert-policy-seed.sql`
-  - Description: 정책 그룹, 시험 기준, CSV 학과 코드 매핑 seed SQL.
-  - Layer: SQL document
+- Path: 채팅 전달.
+  - Description: 외국어 인증 기준 운영 테이블 생성 DDL과 정책 그룹, 시험 기준, CSV 학과 코드 매핑 seed SQL.
+  - Layer: SQL handoff

@@ -11,7 +11,7 @@
 - [x] Language certification policy model tests written
 - [x] Language certification policy entities and enums added
 - [x] Policy model tests executed
-- [x] Language certification seed SQL added
+- [x] Language certification seed SQL prepared for chat handoff
 - [x] Language certification requirement repository/service/controller tests written
 - [x] Language certification requirement API implemented
 - [x] Static OpenAPI document updated for requirement API
@@ -35,7 +35,7 @@
 | 14 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test --tests "*GraduationControllerApiIntegrationTest" --tests "*LanguageCert*"` | passed after sandbox lock retry with approval | 2026-05-27 |
 | 15 | `ruby -e 'require "yaml"; YAML.load_file("src/main/resources/public/openapi.yaml")'` | passed | 2026-05-27 |
 | 16 | `git diff --check` | passed | 2026-05-27 |
-| 17 | `awk ... docs/sql/20260527-language-cert-policy-seed.sql` | passed: policy_groups=17, requirements=151, mappings=384, VERIFIED=331, INFERRED=15, UNMAPPED=38 | 2026-05-27 |
+| 17 | `awk ... language-cert-policy-seed.sql` | passed before repository file removal: policy_groups=17, requirements=151, mappings=384, VERIFIED=331, INFERRED=15, UNMAPPED=38 | 2026-05-27 |
 | 18 | `JAVA_HOME=/Users/keemhoeyune/Library/Java/JavaVirtualMachines/temurin-17.0.18/Contents/Home ./gradlew test --tests "*LanguageCert*"` | passed after import cleanup | 2026-05-27 |
 | 19 | `git diff --check` | passed after import cleanup | 2026-05-27 |
 
@@ -46,3 +46,4 @@
 - Observation: 2026-05-26 사용자 승인으로 외국어 인증 기준 정책 엔티티와 enum을 `feat/230`에서 추가한다.
 - Observation: 2026-05-27 사용자 승인으로 외국어 인증 기준 seed SQL과 조회 API를 추가한다.
 - Observation: CSV 384개 학과 코드 매핑 seed 상태는 `VERIFIED` 331개, `INFERRED` 15개, `UNMAPPED` 38개다.
+- Observation: 2026-05-27 사용자 요청으로 DDL/seed SQL은 저장소 파일로 남기지 않고 채팅으로만 전달한다.

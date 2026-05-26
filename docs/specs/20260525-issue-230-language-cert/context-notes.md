@@ -13,7 +13,8 @@
 - 2026-05-26: `LanguageCertPolicyGroup`, `LanguageCertRequirement`, `DepartmentLanguageCertPolicyMapping`과 `LanguageCertTestType`, `LanguageCertMatchStatus`를 추가했다.
 - 2026-05-26: `LanguageCertPolicyModelTests`를 RED/GREEN 순서로 실행해 정책 모델 생성과 입학년도 구간 매핑을 검증했다.
 - 2026-05-27: 사용자 승인으로 후속 범위를 seed SQL과 기준 조회 API까지 확장했다.
-- 2026-05-27: 정책 데이터는 자동 추론 로직이 아니라 `docs/sql/20260527-language-cert-policy-seed.sql`의 명시 매핑으로 관리한다.
+- 2026-05-27: 정책 데이터는 자동 추론 로직이 아니라 명시 seed SQL로 관리한다.
 - 2026-05-27: CSV 384개 학과 코드는 `VERIFIED` 331개, `INFERRED` 15개, `UNMAPPED` 38개로 seed에 반영했다.
 - 2026-05-27: 기준 조회는 `student.major`가 있으면 major 학과 코드, 없으면 department 학과 코드를 사용한다.
 - 2026-05-27: `INFERRED`는 기준 목록을 반환하고, `UNMAPPED` 또는 매핑 없음은 200 응답과 빈 기준 목록을 반환한다.
+- 2026-05-27: 사용자 요청으로 DDL/seed SQL 파일은 저장소에서 제거하고 채팅으로만 전달한다.

@@ -3,7 +3,7 @@
 ## Architecture / Layering
 - Domain impact: `StudentGraduationProgress`가 외국어 인증 생성/갱신 규칙을 가진다. 외국어 인증 기준 조회를 위한 정책 그룹, 시험 기준, 학과 코드 매핑 엔티티와 enum을 추가한다.
 - Application orchestration: `PortalSyncService`가 포털 동기화 성공 후 외국어 인증 저장을 호출한다. `LanguageCertRequirementService`는 로그인 학생의 학과 코드와 입학년도로 기준 그룹을 조회한다.
-- Infrastructure touchpoints: raw portal DTO와 mapper가 `flangPassGb`를 내부 boolean으로 변환한다. 운영 DB 반영용 DDL과 seed SQL은 `docs/sql`에 둔다.
+- Infrastructure touchpoints: raw portal DTO와 mapper가 `flangPassGb`를 내부 boolean으로 변환한다. 운영 DB 반영용 DDL과 seed SQL은 사용자 요청에 따라 저장소 파일로 남기지 않고 채팅으로 전달한다.
 - Global/config changes: 없음.
 
 ## Data / Transactions
