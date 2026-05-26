@@ -8,6 +8,11 @@
 - [x] `/api/academic/record` 응답 구조 수정 및 분류 로직 업데이트
 - [x] Graduation Query Repository 단위 테스트 추가
 - [x] Academic Record Service 단위 테스트/컨트롤러 테스트 업데이트
+- [x] `course_offerings.raw_faculty_division_name` 추가 SQL 작성
+- [x] 미지원 이수 구분 raw 보존 테스트 추가
+- [x] 미지원 이수 구분 재연동 키 재사용 테스트 추가
+- [x] `CourseOffering` raw 컬럼 및 생성자 반영
+- [x] `CourseOfferingService` canonical/raw 분리 및 key 정규화 반영
 - [x] `./gradlew test --tests "*CourseOfferingServiceUnitTests"`
 - [x] `./gradlew test --tests "*AcademicRecordServiceUnitTests"`
 - [x] `./gradlew test --tests "*GraduationQueryRepository*"`
@@ -20,6 +25,14 @@
 | 2 | `./gradlew test --tests "*AcademicRecordServiceUnitTests"` | Pass | 2026-04-07 |
 | 3 | `./gradlew test --tests "*GraduationQueryRepository*"` | Pass (rerun after review) | 2026-04-07 |
 | 4 | `./gradlew test` | Pass (rerun after review) | 2026-04-07 |
+| 5 | `./gradlew test --tests "*CourseOfferingServiceUnitTests"` | Fail as RED: `getRawFacultyDivisionName()` missing | 2026-05-26 |
+| 6 | `./gradlew test --tests "*CourseOfferingServiceUnitTests"` | Pass | 2026-05-26 |
+| 7 | `./gradlew test --tests "*SyncAcademicRecordServiceTest"` | Pass | 2026-05-26 |
+| 8 | `./gradlew test --tests "*AcademicRecordServiceUnitTests"` | Pass | 2026-05-26 |
+| 9 | `./gradlew test --tests "*GraduationQueryRepository*"` | Pass after serial rerun; first parallel run failed due shared Gradle test output file | 2026-05-26 |
+| 10 | `./gradlew test` | Pass | 2026-05-26 |
+| 11 | `./gradlew build` | Pass | 2026-05-26 |
 
 ## Notes
 - Observation: 포털에서 신규 이수 구분이 들어올 때도 데이터 적재가 중단되지 않아야 한다.
+- Observation: raw 원본은 API 계약이 아니라 향후 마이그레이션과 재연동 안정성을 위한 내부 데이터다.

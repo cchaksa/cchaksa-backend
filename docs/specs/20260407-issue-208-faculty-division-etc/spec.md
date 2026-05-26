@@ -9,19 +9,22 @@
     - 관련 단위 테스트 보강
     - `/api/graduation/progress` 응답에서 `기타` 영역을 캐시/요구사항 테이블에 의존하지 않고 동적으로 추가하며, 필요 학점은 0, 이수 학점은 실제 합계를 반환
     - `/api/academic/record` 응답 구조를 `기타` 과목 전용 리스트를 포함하도록 확장하고, 분류 로직 업데이트
+    - 미지원 이수 구분의 포털 원본 문자열을 `course_offerings.raw_faculty_division_name`에만 보존
   - Out:
     - 졸업 요건 계산 로직
     - 평가 방식 열거형/해석 방식
-    - 외부 API 계약 변경
+    - 외부 API 계약 추가 변경
 - Expected Impact: 미정의 이수 구분으로 인해 발생하던 예외가 제거되고, 모든 미지원 값이 `기타`로 집계된다.
 - Stakeholder Confirmation: 2026-04-07 사용자 요청(이슈 #208)으로 OK to implement
 
 ## 2. Domain Rules
 - Rule 1: 포털이 내려주는 정의된 이수 구분(`중핵`, `기교`, `선교`, `소교`, `전교`, `전취`, `전핵`, `전선`, `일선`, `복선`, `복핵`, `복교`)은 동일한 열거형 값으로 저장된다.
 - Rule 2: null/blank 이수 구분은 현재와 같이 `null`(미지정)로 남긴다.
-- Rule 3: 위 목록에 없는 비어있지 않은 문자열은 모두 `FacultyDivision.기타`로 저장하고, 원본 문자열은 별도로 저장하지 않는다.
+- Rule 3: 위 목록에 없는 비어있지 않은 문자열은 모두 `FacultyDivision.기타`로 저장한다.
 - Rule 4: 졸업 요건 API에서 `기타` 영역은 요구사항 테이블 여부와 무관하게 노출되며, `requiredCredits=0`, `earnedCredits`는 실제 이수 학점 합계로 노출된다.
 - Rule 5: 학업 기록 API는 `기타` 전용 섹션을 갖고, 분류 로직이 `기타`를 교양/전공과 분리한다.
+- Rule 6: 미지원 이수 구분은 canonical 값으로 `기타`를 저장하되, 포털 원본 문자열은 `raw_faculty_division_name`에 보존한다.
+- Rule 7: 기존 지원 이수 구분은 `raw_faculty_division_name`을 `null`로 유지하며, API 응답에는 raw 값을 노출하지 않는다.
 - Mutable Rules: 포털 측에서 새로운 문자열을 도입하면 언제든 `기타`로 분류된다.
 - Immutable Rules: 정의된 기존 이수 구분 값과 매핑은 변경하지 않는다.
 
@@ -70,8 +73,11 @@
   - Description: `기타` 열거형 추가
   - Layer: Domain
 - Path: src/main/java/com/chukchuk/haksa/domain/course/service/CourseOfferingService.java
-  - Description: 이수 구분 해석 시 미정의 값을 `기타`로 대체
+  - Description: 이수 구분 해석 시 미정의 값을 `기타`로 대체하고 원본 문자열을 내부 보존
   - Layer: Application
 - Path: src/test/java/com/chukchuk/haksa/domain/course/service/CourseOfferingServiceUnitTests.java
   - Description: 미지원 값이 `기타`로 저장되는 단위 테스트 추가/보강
   - Layer: Application Tests
+- Path: docs/specs/20260407-issue-208-faculty-division-etc/20260526-add-raw-faculty-division-name.sql
+  - Description: `course_offerings.raw_faculty_division_name` nullable 컬럼 추가 SQL
+  - Layer: Database Migration

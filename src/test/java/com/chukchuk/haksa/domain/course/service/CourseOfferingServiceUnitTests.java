@@ -223,7 +223,7 @@ class CourseOfferingServiceUnitTests {
 
     @Test
     @DisplayName("정의되지 않은 이수 구분은 기타로 대체한다")
-    void getOrCreateOffering_whenFacultyDivisionUnknown_setsEtc() {
+    void getOrCreateOffering_whenFacultyDivisionUnknown_setsEtcAndPreservesRawValue() {
         CreateOfferingCommand cmd = new CreateOfferingCommand(
                 15L,
                 2024,
@@ -255,6 +255,72 @@ class CourseOfferingServiceUnitTests {
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
         assertThat(result.getFacultyDivisionName()).isEqualTo(FacultyDivision.기타);
+        assertThat(result.getRawFacultyDivisionName()).isEqualTo("신규구분");
+    }
+
+    @Test
+    @DisplayName("정의된 이수 구분은 원본 문자열을 별도로 저장하지 않는다")
+    void getOrCreateOffering_whenFacultyDivisionKnown_doesNotPreserveRawValue() {
+        CreateOfferingCommand cmd = command(16L, 26L, null, null);
+        Course course = new Course("CSE202", "운영체제");
+        Professor professor = new Professor("정교수");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(16L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of());
+        when(courseRepository.getReferenceById(16L)).thenReturn(course);
+        when(professorRepository.getReferenceById(26L)).thenReturn(professor);
+        when(courseOfferingRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result.getFacultyDivisionName()).isEqualTo(FacultyDivision.전핵);
+        assertThat(result.getRawFacultyDivisionName()).isNull();
+    }
+
+    @Test
+    @DisplayName("동일한 미지원 이수 구분은 재연동 시 기존 기타 강의를 재사용한다")
+    void getOrCreateOffering_whenExistingEtcWithSameRawValue_reusesExistingOffering() {
+        CreateOfferingCommand cmd = new CreateOfferingCommand(
+                17L,
+                2024,
+                1,
+                "01",
+                27L,
+                null,
+                "월 1-2",
+                "ABSOLUTE",
+                false,
+                20241,
+                "RT",
+                null,
+                null,
+                2,
+                "컴퓨터학과"
+        );
+
+        CourseOffering existing = mock(CourseOffering.class);
+        Course course = mock(Course.class);
+        Professor professor = mock(Professor.class);
+        when(course.getId()).thenReturn(17L);
+        when(professor.getId()).thenReturn(27L);
+        when(existing.getCourse()).thenReturn(course);
+        when(existing.getProfessor()).thenReturn(professor);
+        when(existing.getYear()).thenReturn(2024);
+        when(existing.getSemester()).thenReturn(1);
+        when(existing.getClassSection()).thenReturn("01");
+        when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.기타);
+        when(existing.getRawFacultyDivisionName()).thenReturn("RT");
+        when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
+
+        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
+                Set.of(17L), Set.of(2024), Set.of(1)
+        )).thenReturn(List.of(existing));
+
+        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
+
+        assertThat(result).isSameAs(existing);
+        verify(courseOfferingRepository, never()).saveAll(any());
     }
 
     private CreateOfferingCommand command(Long courseId, Long professorId, Long departmentId, Integer areaCode) {

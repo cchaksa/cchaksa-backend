@@ -2,20 +2,21 @@
 
 ## Architecture / Layering
 - Domain impact: `FacultyDivision` 열거형에 `기타` 상수를 추가하고, enum 순서를 유지한 채 말미에 배치한다.
-- Application orchestration: `CourseOfferingService.resolveFacultyDivision`에서 `IllegalArgumentException` 발생을 try/catch로 흡수하고 `FacultyDivision.기타`로 반환한다.
+- Application orchestration: `CourseOfferingService.resolveFacultyDivision`에서 `IllegalArgumentException` 발생을 try/catch로 흡수하고 `FacultyDivision.기타`로 반환한다. 미지원 원본 문자열은 `rawFacultyDivisionName`에만 저장하고, 지원 값은 raw를 `null`로 둔다.
 - Graduation API: `GraduationQueryRepository`가 요구사항 테이블 조회 결과와 별개로 `기타` 영역을 동적으로 추가하고 필요 학점은 0, 이수 학점은 실제 합계로 설정한다.
 - Academic Record API: `AcademicRecordResponse.Courses` 레이아웃을 확장하고 `AcademicRecordService` 분류 로직을 `기타` 섹션을 포함하도록 업데이트한다.
-- Infrastructure touchpoints: 없음 (native query 결과 후처리만 변경).
+- Infrastructure touchpoints: `course_offerings.raw_faculty_division_name` nullable 컬럼 추가 SQL을 제공한다.
 - Global/config changes: 없음.
 
 ## Data / Transactions
 - Repositories touched: `CourseOfferingRepository` (간접적으로 동일 메서드를 통해 동작하므로 변경 없음).
 - Transaction scope: `CourseOfferingService.getOrCreateAll` 기존 트랜잭션 재사용.
-- Consistency expectations: 새 enum 값은 기존 행과 동일하게 저장되며, 재시도 시 동일 offering key가 유지된다.
+- Consistency expectations: canonical 값과 raw 값이 함께 offering key에 반영되어 미지원 값 재연동 시 중복 생성을 피한다.
 
 ## Testing Strategy
 - Domain tests: 단위 테스트만으로 충분 (별도 Domain test 없음).
 - Application tests: `CourseOfferingServiceUnitTests`에 "알 수 없는 이수 구분" 케이스를 추가해 `FacultyDivision.기타`로 저장되는지 검증.
+- Application tests: 미지원 값은 raw 원본을 보존하고 동일 raw 값 재연동 시 기존 offering을 재사용하며, 서로 다른 raw 값은 내부적으로 구분되는지 검증.
 - Graduation repository tests: 요구사항 테이블에 없는 `기타` 수강 이력이 있을 때 `AreaProgressDto`가 매직 넘버와 함께 추가되는지 단위 테스트로 보장.
 - Academic record tests: `AcademicRecordServiceUnitTests`에서 `기타` 과목이 전용 섹션으로 분리되는지 검증하고, WebMvc 테스트 mock 응답 스키마 업데이트.
 - Additional commands: `./gradlew test --tests "*CourseOfferingServiceUnitTests"`, `./gradlew test --tests "*AcademicRecordServiceUnitTests"`, `./gradlew test --tests "*GraduationQueryRepository*"` (신규), 최종 `./gradlew test`.
