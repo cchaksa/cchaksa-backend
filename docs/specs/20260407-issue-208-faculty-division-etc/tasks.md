@@ -17,6 +17,10 @@
 - [x] `./gradlew test --tests "*AcademicRecordServiceUnitTests"`
 - [x] `./gradlew test --tests "*GraduationQueryRepository*"`
 - [x] `./gradlew test`
+- [x] `/api/academic/record` 과목 응답 `rawAreaType` 테스트 추가
+- [x] `StudentCourseDto.CourseDetailDto`에 nullable `rawAreaType` 추가
+- [x] `StudentCourseDto.from`에서 `CourseOffering.rawFacultyDivisionName` 매핑
+- [x] Academic Record 관련 테스트 갱신
 
 ## Test / Build Log
 | Step | Command | Result | Date |
@@ -32,6 +36,14 @@
 | 9 | `./gradlew test --tests "*GraduationQueryRepository*"` | Pass after serial rerun; first parallel run failed due shared Gradle test output file | 2026-05-26 |
 | 10 | `./gradlew test` | Pass | 2026-05-26 |
 | 11 | `./gradlew build` | Pass | 2026-05-26 |
+| 12 | `./gradlew test --tests "*StudentCourseDtoTests"` | Fail as RED: `rawAreaType()` missing | 2026-05-26 |
+| 13 | `./gradlew test --tests "*StudentCourseDtoTests"` | Pass | 2026-05-26 |
+| 14 | `./gradlew test --tests "*AcademicRecordServiceUnitTests"` | Pass | 2026-05-26 |
+| 15 | `./gradlew test --tests "*AcademicRecordControllerApiIntegrationTest"` | Pass | 2026-05-26 |
+| 16 | `./gradlew test` | Pass | 2026-05-26 |
+| 17 | `./gradlew build` | Pass | 2026-05-26 |
+| 18 | `git diff --check` | Pass | 2026-05-26 |
+| 19 | `rg -n "rawAreaType|rawFacultyDivisionName" src/main/java/com/chukchuk/haksa/domain/graduation src/main/java/com/chukchuk/haksa/application src/main/java/com/chukchuk/haksa/infrastructure` | No matches; graduation response path unchanged | 2026-05-26 |
 
 ## Notes
 - Observation: 포털에서 신규 이수 구분이 들어올 때도 데이터 적재가 중단되지 않아야 한다.

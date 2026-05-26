@@ -10,3 +10,6 @@
 - [x] 기존 API DTO에 raw 값이 노출되지 않는지 확인
 - [x] 관련 테스트 및 전체 테스트 실행
 - [x] 빌드 실행
+- [x] 학업 기록 과목 응답 `rawAreaType` 추가
+- [x] `areaType=기타`, `rawAreaType=원본값` 동시 반환 테스트
+- [x] 졸업 진행 API 계약 유지 확인
