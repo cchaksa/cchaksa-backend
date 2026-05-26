@@ -57,7 +57,7 @@ public class AcademicRecordService {
         }
 
         return switch (division) {
-            case 전핵, 전선, 복선 -> CourseCategory.MAJOR;
+            case 전핵, 전선, 복핵, 복선 -> CourseCategory.MAJOR;
             default -> CourseCategory.LIBERAL;
         };
     }
