@@ -33,6 +33,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/graduation/language-cert/requirement:
+    get:
+      tags:
+        - Graduation
+      summary: 외국어 인증 기준 조회
+      description: 로그인된 사용자의 학과 코드와 입학년도에 적용되는 외국어 인증 기준을 조회합니다. 미매핑 학과도 200 응답으로 반환됩니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 외국어 인증 기준 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LanguageCertRequirementApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: 사용자 정보 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/users/signin:
     post:
       summary: 회원 가입 및 로그인
@@ -156,6 +184,118 @@ components:
         error:
           $ref: '#/components/schemas/ErrorDetail'
           nullable: true
+
+    LanguageCertRequirementApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/LanguageCertRequirementResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    LanguageCertRequirementResponse:
+      type: object
+      required:
+        - departmentCode
+        - departmentName
+        - admissionYear
+        - matchStatus
+        - requirements
+      properties:
+        departmentCode:
+          type: string
+          description: 기준 조회에 사용된 학과 코드
+          example: "2000514"
+        departmentName:
+          type: string
+          description: 기준 조회에 사용된 학과명
+          example: 컴퓨터SW
+        admissionYear:
+          type: integer
+          format: int32
+          description: 입학년도
+          example: 2021
+        policyGroupKey:
+          type: string
+          nullable: true
+          description: 외국어 인증 정책 그룹 키
+          example: ICT_OTHER
+        policyGroupName:
+          type: string
+          nullable: true
+          description: 외국어 인증 정책 그룹명
+          example: ICT융합대학 그외학부
+        matchStatus:
+          type: string
+          description: 학과-정책 매핑 상태
+          enum:
+            - VERIFIED
+            - INFERRED
+            - UNMAPPED
+          example: VERIFIED
+        note:
+          type: string
+          nullable: true
+          description: 매핑 비고
+          example: 컴퓨터SW 21학번 이후 기준
+        requirements:
+          type: array
+          description: 시험별 통과 기준
+          items:
+            $ref: '#/components/schemas/LanguageCertRequirement'
+
+    LanguageCertRequirement:
+      type: object
+      required:
+        - testType
+        - displayText
+        - sortOrder
+      properties:
+        testType:
+          type: string
+          description: 시험 종류
+          enum:
+            - TOEIC
+            - TOEFL_IBT
+            - TEPS
+            - OPIC
+            - TOEIC_SPEAKING
+            - JPT_JLPT
+            - NEW_HSK
+            - TORFL_FLEX
+            - DELF
+          example: TOEIC
+        minimumScore:
+          type: integer
+          format: int32
+          nullable: true
+          description: 최소 점수
+          example: 650
+        minimumGrade:
+          type: string
+          nullable: true
+          description: 최소 등급
+          example: IM1
+        displayText:
+          type: string
+          description: 표시 문구
+          example: TOEIC 650점 이상
+        sortOrder:
+          type: integer
+          format: int32
+          description: 표시 순서
+          example: 1
 
     GraduationProgressResponse:
       type: object
