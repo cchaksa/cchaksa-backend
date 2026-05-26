@@ -15,7 +15,10 @@
 | 1 | `./gradlew test --tests com.chukchuk.haksa.application.portal.PortalSyncServiceTests` | Failed as expected. `syncWithPortal_usesRefreshFlowWhenMergeMakesUserConnected` failed because initial portal setup was called. | 2026-05-25 |
 | 2 | `./gradlew test --tests com.chukchuk.haksa.application.portal.PortalSyncServiceTests` | Passed after fix. | 2026-05-25 |
 | 3 | `./gradlew test` | Passed. | 2026-05-25 |
+| 4 | `./gradlew test --tests com.chukchuk.haksa.application.portal.PortalSyncServiceTests` | Passed after Gemini review cleanup. | 2026-05-26 |
+| 5 | `./gradlew test` | Passed after Gemini review cleanup. | 2026-05-26 |
 
 ## Notes
 - Observation: 실패 로그는 스크래퍼/S3 수신 이후 콜백 후처리에서 `portal.init.skipped reason=already_connected`로 발생했다.
 - Observation: `syncWithPortal`에서 병합 후 `portalConnected=true`인 active user만 REFRESH 재동기화 경로로 전환했다.
+- Observation: `refreshActiveUserFromPortal`은 active `User`를 직접 받아 후속 timestamp 저장에 사용한다.
