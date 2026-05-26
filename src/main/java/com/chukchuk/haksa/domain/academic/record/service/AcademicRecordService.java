@@ -46,7 +46,7 @@ public class AcademicRecordService {
     private Map<String, List<StudentCourseDto.CourseDetailDto>> categorizeCourses(List<StudentCourseDto.CourseDetailDto> courses) {
         return courses.stream()
                 .collect(Collectors.groupingBy(course -> switch (course.areaType()) {
-                    case 전핵, 전선, 복선 -> "major";
+                    case 전핵, 전선, 복핵, 복선 -> "major";
                     default -> "liberal";
                 }));
     }
