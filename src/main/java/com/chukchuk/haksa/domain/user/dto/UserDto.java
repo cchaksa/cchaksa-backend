@@ -30,4 +30,10 @@ public class UserDto {
             boolean isPortalLinked
 
     ) {}
+
+    @Schema(description = "사용자 분석 식별자 응답")
+    public record AnalyticsIdResponse(
+            @Schema(description = "Amplitude 사용자 식별자", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
+            String analyticsId
+    ) {}
 }
