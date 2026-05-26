@@ -93,4 +93,32 @@ class AcademicRecordServiceUnitTests {
         assertThat(result.courses().liberal()).containsExactly(liberal);
         assertThat(result.courses().etc()).isEmpty();
     }
+
+    @Test
+    @DisplayName("복핵은 전공으로, 복교는 교양으로 분류한다")
+    void getAcademicRecord_categorizesDualCoreAsMajorAndDualLiberalAsLiberal() {
+        UUID studentId = UUID.randomUUID();
+        SemesterAcademicRecordDto.SemesterGradeResponse grade =
+                new SemesterAcademicRecordDto.SemesterGradeResponse(
+                        2024, 1, 6, 6, new BigDecimal("4.00"), 1, 100, new BigDecimal("95.0")
+                );
+
+        StudentCourseDto.CourseDetailDto dualCore = new StudentCourseDto.CourseDetailDto(
+                "20", "복수전공핵심", "DMJ101", FacultyDivision.복핵, null, 3, "이교수", "A+", 3,
+                false, false, 2024, 1, 96, false
+        );
+        StudentCourseDto.CourseDetailDto dualLiberal = new StudentCourseDto.CourseDetailDto(
+                "21", "복수전공교양", "DMJ102", FacultyDivision.복교, null, 3, "김교수", "A0", 3,
+                false, false, 2024, 1, 92, false
+        );
+
+        when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
+        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(dualCore, dualLiberal));
+
+        AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
+
+        assertThat(result.courses().major()).containsExactly(dualCore);
+        assertThat(result.courses().liberal()).containsExactly(dualLiberal);
+        assertThat(result.courses().etc()).isEmpty();
+    }
 }
