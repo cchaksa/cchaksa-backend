@@ -95,7 +95,7 @@ public class CourseOfferingService {
         }
 
         EvaluationType evaluationType = resolveEvaluationType(cmd.evaluationType());
-        FacultyDivision facultyDivision = resolveFacultyDivision(cmd.facultyDivisionName());
+        FacultyDivisionResolution facultyDivision = FacultyDivisionResolution.from(cmd.facultyDivisionName());
 
         return new CourseOffering(
                 cmd.subjectEstablishmentSemester(),
@@ -108,7 +108,8 @@ public class CourseOfferingService {
                 cmd.originalAreaCode(),
                 cmd.points(),
                 evaluationType,
-                facultyDivision,
+                facultyDivision.value(),
+                facultyDivision.rawValue(),
                 course,
                 professor,
                 department,
@@ -123,13 +124,6 @@ public class CourseOfferingService {
         return EvaluationType.valueOf(rawValue);
     }
 
-    private FacultyDivision resolveFacultyDivision(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
-        }
-        return FacultyDivision.valueOf(rawValue);
-    }
-
     public record CourseOfferingKey(
             Long courseId,
             Integer year,
@@ -137,16 +131,19 @@ public class CourseOfferingService {
             String classSection,
             Long professorId,
             String facultyDivisionName,
+            String rawFacultyDivisionName,
             String hostDepartment
     ) {
         public static CourseOfferingKey from(CreateOfferingCommand cmd) {
+            FacultyDivisionResolution facultyDivision = FacultyDivisionResolution.from(cmd.facultyDivisionName());
             return new CourseOfferingKey(
                     cmd.courseId(),
                     cmd.year(),
                     cmd.semester(),
                     normalizeBlank(cmd.classSection()),
                     cmd.professorId(),
-                    normalizeBlank(cmd.facultyDivisionName()),
+                    facultyDivision.value() != null ? facultyDivision.value().name() : null,
+                    facultyDivision.rawValue(),
                     normalizeBlank(cmd.hostDepartment())
             );
         }
@@ -159,6 +156,7 @@ public class CourseOfferingService {
                     normalizeBlank(offering.getClassSection()),
                     offering.getProfessor().getId(),
                     offering.getFacultyDivisionName() != null ? normalizeBlank(offering.getFacultyDivisionName().name()) : null,
+                    normalizeBlank(offering.getRawFacultyDivisionName()),
                     normalizeBlank(offering.getHostDepartment())
             );
         }
@@ -168,6 +166,21 @@ public class CourseOfferingService {
                 return null;
             }
             return value.trim();
+        }
+    }
+
+    private record FacultyDivisionResolution(FacultyDivision value, String rawValue) {
+        private static FacultyDivisionResolution from(String rawValue) {
+            String normalized = CourseOfferingKey.normalizeBlank(rawValue);
+            if (normalized == null) {
+                return new FacultyDivisionResolution(null, null);
+            }
+
+            try {
+                return new FacultyDivisionResolution(FacultyDivision.valueOf(normalized), null);
+            } catch (IllegalArgumentException ignored) {
+                return new FacultyDivisionResolution(FacultyDivision.기타, normalized);
+            }
         }
     }
 }

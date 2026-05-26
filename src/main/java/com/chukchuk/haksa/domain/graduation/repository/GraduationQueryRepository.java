@@ -29,6 +29,8 @@ public class GraduationQueryRepository {
 
     private static final String AREA_MAJOR_ELECTIVE = "전선";  // 전공선택
     private static final String AREA_GENERAL_ELECTIVE = "일선"; // 일반선택
+    private static final String AREA_ETC = FacultyDivision.기타.name();
+    private static final int ETC_REQUIRED_CREDITS = 0;
 
     /* 졸업 요건 조회 (학과 코드, 입학년도) */
     public List<AreaRequirementDto> getAreaRequirements(Long departmentId, Integer admissionYear) {
@@ -96,8 +98,7 @@ public class GraduationQueryRepository {
         List<AreaRequirementDto> areaRequirements = getAreaRequirementsWithCache(departmentId, admissionYear);
         List<CourseInternalDto> completedCourses = getLatestValidCourses(studentId);
 
-        Map<String, List<CourseInternalDto>> coursesByArea = completedCourses.stream()
-                .collect(Collectors.groupingBy(CourseInternalDto::getAreaType));
+        Map<String, List<CourseInternalDto>> coursesByArea = groupCoursesByArea(completedCourses);
 
         List<AreaProgressDto> result = new ArrayList<>();
 
@@ -125,6 +126,8 @@ public class GraduationQueryRepository {
             );
             result.add(dto);
         }
+
+        appendEtcAreaIfPresent(result, coursesByArea);
 
         long tookMS = LogTime.elapsedMs(t0);
         if (tookMS >= SLOW_MS) {
@@ -187,8 +190,7 @@ public class GraduationQueryRepository {
 
         // 수강 이력 조회
         List<CourseInternalDto> completedCourses = getLatestValidCourses(studentId);
-        Map<String, List<CourseInternalDto>> coursesByArea = completedCourses.stream()
-                .collect(Collectors.groupingBy(CourseInternalDto::getAreaType));
+        Map<String, List<CourseInternalDto>> coursesByArea = groupCoursesByArea(completedCourses);
 
         // 이수 현황 계산
         List<AreaProgressDto> result = new ArrayList<>();
@@ -217,6 +219,8 @@ public class GraduationQueryRepository {
 
             result.add(dto);
         }
+
+        appendEtcAreaIfPresent(result, coursesByArea);
 
         long tookMS = LogTime.elapsedMs(t0);
         if (tookMS >= SLOW_MS) {
@@ -322,6 +326,55 @@ public class GraduationQueryRepository {
     private FacultyDivision parseDivision(String raw) {
         if (raw == null) return null;
         return FacultyDivision.valueOf(raw.trim());
+    }
+
+    private void appendEtcAreaIfPresent(List<AreaProgressDto> target, Map<String, List<CourseInternalDto>> coursesByArea) {
+        if (target.stream().anyMatch(dto -> dto.getAreaType() == FacultyDivision.기타)) {
+            return;
+        }
+
+        List<CourseInternalDto> etcCourses = coursesByArea.getOrDefault(AREA_ETC, Collections.emptyList());
+        if (etcCourses.isEmpty()) {
+            return;
+        }
+
+        target.add(buildEtcAreaProgress(etcCourses));
+    }
+
+    private AreaProgressDto buildEtcAreaProgress(List<CourseInternalDto> etcCourses) {
+        int completedElectiveCourses = (int) etcCourses.stream()
+                .map(CourseInternalDto::getOfferingId)
+                .distinct()
+                .count();
+
+        int earnedCredits = etcCourses.stream()
+                .mapToInt(course -> course.getCredits() != null ? course.getCredits() : 0)
+                .sum();
+
+        List<CourseDto> courseDtos = etcCourses.stream()
+                .map(this::toCourseResponseDto)
+                .toList();
+
+        return new AreaProgressDto(
+                FacultyDivision.기타,
+                ETC_REQUIRED_CREDITS,
+                earnedCredits,
+                null,
+                completedElectiveCourses,
+                null,
+                courseDtos
+        );
+    }
+
+    private Map<String, List<CourseInternalDto>> groupCoursesByArea(List<CourseInternalDto> courses) {
+        return courses.stream()
+                .collect(Collectors.groupingBy(dto -> {
+                    String area = dto.getAreaType();
+                    if (area == null || area.isBlank()) {
+                        return AREA_ETC;
+                    }
+                    return area.trim();
+                }));
     }
 
     public CourseDto toCourseResponseDto(CourseInternalDto dto) {
