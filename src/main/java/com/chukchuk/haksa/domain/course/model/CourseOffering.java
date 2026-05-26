@@ -56,7 +56,10 @@ public class CourseOffering extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "faculty_division_name")
-    private  FacultyDivision facultyDivisionName;
+    private FacultyDivision facultyDivisionName;
+
+    @Column(name = "raw_faculty_division_name", length = 64)
+    private String rawFacultyDivisionName;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
@@ -91,6 +94,44 @@ public class CourseOffering extends BaseEntity {
             Department department,
             LiberalArtsAreaCode liberalArtsAreaCode
     ) {
+        this(
+                subjectEstablishmentSemester,
+                isVideoLecture,
+                year,
+                semester,
+                hostDepartment,
+                classSection,
+                scheduleSummary,
+                originalAreaCode,
+                points,
+                evaluationTypeCode,
+                facultyDivisionName,
+                null,
+                course,
+                professor,
+                department,
+                liberalArtsAreaCode
+        );
+    }
+
+    public CourseOffering(
+            Integer subjectEstablishmentSemester,
+            Boolean isVideoLecture,
+            Integer year,
+            Integer semester,
+            String hostDepartment,
+            String classSection,
+            String scheduleSummary,
+            Integer originalAreaCode,
+            Integer points,
+            EvaluationType evaluationTypeCode,
+            FacultyDivision facultyDivisionName,
+            String rawFacultyDivisionName,
+            Course course,
+            Professor professor,
+            Department department,
+            LiberalArtsAreaCode liberalArtsAreaCode
+    ) {
         this.subjectEstablishmentSemester = subjectEstablishmentSemester;
         this.isVideoLecture = isVideoLecture;
         this.year = year;
@@ -102,6 +143,7 @@ public class CourseOffering extends BaseEntity {
         this.points = points;
         this.evaluationTypeCode = evaluationTypeCode;
         this.facultyDivisionName = facultyDivisionName;
+        this.rawFacultyDivisionName = rawFacultyDivisionName;
         this.course = course;
         this.professor = professor;
         this.department = department;
