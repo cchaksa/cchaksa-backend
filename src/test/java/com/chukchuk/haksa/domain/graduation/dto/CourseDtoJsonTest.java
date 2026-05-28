@@ -32,16 +32,17 @@ class CourseDtoJsonTest {
     }
 
     @Test
-    @DisplayName("기존 필드들은 NON_NULL 정책에 영향받지 않고 정상 직렬화된다")
+    @DisplayName("기존 필드들은 null이어도 JSON 응답에서 유지된다")
     void preservesExistingFieldsAlongsideNullLiberalAreaCode() throws JsonProcessingException {
-        CourseDto dto = new CourseDto(2023, "자료구조", 3, "A+", 20, null);
+        CourseDto dto = new CourseDto(2023, "자료구조", null, "A+", 20, null);
 
         String json = objectMapper.writeValueAsString(dto);
 
         assertThat(json).contains("\"year\":2023");
         assertThat(json).contains("\"courseName\":\"자료구조\"");
-        assertThat(json).contains("\"credits\":3");
+        assertThat(json).contains("\"credits\":null");
         assertThat(json).contains("\"grade\":\"A+\"");
         assertThat(json).contains("\"semester\":20");
+        assertThat(json).doesNotContain("liberalAreaCode");
     }
 }

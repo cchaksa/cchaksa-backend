@@ -7,7 +7,6 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "이수 과목 정보")
 public class CourseDto {
     @Schema(description = "이수 연도", example = "2023", required = true)
@@ -25,5 +24,6 @@ public class CourseDto {
             example = "7",
             nullable = true
     )
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     private Integer liberalAreaCode;
 }
