@@ -22,7 +22,7 @@
 - 스크립트: `./scripts/new-spec.sh <YYYYMMDD-slug> [--lite]`
   - Standard: 디렉터리와 4개 파일을 생성.
   - Lite: `spec-lite.md`만 생성.
-- 수동 생성 시에도 동일한 구조를 따라야 하며, 템플릿은 `codex/skills/templates/*.md`에 있다.
+- 수동 생성 시에도 동일한 구조를 따른다.
 
 ## 5. 기존 Context 마이그레이션
 1. 기존 `docs/context/<file>.md`를 복사해 새 폴더 `docs/specs/<YYYYMMDD-slug>`를 만든다.
