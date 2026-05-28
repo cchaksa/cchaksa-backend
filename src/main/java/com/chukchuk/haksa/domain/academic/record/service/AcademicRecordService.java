@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.academic.record.service;
 import com.chukchuk.haksa.domain.academic.record.dto.AcademicRecordResponse;
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterAcademicRecordDto;
 import com.chukchuk.haksa.domain.academic.record.dto.StudentCourseDto;
+import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,26 +29,42 @@ public class AcademicRecordService {
                 semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, year, semester);
 
         // 수강 과목 조회 및 카테고리 분류
-        Map<String, List<StudentCourseDto.CourseDetailDto>> categorizedCourses = categorizeCourses(
+        Map<CourseCategory, List<StudentCourseDto.CourseDetailDto>> categorizedCourses = categorizeCourses(
                 studentCourseService.getStudentCourses(studentId, year, semester));
 
-        List<StudentCourseDto.CourseDetailDto> majorCourses = categorizedCourses.getOrDefault("major", List.of());
-        List<StudentCourseDto.CourseDetailDto> liberalCourses = categorizedCourses.getOrDefault("liberal", List.of());
+        List<StudentCourseDto.CourseDetailDto> majorCourses = categorizedCourses.getOrDefault(CourseCategory.MAJOR, List.of());
+        List<StudentCourseDto.CourseDetailDto> liberalCourses = categorizedCourses.getOrDefault(CourseCategory.LIBERAL, List.of());
+        List<StudentCourseDto.CourseDetailDto> etcCourses = categorizedCourses.getOrDefault(CourseCategory.ETC, List.of());
 
         return new AcademicRecordResponse(
                 semesterGrade,
-                new AcademicRecordResponse.Courses(majorCourses, liberalCourses)
+                new AcademicRecordResponse.Courses(majorCourses, liberalCourses, etcCourses)
         );
     }
 
     /* Using Method */
 
     /*과목을 전공/교양으로 분류*/
-    private Map<String, List<StudentCourseDto.CourseDetailDto>> categorizeCourses(List<StudentCourseDto.CourseDetailDto> courses) {
+    private Map<CourseCategory, List<StudentCourseDto.CourseDetailDto>> categorizeCourses(List<StudentCourseDto.CourseDetailDto> courses) {
         return courses.stream()
-                .collect(Collectors.groupingBy(course -> switch (course.areaType()) {
-                    case 전핵, 전선, 복선 -> "major";
-                    default -> "liberal";
-                }));
+                .collect(Collectors.groupingBy(this::determineCategory));
+    }
+
+    private CourseCategory determineCategory(StudentCourseDto.CourseDetailDto course) {
+        FacultyDivision division = course.areaType();
+        if (division == null || division == FacultyDivision.기타) {
+            return CourseCategory.ETC;
+        }
+
+        return switch (division) {
+            case 전핵, 전선, 복선 -> CourseCategory.MAJOR;
+            default -> CourseCategory.LIBERAL;
+        };
+    }
+
+    private enum CourseCategory {
+        MAJOR,
+        LIBERAL,
+        ETC
     }
 }
