@@ -23,5 +23,5 @@
 - [x] 충돌 파일의 base/head 변경 의도 확인.
 - [x] 병합 결과를 최소 변경으로 정리.
 - [x] 관련 테스트와 `git diff --check` 실행.
-- [ ] `feat/230` 원격 브랜치 push.
-- [ ] GitHub PR merge 상태 재확인.
+- [x] `feat/230` 원격 브랜치 push.
+- [x] GitHub PR merge 상태 재확인.

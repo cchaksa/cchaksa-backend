@@ -22,3 +22,4 @@
 - 2026-05-29: 외국어 인증 기능의 새 동작 변경은 범위에서 제외하고, 충돌 파일은 양쪽 변경 의도를 보존하는 방식으로 처리한다.
 - 2026-05-29: `PortalSyncService` 충돌은 `dev`의 기존 연동 사용자 refresh 전환을 유지하고, 초기 연동과 refresh 경로 모두에서 외국어 인증 상태를 동기화하도록 정리했다.
 - 2026-05-29: 정적 OpenAPI 충돌은 졸업 요건/외국어 인증 기준 path와 사용자 analytics-id path를 모두 보존하고, `AreaProgress.areaType` enum에 `기타`를 포함했다.
+- 2026-05-29: `git push origin feat/230` 후 PR #232는 `mergeable=MERGEABLE`로 확인됐다. `mergeStateStatus=BLOCKED`는 충돌이 아니라 GitHub 병합 조건 상태로 남았다.

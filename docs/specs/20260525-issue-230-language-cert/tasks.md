@@ -42,6 +42,8 @@
 | 21 | `JAVA_HOME=/Users/sangmin8817/Library/Java/JavaVirtualMachines/corretto-17.0.6/Contents/Home ./gradlew test` | passed after `origin/dev` merge | 2026-05-29 |
 | 22 | `git diff --check` | passed | 2026-05-29 |
 | 23 | `ruby -e 'require "yaml"; YAML.load_file("src/main/resources/public/openapi.yaml")'` | passed | 2026-05-29 |
+| 24 | `git push origin feat/230` | passed, `e1c8718..9b2ec4e` pushed | 2026-05-29 |
+| 25 | `gh pr view --repo cchaksa/cchaksa-backend --json number,headRefName,baseRefName,mergeable,mergeStateStatus,title,url feat/230` | `mergeable=MERGEABLE`, `mergeStateStatus=BLOCKED` | 2026-05-29 |
 
 ## Notes
 - Observation: 커밋은 사용자가 직접 수행한다.
@@ -60,4 +62,4 @@
 - [x] 충돌을 해결하고 병합 상태를 정리한다.
 - [x] 관련 Gradle 테스트와 `git diff --check`를 실행한다.
 - [x] 검증 결과를 이 문서에 기록한다.
-- [ ] commit과 push 후 PR merge 상태를 확인한다.
+- [x] commit과 push 후 PR merge 상태를 확인한다.
