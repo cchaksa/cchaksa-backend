@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +38,18 @@ class UserControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport {
 
     @MockBean
     private UserService userService;
+
+    @Test
+    @DisplayName("analyticsId 조회 성공 시 인증 사용자 ID를 반환한다")
+    void getAnalyticsId_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+
+        mockMvc.perform(get("/api/users/analytics-id"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.analyticsId").value(userId.toString()));
+    }
 
     @Test
     @DisplayName("signin 성공 시 성공 응답을 반환한다")

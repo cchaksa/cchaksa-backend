@@ -27,3 +27,9 @@
 - Backward compatibility: 기존 사용자 null 상태를 새로고침 필요로 노출한다.
 - Observability / metrics: 기존 포털 후처리 로그를 사용한다.
 - Feature flags / toggles: 없음.
+
+## PR Conflict Resolution Plan
+- Scope: PR #232 `feat/230`이 최신 `origin/dev`와 충돌 없이 병합되도록 `origin/dev` 변경을 브랜치에 반영한다.
+- Non-goal: 외국어 인증 기능 동작, API 계약, seed SQL 전달 정책을 새로 바꾸지 않는다.
+- Steps: 충돌 재현, 충돌 파일별 양쪽 변경 의도 확인, 최소 병합 결과 작성, 관련 테스트와 diff 검사를 실행한다.
+- Verification: `git status`, `git diff --check`, Java 17 기반 Gradle 테스트, GitHub PR merge 상태 확인으로 판단한다.

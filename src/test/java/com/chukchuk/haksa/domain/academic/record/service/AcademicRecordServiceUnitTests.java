@@ -40,22 +40,34 @@ class AcademicRecordServiceUnitTests {
                 );
 
         StudentCourseDto.CourseDetailDto major = new StudentCourseDto.CourseDetailDto(
-                "1", "자료구조", "CSE101", FacultyDivision.전핵, 3, "홍길동", "A+", 3,
+                "1", "자료구조", "CSE101", FacultyDivision.전핵, null, 3, "홍길동", "A+", 3,
                 false, false, 2024, 1, 95, false
         );
         StudentCourseDto.CourseDetailDto liberal = new StudentCourseDto.CourseDetailDto(
-                "2", "글쓰기", "LBA101", FacultyDivision.중핵, 2, "김교수", "B+", 2,
+                "2", "글쓰기", "LBA101", FacultyDivision.중핵, null, 2, "김교수", "B+", 2,
                 false, false, 2024, 1, 88, false
+        );
+        StudentCourseDto.CourseDetailDto etc = new StudentCourseDto.CourseDetailDto(
+                "3", "특별과정", "ETC101", FacultyDivision.기타, "교직", 1, "최교수", "P", 1,
+                false, false, 2024, 1, 80, false
+        );
+        StudentCourseDto.CourseDetailDto etcUnknown = new StudentCourseDto.CourseDetailDto(
+                "4", "미지정과정", "UNK001", null, null, 1, "미지정", "P", 1,
+                false, false, 2024, 1, 70, false
         );
 
         when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
-        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(major, liberal));
+        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(major, liberal, etc, etcUnknown));
 
         AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
 
         assertThat(result.semesterGrade()).isEqualTo(grade);
         assertThat(result.courses().major()).containsExactly(major);
         assertThat(result.courses().liberal()).containsExactly(liberal);
+        assertThat(result.courses().etc()).containsExactly(etc, etcUnknown);
+        assertThat(result.courses().etc())
+                .extracting(StudentCourseDto.CourseDetailDto::rawAreaType)
+                .containsExactly("교직", null);
     }
 
     @Test
@@ -68,7 +80,7 @@ class AcademicRecordServiceUnitTests {
                 );
 
         StudentCourseDto.CourseDetailDto liberal = new StudentCourseDto.CourseDetailDto(
-                "10", "영어회화", "ENG201", FacultyDivision.중핵, 2, "박교수", "A0", 2,
+                "10", "영어회화", "ENG201", FacultyDivision.중핵, null, 2, "박교수", "A0", 2,
                 false, false, 2023, 2, 90, false
         );
 
@@ -79,5 +91,34 @@ class AcademicRecordServiceUnitTests {
 
         assertThat(result.courses().major()).isEmpty();
         assertThat(result.courses().liberal()).containsExactly(liberal);
+        assertThat(result.courses().etc()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("복핵은 전공으로, 복교는 교양으로 분류한다")
+    void getAcademicRecord_categorizesDualCoreAsMajorAndDualLiberalAsLiberal() {
+        UUID studentId = UUID.randomUUID();
+        SemesterAcademicRecordDto.SemesterGradeResponse grade =
+                new SemesterAcademicRecordDto.SemesterGradeResponse(
+                        2024, 1, 6, 6, new BigDecimal("4.00"), 1, 100, new BigDecimal("95.0")
+                );
+
+        StudentCourseDto.CourseDetailDto dualCore = new StudentCourseDto.CourseDetailDto(
+                "20", "복수전공핵심", "DMJ101", FacultyDivision.복핵, null, 3, "이교수", "A+", 3,
+                false, false, 2024, 1, 96, false
+        );
+        StudentCourseDto.CourseDetailDto dualLiberal = new StudentCourseDto.CourseDetailDto(
+                "21", "복수전공교양", "DMJ102", FacultyDivision.복교, null, 3, "김교수", "A0", 3,
+                false, false, 2024, 1, 92, false
+        );
+
+        when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
+        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(dualCore, dualLiberal));
+
+        AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
+
+        assertThat(result.courses().major()).containsExactly(dualCore);
+        assertThat(result.courses().liberal()).containsExactly(dualLiberal);
+        assertThat(result.courses().etc()).isEmpty();
     }
 }

@@ -1,4 +1,4 @@
-// 포털 동기화가 외국어 졸업 인증 상태를 함께 저장하는지 검증하는 테스트
+// 포털 동기화 분기와 외국어 졸업 인증 저장을 함께 검증하는 테스트
 package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
@@ -13,15 +13,20 @@ import com.chukchuk.haksa.infrastructure.portal.model.PortalAcademicInfo;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalStudentInfo;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +54,69 @@ class PortalSyncServiceTests {
     @Mock
     private Student student;
 
+    private PortalSyncService portalSyncService;
+
+    @BeforeEach
+    void setUp() {
+        portalSyncService = new PortalSyncService(
+                initializePortalConnectionService,
+                refreshPortalConnectionService,
+                syncAcademicRecordService,
+                userService,
+                studentService,
+                studentGraduationProgressService
+        );
+    }
+
+    @Test
+    @DisplayName("LINK 중 기존 연동 사용자가 병합되면 REFRESH처럼 재동기화한다")
+    void syncWithPortal_usesRefreshFlowWhenMergeMakesUserConnected() {
+        UUID userId = UUID.randomUUID();
+        User mergedUser = connectedUser(userId);
+        PortalData portalData = portalData("19018036", true);
+        PortalConnectionResult refreshResult = successConnection("19018036");
+
+        when(userService.tryMergeWithExistingUser(userId, "19018036")).thenReturn(mergedUser);
+        when(refreshPortalConnectionService.executeWithPortalData(userId, portalData)).thenReturn(refreshResult);
+        when(syncAcademicRecordService.executeForRefreshPortalData(userId, portalData))
+                .thenReturn(SyncAcademicRecordResult.success());
+
+        var response = portalSyncService.syncWithPortal(userId, portalData);
+
+        assertThat(response.status()).isEqualTo("SUCCESS");
+        verify(initializePortalConnectionService, never()).executeWithPortalData(eq(userId), any());
+        verify(refreshPortalConnectionService).executeWithPortalData(userId, portalData);
+        verify(syncAcademicRecordService).executeForRefreshPortalData(userId, portalData);
+        verify(syncAcademicRecordService, never()).executeWithPortalData(eq(userId), any());
+        verify(userService).save(mergedUser);
+        verify(studentService).markReconnectedByUser(mergedUser);
+    }
+
+    @Test
+    @DisplayName("처음 LINK하는 사용자는 기존 신규 초기화 흐름을 유지한다")
+    void syncWithPortal_keepsInitialFlowForUnconnectedUser() {
+        UUID userId = UUID.randomUUID();
+        User user = unconnectedUser(userId);
+        PortalData portalData = portalData("19018036", true);
+        PortalConnectionResult initialResult = successConnection("19018036");
+
+        when(userService.tryMergeWithExistingUser(userId, "19018036")).thenReturn(user);
+        when(initializePortalConnectionService.executeWithPortalData(userId, portalData)).thenReturn(initialResult);
+        when(syncAcademicRecordService.executeWithPortalData(userId, portalData))
+                .thenReturn(SyncAcademicRecordResult.success());
+        when(userService.getUserById(userId)).thenReturn(user);
+
+        var response = portalSyncService.syncWithPortal(userId, portalData);
+
+        assertThat(response.status()).isEqualTo("SUCCESS");
+        verify(initializePortalConnectionService).executeWithPortalData(userId, portalData);
+        verify(syncAcademicRecordService).executeWithPortalData(userId, portalData);
+        verify(refreshPortalConnectionService, never()).executeWithPortalData(eq(userId), any());
+        verify(syncAcademicRecordService, never()).executeForRefreshPortalData(eq(userId), any());
+        verify(userService).save(user);
+        verify(studentService).markReconnectedByUser(user);
+    }
+
     @Test
     @DisplayName("초기 포털 연동 성공 시 외국어 인증 상태를 저장한다")
     void syncWithPortalStoresLanguageCertFulfilled() {
@@ -59,18 +127,17 @@ class PortalSyncServiceTests {
                 .email("active@example.com")
                 .profileNickname("active")
                 .build();
-        PortalData portalData = portalData(true);
-        PortalSyncService service = newService();
+        PortalData portalData = portalData("17019013", true);
 
         when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(activeUser);
         when(initializePortalConnectionService.executeWithPortalData(activeUserId, portalData))
-                .thenReturn(successConnection());
+                .thenReturn(successConnection("17019013"));
         when(syncAcademicRecordService.executeWithPortalData(activeUserId, portalData))
                 .thenReturn(SyncAcademicRecordResult.success());
         when(studentService.getStudentByUserId(activeUserId)).thenReturn(student);
         when(userService.getUserById(activeUserId)).thenReturn(activeUser);
 
-        service.syncWithPortal(userId, portalData);
+        portalSyncService.syncWithPortal(userId, portalData);
 
         verify(studentGraduationProgressService)
                 .syncLanguageCert(eq(student), eq(true));
@@ -85,53 +152,39 @@ class PortalSyncServiceTests {
                 .email("active@example.com")
                 .profileNickname("active")
                 .build();
-        PortalData portalData = portalData(false);
-        PortalSyncService service = newService();
+        PortalData portalData = portalData("17019013", false);
 
         when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(activeUser);
         when(refreshPortalConnectionService.executeWithPortalData(userId, portalData))
-                .thenReturn(successConnection());
+                .thenReturn(successConnection("17019013"));
         when(syncAcademicRecordService.executeForRefreshPortalData(userId, portalData))
                 .thenReturn(SyncAcademicRecordResult.success());
         when(studentService.getStudentByUserId(userId)).thenReturn(student);
-        when(userService.getUserById(userId)).thenReturn(activeUser);
 
-        service.refreshFromPortal(userId, portalData);
+        portalSyncService.refreshFromPortal(userId, portalData);
 
         verify(studentGraduationProgressService)
                 .syncLanguageCert(eq(student), eq(false));
     }
 
-    private PortalSyncService newService() {
-        return new PortalSyncService(
-                initializePortalConnectionService,
-                refreshPortalConnectionService,
-                syncAcademicRecordService,
-                userService,
-                studentService,
-                studentGraduationProgressService
-        );
+    private static User connectedUser(UUID userId) {
+        User user = unconnectedUser(userId);
+        user.markPortalConnected(Instant.parse("2026-05-25T00:00:00Z"));
+        return user;
     }
 
-    private static PortalConnectionResult successConnection() {
-        return PortalConnectionResult.success(
-                "17019013",
-                new PortalConnectionResult.StudentInfo(
-                        "홍길동",
-                        "수원대학교",
-                        "컴퓨터학과",
-                        "17019013",
-                        4,
-                        "재학",
-                        1
-                )
-        );
+    private static User unconnectedUser(UUID userId) {
+        return User.builder()
+                .id(userId)
+                .email("user@example.com")
+                .profileNickname("user")
+                .build();
     }
 
-    private static PortalData portalData(Boolean languageCertFulfilled) {
+    private static PortalData portalData(String studentCode, Boolean languageCertFulfilled) {
         return new PortalData(
                 new PortalStudentInfo(
-                        "17019013",
+                        studentCode,
                         "홍길동",
                         new CodeName("01", "수원대학교"),
                         new CodeName("D1", "컴퓨터학부"),
@@ -139,11 +192,26 @@ class PortalSyncServiceTests {
                         null,
                         "재학",
                         new AdmissionInfo(2021, 10, "신입"),
-                        new PortalAcademicInfo(4, 8, 120, 3.8),
+                        new PortalAcademicInfo(4, 8, 120, 4.0),
                         languageCertFulfilled
                 ),
                 null,
                 null
+        );
+    }
+
+    private static PortalConnectionResult successConnection(String studentCode) {
+        return PortalConnectionResult.success(
+                studentCode,
+                new PortalConnectionResult.StudentInfo(
+                        "홍길동",
+                        "수원대학교",
+                        "컴퓨터학과",
+                        studentCode,
+                        4,
+                        "재학",
+                        1
+                )
         );
     }
 }

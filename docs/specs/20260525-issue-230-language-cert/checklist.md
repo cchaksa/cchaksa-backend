@@ -16,3 +16,12 @@
 - [x] 외국어 인증 기준 조회 API 추가.
 - [x] 외국어 인증 기준 정적 OpenAPI 문서 업데이트.
 - [x] 사용자 요청에 따라 DDL/seed SQL 저장소 파일 제거.
+
+## PR #232 Conflict Resolution
+
+- [x] `origin/dev` 기준 충돌 재현.
+- [x] 충돌 파일의 base/head 변경 의도 확인.
+- [x] 병합 결과를 최소 변경으로 정리.
+- [x] 관련 테스트와 `git diff --check` 실행.
+- [ ] `feat/230` 원격 브랜치 push.
+- [ ] GitHub PR merge 상태 재확인.

@@ -26,6 +26,14 @@ public class UserController implements UserControllerDocs {
 
     private final UserService userService;
 
+    @GetMapping("/analytics-id")
+    public ResponseEntity<SuccessResponse<UserDto.AnalyticsIdResponse>> getAnalyticsId(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UserDto.AnalyticsIdResponse response = new UserDto.AnalyticsIdResponse(userDetails.getId().toString());
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
+
     @DeleteMapping("/delete")
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
             @AuthenticationPrincipal CustomUserDetails userDetails
