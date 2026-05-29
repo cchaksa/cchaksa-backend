@@ -1,6 +1,8 @@
 package com.chukchuk.haksa.domain.portal.controller.docs;
 
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
+import com.chukchuk.haksa.domain.portal.wrapper.PortalLinkJobStatusApiResponse;
+import com.chukchuk.haksa.domain.portal.wrapper.PortalLinkJobSummaryApiResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.common.response.wrapper.ErrorResponseWrapper;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,9 +25,11 @@ public interface PortalLinkQueryControllerDocs {
             description = "요청된 job_id의 진행 상태, 오류 코드, 완료 시점 등을 제공합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "상태 조회 성공",
-                            content = @Content(schema = @Schema(implementation = PortalLinkDto.JobStatusResponse.class))),
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = PortalLinkJobStatusApiResponse.class))),
                     @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
     )
     @SecurityRequirement(name = "bearerAuth")
@@ -38,9 +43,11 @@ public interface PortalLinkQueryControllerDocs {
             description = "job이 성공적으로 완료된 경우 최신 학생 요약 데이터를 반환합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "요약 조회 성공",
-                            content = @Content(schema = @Schema(implementation = PortalLinkDto.JobSummaryResponse.class))),
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = PortalLinkJobSummaryApiResponse.class))),
                     @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
             }
     )
     @SecurityRequirement(name = "bearerAuth")
