@@ -242,7 +242,8 @@ public class GraduationQueryRepository {
                 co.semester,
                 co.year,
                 c.course_code,
-                sc.original_score
+                sc.original_score,
+                co.area_code
             FROM student_courses sc
             JOIN course_offerings co ON sc.offering_id = co.id
             JOIN courses c ON co.course_id = c.id
@@ -267,7 +268,8 @@ public class GraduationQueryRepository {
                         (Integer) r[5],            // semester
                         (Integer) r[6],            // year
                         (String) r[7],             // course_code
-                        toInteger(r[8])            // original_score
+                        toInteger(r[8]),           // original_score
+                        toInteger(r[9])            // liberalAreaCode (course_offerings.area_code)
                 ))
                 .toList();
     }
@@ -383,7 +385,8 @@ public class GraduationQueryRepository {
                 dto.getCourseName(),
                 dto.getCredits(),
                 dto.getGrade(),
-                dto.getSemester()
+                dto.getSemester(),
+                dto.getLiberalAreaCode()
         );
     }
 }

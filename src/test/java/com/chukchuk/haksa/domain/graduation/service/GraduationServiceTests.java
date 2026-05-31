@@ -236,7 +236,7 @@ class GraduationServiceTests {
     }
 
     private List<AreaProgressDto> sampleProgress() {
-        CourseDto course = new CourseDto(2022, "Data Structures", 3, "A+", 1);
+        CourseDto course = new CourseDto(2022, "Data Structures", 3, "A+", 1, null);
         AreaProgressDto dto = new AreaProgressDto(
                 FacultyDivision.전핵,
                 12,

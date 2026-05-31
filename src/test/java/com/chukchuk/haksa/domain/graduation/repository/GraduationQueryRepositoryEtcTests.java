@@ -50,13 +50,13 @@ class GraduationQueryRepositoryEtcTests {
         @Override
         public List<CourseInternalDto> getLatestValidCourses(UUID studentId) {
             CourseInternalDto major = new CourseInternalDto(
-                    1L, "전핵", 3, "A+", "자료구조", 1, 2024, "CSE101", 95
+                    1L, "전핵", 3, "A+", "자료구조", 1, 2024, "CSE101", 95, null
             );
             CourseInternalDto etc = new CourseInternalDto(
-                    2L, FacultyDivision.기타.name(), 1, "P", "특별활동", 1, 2024, "ETC001", 0
+                    2L, FacultyDivision.기타.name(), 1, "P", "특별활동", 1, 2024, "ETC001", 0, null
             );
             CourseInternalDto undefined = new CourseInternalDto(
-                    3L, null, 2, "P", "미지정활동", 1, 2024, "UNK001", 0
+                    3L, null, 2, "P", "미지정활동", 1, 2024, "UNK001", 0, null
             );
             return List.of(major, etc, undefined);
         }
