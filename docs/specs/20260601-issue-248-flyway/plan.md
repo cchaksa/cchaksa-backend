@@ -2,7 +2,7 @@
 
 **Goal:** Add Flyway schema history where `V1` represents the prod/main baseline and `V2` records the raw faculty division column.
 
-**Architecture:** Spring Boot runs Flyway migrations from `classpath:db/migration` before JPA initialization. Existing non-empty DBs require manual `baselineVersion=1`; fresh DBs run `V1` then `V2`.
+**Architecture:** Migration SQL lives in `classpath:db/migration`, but AWS Lambda runtime profiles do not execute Flyway on application startup. Existing non-empty DBs require manual `baselineVersion=1`; explicit pre-deploy migration jobs run `V1` then `V2` for fresh DBs.
 
 **Tech Stack:** Spring Boot 3.2.5, Flyway, PostgreSQL, H2 PostgreSQL mode for focused migration verification.
 
@@ -12,7 +12,8 @@
 
 - Modify `build.gradle` to add Flyway.
 - Modify `src/main/resources/application.yml` to keep Flyway enabled and manual-baseline-only.
-- Modify `src/main/resources/application-dev.yml` to stop Hibernate schema mutation.
+- Modify `src/main/resources/application-dev.yml` to stop Hibernate schema mutation and disable runtime Flyway auto-run.
+- Modify `src/main/resources/application-prod.yml` to stop Hibernate schema mutation and disable runtime Flyway auto-run.
 - Modify `src/test/resources/application.yml` to prevent Flyway from affecting unrelated tests.
 - Create `src/main/resources/db/migration/V1__baseline_schema.sql`.
 - Create `src/main/resources/db/migration/V2__add_raw_faculty_division_name_to_course_offerings.sql`.
@@ -21,6 +22,7 @@
 ## Tasks
 
 - [ ] Add Flyway dependency and baseline-safe Spring settings.
+- [ ] Disable Flyway auto-run in `dev` and `prod` Lambda runtime profiles.
 - [ ] Add `V1` baseline DDL without data rows and without `raw_faculty_division_name`.
 - [ ] Add idempotent `V2` column migration and column comment.
 - [ ] Add a focused fresh-DB migration test asserting `V1`, `V2`, and the final column.

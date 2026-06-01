@@ -24,6 +24,8 @@ spring:
         jdbc:
           use_get_generated_keys: true
           statement_cache_size: 0
+  flyway:
+    enabled: false
 
 sentry:
   dsn: ${PROD_SENTRY_DSN}

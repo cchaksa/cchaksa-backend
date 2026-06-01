@@ -1,6 +1,7 @@
 # Tasks
 
 - [x] Add Flyway dependency/configuration
+- [x] Disable Flyway auto-run in dev/prod Lambda runtime profiles
 - [x] Add `V1__baseline_schema.sql`
 - [x] Add `V2__add_raw_faculty_division_name_to_course_offerings.sql`
 - [x] Add focused Flyway migration test
