@@ -2,7 +2,9 @@ package com.chukchuk.haksa.domain.graduation.controller;
 
 import com.chukchuk.haksa.domain.graduation.controller.docs.GraduationControllerDocs;
 import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
+import com.chukchuk.haksa.domain.graduation.dto.LanguageCertRequirementResponse;
 import com.chukchuk.haksa.domain.graduation.service.GraduationService;
+import com.chukchuk.haksa.domain.graduation.service.LanguageCertRequirementService;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
@@ -26,6 +28,7 @@ import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS
 public class GraduationController implements GraduationControllerDocs {
 
     private final GraduationService graduationService;
+    private final LanguageCertRequirementService languageCertRequirementService;
     private final StudentService studentService;
 
     @GetMapping("/progress")
@@ -39,6 +42,15 @@ public class GraduationController implements GraduationControllerDocs {
         if (tookMS >= SLOW_MS) {
             log.info("[BIZ] graduation.progress.done took_ms={}", tookMS);
         }
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
+
+    @GetMapping("/language-cert/requirement")
+    public ResponseEntity<SuccessResponse<LanguageCertRequirementResponse>> getLanguageCertRequirement(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
+        LanguageCertRequirementResponse response = languageCertRequirementService.getRequirement(studentId);
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 }
