@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -13,7 +14,8 @@ class FlywayMigrationTest {
 
     @Test
     void freshDatabaseMigratesFromV1ToV2() throws Exception {
-        String url = "jdbc:h2:mem:flyway-migration;MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+        String dbName = "flyway-migration-" + UUID.randomUUID();
+        String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
                 + "INIT=CREATE SCHEMA IF NOT EXISTS public";
 
