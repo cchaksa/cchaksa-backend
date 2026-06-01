@@ -15,6 +15,8 @@ spring:
         format_sql: false
         jdbc:
           use_get_generated_keys: true
+  flyway:
+    enabled: false
   autoconfigure:
     exclude:
       - io.sentry.spring.boot.jakarta.SentryAutoConfiguration
