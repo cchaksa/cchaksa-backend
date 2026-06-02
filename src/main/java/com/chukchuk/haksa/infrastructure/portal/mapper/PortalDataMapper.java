@@ -190,6 +190,12 @@ public class PortalDataMapper {
         if ("N".equalsIgnoreCase(normalized)) {
             return false;
         }
+        if ("통과".equals(normalized)) {
+            return true;
+        }
+        if ("미통과".equals(normalized)) {
+            return false;
+        }
 
         throw new IllegalArgumentException("알 수 없는 외국어 인증 값: " + flangPassGb);
     }

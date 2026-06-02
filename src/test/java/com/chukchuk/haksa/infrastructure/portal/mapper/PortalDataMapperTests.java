@@ -33,6 +33,26 @@ class PortalDataMapperTests {
         assertThat(portalData.student().languageCertFulfilled()).isFalse();
     }
 
+    @Test
+    @DisplayName("flangPassGb가 통과이면 외국어 인증 통과로 변환한다")
+    void mapsLanguageCertFulfilledWhenFlagIsKoreanPass() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("통과"), RawPortalData.class);
+
+        PortalData portalData = PortalDataMapper.toPortalData(raw);
+
+        assertThat(portalData.student().languageCertFulfilled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("flangPassGb가 미통과이면 외국어 인증 미통과로 변환한다")
+    void mapsLanguageCertNotFulfilledWhenFlagIsKoreanFail() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("미통과"), RawPortalData.class);
+
+        PortalData portalData = PortalDataMapper.toPortalData(raw);
+
+        assertThat(portalData.student().languageCertFulfilled()).isFalse();
+    }
+
     private static String payloadWithLanguageCert(String flangPassGb) {
         return """
                 {

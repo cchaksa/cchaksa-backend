@@ -343,6 +343,43 @@ class ScrapeResultCallbackServiceUnitTests {
                 .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED.code()));
     }
 
+    @Test
+    @DisplayName("알 수 없는 flangPassGb 값은 schema invalid로 실패 확정한다")
+    void handleCallback_marksUnknownLanguageCertAsSchemaFailure() {
+        ScrapeResultCallbackService service = createServiceWithRealPostProcessor();
+        ScrapeJob job = createJob(UUID.randomUUID());
+        String timestamp = Instant.now().toString();
+        String rawBody = """
+                {
+                  "job_id":"%s",
+                  "status":"succeeded",
+                  "result_s3_key":"callbacks/%s/result.json"
+                }
+                """.formatted(job.getJobId(), job.getJobId());
+
+        when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        when(resultStoreClient.fetch("callbacks/%s/result.json".formatted(job.getJobId())))
+                .thenReturn("""
+                        {
+                          "student_info":{"sno":"17019013","stud_nm":"홍길동","univ_cd":"01","univ_nm":"수원대학교","dpmj_cd":"D1","dpmj_nm":"컴퓨터학부","mjor_cd":"M1","mjor_nm":"컴퓨터학과","scrg_stat_nm":"재학","ensc_year":"2021","ensc_smr_cd":"10","ensc_dvcd":"신입","stud_grde":4,"fac_smr_cnt":8,"flang_pass_gb":"보류"},
+                          "semesters":[],
+                          "academic_records":{
+                            "list_smr_cret_sum_tab_year_smr":[],
+                            "select_smr_cret_sum_tab_sj_total":{"gain_point":"120","appl_point":"130","gain_avmk":"3.8","gain_tavg_pont":"90"}
+                          }
+                        }
+                        """);
+
+        assertThatThrownBy(() -> service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, "req-1"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code()));
+
+        assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
+        assertThat(job.getErrorCode()).isEqualTo("FAILED_RESULT_SCHEMA");
+        assertThat(job.getRetryable()).isFalse();
+        verify(portalSyncService, never()).syncWithPortal(any(), any());
+    }
+
     private ScrapeResultCallbackService createService() {
         HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
         ScrapeResultCallbackTxService txService = new ScrapeResultCallbackTxService(
@@ -352,6 +389,28 @@ class ScrapeResultCallbackServiceUnitTests {
         );
         return new ScrapeResultCallbackService(
                 portalCallbackPostProcessor,
+                txService,
+                resultStoreClient,
+                verifier,
+                meterRegistry,
+                new ObjectMapper().findAndRegisterModules()
+        );
+    }
+
+    private ScrapeResultCallbackService createServiceWithRealPostProcessor() {
+        HmacSignatureVerifier verifier = new HmacSignatureVerifier("secret", 300);
+        ScrapeResultCallbackTxService txService = new ScrapeResultCallbackTxService(
+                scrapeJobRepository,
+                portalSyncService,
+                meterRegistry
+        );
+        PortalCallbackPostProcessor realPostProcessor = new PortalCallbackPostProcessor(
+                new ObjectMapper().findAndRegisterModules(),
+                meterRegistry,
+                txService
+        );
+        return new ScrapeResultCallbackService(
+                realPostProcessor,
                 txService,
                 resultStoreClient,
                 verifier,
