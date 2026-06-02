@@ -55,7 +55,10 @@ public class PortalCallbackPostProcessor {
         try {
             portalData = toPortalData(payloadJson);
         } catch (JsonProcessingException e) {
-            handleParsingFailure(jobId, userId, operationType, finishedAt, queuedAgeSeconds, e);
+            handleParsingFailure(jobId, userId, operationType, e.getOriginalMessage(), e);
+            return;
+        } catch (RuntimeException e) {
+            handleParsingFailure(jobId, userId, operationType, e.getMessage(), e);
             return;
         }
 
@@ -94,13 +97,12 @@ public class PortalCallbackPostProcessor {
             String jobId,
             UUID userId,
             ScrapeJobOperationType operationType,
-            Instant finishedAt,
-            Double queuedAgeSeconds,
-            JsonProcessingException exception
+            String message,
+            Exception exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
         log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
-                jobId, userId, operationType, exception.getOriginalMessage(), exception);
+                jobId, userId, operationType, message, exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
     }
 

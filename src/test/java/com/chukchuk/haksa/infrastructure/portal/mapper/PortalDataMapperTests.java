@@ -8,15 +8,36 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PortalDataMapperTests {
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    @DisplayName("flangPassGb가 Y이면 외국어 인증 통과로 변환한다")
-    void mapsLanguageCertFulfilledWhenFlagIsY() throws Exception {
+    @DisplayName("flangPassGb가 Y이면 알 수 없는 값으로 거부한다")
+    void rejectsLanguageCertWhenFlagIsY() throws Exception {
         RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("Y"), RawPortalData.class);
+
+        assertThatThrownBy(() -> PortalDataMapper.toPortalData(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("알 수 없는 외국어 인증 값: Y");
+    }
+
+    @Test
+    @DisplayName("flangPassGb가 N이면 알 수 없는 값으로 거부한다")
+    void rejectsLanguageCertWhenFlagIsN() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("N"), RawPortalData.class);
+
+        assertThatThrownBy(() -> PortalDataMapper.toPortalData(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("알 수 없는 외국어 인증 값: N");
+    }
+
+    @Test
+    @DisplayName("flangPassGb가 통과이면 외국어 인증 통과로 변환한다")
+    void mapsLanguageCertFulfilledWhenFlagIsKoreanPass() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("통과"), RawPortalData.class);
 
         PortalData portalData = PortalDataMapper.toPortalData(raw);
 
@@ -24,9 +45,9 @@ class PortalDataMapperTests {
     }
 
     @Test
-    @DisplayName("flangPassGb가 N이면 외국어 인증 미통과로 변환한다")
-    void mapsLanguageCertNotFulfilledWhenFlagIsN() throws Exception {
-        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("N"), RawPortalData.class);
+    @DisplayName("flangPassGb가 미통과이면 외국어 인증 미통과로 변환한다")
+    void mapsLanguageCertNotFulfilledWhenFlagIsKoreanFail() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("미통과"), RawPortalData.class);
 
         PortalData portalData = PortalDataMapper.toPortalData(raw);
 

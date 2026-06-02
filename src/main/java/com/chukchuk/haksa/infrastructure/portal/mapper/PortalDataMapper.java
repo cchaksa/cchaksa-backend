@@ -184,10 +184,10 @@ public class PortalDataMapper {
         }
 
         String normalized = flangPassGb.trim();
-        if ("Y".equalsIgnoreCase(normalized)) {
+        if ("통과".equals(normalized)) {
             return true;
         }
-        if ("N".equalsIgnoreCase(normalized)) {
+        if ("미통과".equals(normalized)) {
             return false;
         }
 
