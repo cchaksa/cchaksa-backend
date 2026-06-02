@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FlywayMigrationTest {
 
     @Test
-    void freshDatabaseMigratesFromV1ToV2() throws Exception {
+    void freshDatabaseMigratesFromV1ToV3() throws Exception {
         String dbName = "flyway-migration-" + UUID.randomUUID();
         String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
@@ -30,6 +30,7 @@ class FlywayMigrationTest {
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
             assertThat(hasColumn(connection, "raw_faculty_division_name")).isFalse();
+            assertThat(hasTable(connection, "language_cert_policy_groups")).isFalse();
         }
 
         Flyway flyway = Flyway.configure()
@@ -42,11 +43,18 @@ class FlywayMigrationTest {
 
         assertThat(flyway.info().applied())
                 .extracting(info -> info.getVersion())
-                .containsExactly(MigrationVersion.fromVersion("1"), MigrationVersion.fromVersion("2"));
+                .containsExactly(
+                        MigrationVersion.fromVersion("1"),
+                        MigrationVersion.fromVersion("2"),
+                        MigrationVersion.fromVersion("3")
+                );
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
             assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
             assertThat(rawFacultyDivisionNameColumnSize(connection)).isEqualTo(64);
+            assertThat(hasTable(connection, "language_cert_policy_groups")).isTrue();
+            assertThat(hasTable(connection, "language_cert_requirements")).isTrue();
+            assertThat(hasTable(connection, "department_language_cert_policy_mappings")).isTrue();
         }
     }
 
@@ -65,6 +73,12 @@ class FlywayMigrationTest {
         )) {
             assertThat(columns.next()).isTrue();
             return columns.getInt("COLUMN_SIZE");
+        }
+    }
+
+    private boolean hasTable(Connection connection, String tableName) throws Exception {
+        try (var tables = connection.getMetaData().getTables(null, "public", tableName, new String[]{"TABLE"})) {
+            return tables.next();
         }
     }
 }
