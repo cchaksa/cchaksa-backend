@@ -8,3 +8,5 @@
 - 2026-06-02: RED 확인 결과 `통과`/`미통과`는 매퍼에서 `IllegalArgumentException`을 던졌고, 알 수 없는 값은 `SCRAPE_RESULT_SCHEMA_INVALID`로 변환되지 않았다.
 - 2026-06-02: `PortalCallbackPostProcessor`는 매퍼의 `IllegalArgumentException`을 `SCRAPE_RESULT_SCHEMA_INVALID`로 변환하고, 외부 `ScrapeResultCallbackService`가 기존 `FAILED_RESULT_SCHEMA`로 job을 확정한다.
 - 2026-06-02: 로컬 기본 JDK 24에서는 Gradle test task 생성이 `Type T not present`로 실패해, 프로젝트 Java 17 toolchain에 맞춰 `JAVA_HOME`을 Temurin 17로 지정해 검증했다.
+- 2026-06-02: PR #252 Gemini 리뷰는 매핑 단계에서 `NullPointerException`, `ArrayIndexOutOfBoundsException` 같은 `RuntimeException`도 job을 `POST_PROCESSING`에 남길 수 있다는 지적이며 코드상 타당하다.
+- 2026-06-02: 사용자 요청으로 `flangPassGb`의 `Y`/`N` 지원은 제거하고 `통과`/`미통과`만 유효 값으로 유지한다.

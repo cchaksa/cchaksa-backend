@@ -8,29 +8,30 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PortalDataMapperTests {
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     @Test
-    @DisplayName("flangPassGb가 Y이면 외국어 인증 통과로 변환한다")
-    void mapsLanguageCertFulfilledWhenFlagIsY() throws Exception {
+    @DisplayName("flangPassGb가 Y이면 알 수 없는 값으로 거부한다")
+    void rejectsLanguageCertWhenFlagIsY() throws Exception {
         RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("Y"), RawPortalData.class);
 
-        PortalData portalData = PortalDataMapper.toPortalData(raw);
-
-        assertThat(portalData.student().languageCertFulfilled()).isTrue();
+        assertThatThrownBy(() -> PortalDataMapper.toPortalData(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("알 수 없는 외국어 인증 값: Y");
     }
 
     @Test
-    @DisplayName("flangPassGb가 N이면 외국어 인증 미통과로 변환한다")
-    void mapsLanguageCertNotFulfilledWhenFlagIsN() throws Exception {
+    @DisplayName("flangPassGb가 N이면 알 수 없는 값으로 거부한다")
+    void rejectsLanguageCertWhenFlagIsN() throws Exception {
         RawPortalData raw = objectMapper.readValue(payloadWithLanguageCert("N"), RawPortalData.class);
 
-        PortalData portalData = PortalDataMapper.toPortalData(raw);
-
-        assertThat(portalData.student().languageCertFulfilled()).isFalse();
+        assertThatThrownBy(() -> PortalDataMapper.toPortalData(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("알 수 없는 외국어 인증 값: N");
     }
 
     @Test

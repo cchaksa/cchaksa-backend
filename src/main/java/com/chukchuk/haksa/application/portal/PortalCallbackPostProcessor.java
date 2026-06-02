@@ -57,7 +57,7 @@ public class PortalCallbackPostProcessor {
         } catch (JsonProcessingException e) {
             handleParsingFailure(jobId, userId, operationType, e.getOriginalMessage(), e);
             return;
-        } catch (IllegalArgumentException e) {
+        } catch (RuntimeException e) {
             handleParsingFailure(jobId, userId, operationType, e.getMessage(), e);
             return;
         }
