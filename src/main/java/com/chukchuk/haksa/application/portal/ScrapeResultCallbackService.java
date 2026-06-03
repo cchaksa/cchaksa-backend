@@ -278,11 +278,11 @@ public class ScrapeResultCallbackService {
             ScrapeResultCallbackTxService.CallbackReceipt receipt,
             String workerRequestId
     ) {
-        return new SentryMdcContext.Context(
-                receipt.userId().toString(),
+        return SentryMdcContext.from(
+                receipt.userId(),
                 receipt.jobId(),
                 null,
-                receipt.operationType().name(),
+                receipt.operationType(),
                 workerRequestId
         );
     }

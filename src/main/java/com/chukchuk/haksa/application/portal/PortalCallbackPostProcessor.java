@@ -52,13 +52,7 @@ public class PortalCallbackPostProcessor {
             String payloadHash
     ) {
         try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(
-                new SentryMdcContext.Context(
-                        userId.toString(),
-                        jobId,
-                        null,
-                        operationType.name(),
-                        workerRequestId
-                )
+                SentryMdcContext.from(userId, jobId, null, operationType, workerRequestId)
         )) {
             processWithContext(
                     jobId,

@@ -14,3 +14,4 @@
 - 중앙 예외 처리에서 capture되는 포털 실패는 내부 `ERROR` 로그를 `WARN`으로 낮춰 SentryAppender 중복 이벤트를 줄였다. outbox dead, dispatch fail, Lambda maintenance fail처럼 별도 운영 이벤트가 필요한 `ERROR`는 유지했다.
 - 최종 검증은 `./gradlew test --rerun-tasks`로 수행했다.
 - 커밋은 공통 MDC/Sentry 기반, 포털 작업 context 전파, 사용자 오류 Sentry 전송 축소, 작업 문서의 네 단위로 분리한다.
+- Gemini 리뷰 중 Sentry user context 해제와 nullable context 변환 지적을 반영했다. Sentry user는 `pushScope()` 토큰으로 격리해 close 시 이전 scope가 복구되게 하고, UUID/Enum 변환은 `SentryMdcContext.from(...)`으로 중앙화한다.

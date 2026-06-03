@@ -70,11 +70,11 @@ public class ScrapeJobStaleReconciler {
     }
 
     private SentryMdcContext.Context contextFor(ScrapeJob job, ScrapeJobOutbox outbox) {
-        return new SentryMdcContext.Context(
-                job.getUserId().toString(),
+        return SentryMdcContext.from(
+                job.getUserId(),
                 job.getJobId(),
                 outbox.getOutboxId(),
-                job.getOperationType().name(),
+                job.getOperationType(),
                 null
         );
     }

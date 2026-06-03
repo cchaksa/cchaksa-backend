@@ -130,11 +130,11 @@ public class ScrapeJobOutboxDispatcher {
     }
 
     private SentryMdcContext.Context contextFor(ScrapeJobOutboxPublishCandidate candidate) {
-        return new SentryMdcContext.Context(
-                candidate.userId().toString(),
+        return SentryMdcContext.from(
+                candidate.userId(),
                 candidate.jobId(),
                 candidate.outboxId(),
-                candidate.operationType().name(),
+                candidate.operationType(),
                 null
         );
     }

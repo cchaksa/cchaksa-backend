@@ -1,6 +1,7 @@
 // Sentry 이벤트 검색을 위한 MDC 컨텍스트 스코프 헬퍼
 package com.chukchuk.haksa.global.logging.sentry;
 
+import io.sentry.ISentryLifecycleToken;
 import io.sentry.Sentry;
 import io.sentry.protocol.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 public final class SentryMdcContext {
@@ -39,6 +41,22 @@ public final class SentryMdcContext {
 
     public static MdcScope open(Context context) {
         return new MdcScope(context);
+    }
+
+    public static Context from(
+            UUID userId,
+            String jobId,
+            String outboxId,
+            Enum<?> operationType,
+            String workerRequestId
+    ) {
+        return new Context(
+                userId != null ? userId.toString() : null,
+                jobId,
+                outboxId,
+                operationType != null ? operationType.name() : null,
+                workerRequestId
+        );
     }
 
     public static void bindToCurrentRequest(Context context) {
@@ -79,9 +97,11 @@ public final class SentryMdcContext {
     public static final class MdcScope implements AutoCloseable {
         private final Map<String, String> previousValues = new LinkedHashMap<>();
         private final boolean noop;
+        private final ISentryLifecycleToken sentryScopeToken;
 
         private MdcScope(Context context) {
             this.noop = false;
+            this.sentryScopeToken = hasText(context.userId()) ? Sentry.pushScope() : null;
             put(USER_ID, context.userId());
             put(JOB_ID, context.jobId());
             put(OUTBOX_ID, context.outboxId());
@@ -97,6 +117,7 @@ public final class SentryMdcContext {
 
         private MdcScope() {
             this.noop = true;
+            this.sentryScopeToken = null;
         }
 
         private static MdcScope noop() {
@@ -124,7 +145,9 @@ public final class SentryMdcContext {
                     MDC.put(key, value);
                 }
             });
-            Sentry.setUser(null);
+            if (sentryScopeToken != null) {
+                sentryScopeToken.close();
+            }
         }
 
         private boolean hasText(String value) {
