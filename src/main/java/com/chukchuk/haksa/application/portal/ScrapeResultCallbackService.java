@@ -206,7 +206,7 @@ public class ScrapeResultCallbackService {
                         exception.getMessage(),
                         exception.isRetryable()
                 );
-                log.error("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
+                log.warn("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
                         receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
                 throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
             } catch (JsonProcessingException exception) {

@@ -136,7 +136,7 @@ public class PortalCallbackPostProcessor {
             Exception exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
+        log.warn("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
                 jobId, userId, operationType, message, exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
     }
@@ -159,7 +159,7 @@ public class PortalCallbackPostProcessor {
                 failureDetail + ":" + exception.getMessage(),
                 false
         );
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
+        log.warn("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
                 jobId, operationType, reason, failureDetail, exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED, exception);
     }

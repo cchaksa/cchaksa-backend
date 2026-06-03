@@ -52,7 +52,7 @@ public class RefreshPortalConnectionService {
                     : null;
 
             if (department == null) {
-                log.error("[BIZ] portal.conn.fail userId={} reason=dept_init_failed deptCode={}", userId, raw.department().code());
+                log.warn("[BIZ] portal.conn.fail userId={} reason=dept_init_failed deptCode={}", userId, raw.department().code());
                 return failure("학과/전공 정보 초기화 실패");
             }
 
@@ -87,7 +87,7 @@ public class RefreshPortalConnectionService {
             return success(raw.studentCode(), studentInfo);
 
         } catch (Exception e) {
-            log.error("[BIZ] portal.conn.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] portal.conn.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e);
         }
     }

@@ -60,7 +60,7 @@ public class SyncAcademicRecordService {
             }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
@@ -77,7 +77,7 @@ public class SyncAcademicRecordService {
             }
             return new SyncAcademicRecordResult(true, null);
         } catch (Exception e) {
-            log.error("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] sync.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             return new SyncAcademicRecordResult(false, "동기화 실패: " + e.getMessage());
         }
     }
@@ -136,7 +136,7 @@ public class SyncAcademicRecordService {
                 .map(e -> {
                     CourseOffering off = offerings.get((long) e.getOfferingId());
                     if (off == null) {
-                        log.error("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
+                        log.warn("CourseOffering이 존재하지 않는 과목 정보입니다. offeringId={}", e.getOfferingId());
                         return null;
                     }
                     return StudentCourseBulkRow.from(e);
@@ -261,7 +261,7 @@ public class SyncAcademicRecordService {
             CourseOfferingService.CourseOfferingKey serviceKey = offeringKeyMap.get(entry.getKey());
             CourseOffering courseOffering = offeringEntities.get(serviceKey);
             if (courseOffering == null) {
-                log.error("CourseOffering not found for key {}", resolvedOfferingKeys.get(entry.getKey()));
+                log.warn("CourseOffering not found for key {}", resolvedOfferingKeys.get(entry.getKey()));
                 continue;
             }
             PortalOfferingCreationData offering = entry.getValue().getOffering();

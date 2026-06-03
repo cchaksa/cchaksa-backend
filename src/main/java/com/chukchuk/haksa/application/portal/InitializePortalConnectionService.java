@@ -60,7 +60,7 @@ public class InitializePortalConnectionService {
 
             // StudentInitializationDataType 생성
             if (department == null) {
-                log.error("[BIZ] portal.init.fail userId={} reason=dept_init_failed", userId);
+                log.warn("[BIZ] portal.init.fail userId={} reason=dept_init_failed", userId);
                 return failure("학과/전공 정보 초기화 실패");
             }
 
@@ -101,7 +101,7 @@ public class InitializePortalConnectionService {
             }
             return success(raw.studentCode(), studentInfo);
         } catch (Exception e) {
-            log.error("[BIZ] portal.init.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
+            log.warn("[BIZ] portal.init.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
             throw new RuntimeException("포털 연동 중 오류가 발생했습니다.", e);
         }
     }

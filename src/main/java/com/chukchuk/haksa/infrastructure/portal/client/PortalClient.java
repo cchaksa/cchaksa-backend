@@ -40,7 +40,7 @@ public class PortalClient {
 
         } catch (Exception e) {
             long tookMs = LogTime.elapsedMs(t0);
-            log.error("[EXT] method=POST uri={} unexpected_error took_ms={}", uri, tookMs, e);
+            log.warn("[EXT] method=POST uri={} unexpected_error took_ms={}", uri, tookMs, e);
             throw new PortalScrapeException(ErrorCode.PORTAL_SCRAPE_FAILED, e);
         }
     }
@@ -51,7 +51,7 @@ public class PortalClient {
         long tookMs = LogTime.elapsedMs(t0);
         int status = e.getStatusCode().value();
 
-        if (status >= 500) log.error("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
+        if (status >= 500) log.warn("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
         else               log.warn ("[EXT] method=POST uri={} status={} took_ms={}", uri, status, tookMs);
     }
 
