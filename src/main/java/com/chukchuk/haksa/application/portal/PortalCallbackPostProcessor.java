@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.mapper.PortalDataMapper;
@@ -40,6 +41,40 @@ public class PortalCallbackPostProcessor {
     }
 
     public void process(
+            String jobId,
+            UUID userId,
+            ScrapeJobOperationType operationType,
+            String payloadJson,
+            Instant finishedAt,
+            Double queuedAgeSeconds,
+            int attempt,
+            String workerRequestId,
+            String payloadHash
+    ) {
+        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(
+                new SentryMdcContext.Context(
+                        userId.toString(),
+                        jobId,
+                        null,
+                        operationType.name(),
+                        workerRequestId
+                )
+        )) {
+            processWithContext(
+                    jobId,
+                    userId,
+                    operationType,
+                    payloadJson,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    attempt,
+                    workerRequestId,
+                    payloadHash
+            );
+        }
+    }
+
+    private void processWithContext(
             String jobId,
             UUID userId,
             ScrapeJobOperationType operationType,

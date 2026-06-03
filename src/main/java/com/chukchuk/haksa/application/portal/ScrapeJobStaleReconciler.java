@@ -8,6 +8,7 @@ import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,19 +52,31 @@ public class ScrapeJobStaleReconciler {
                 continue;
             }
 
-            job.markFailed(
-                    ErrorCode.CALLBACK_TIMEOUT.name(),
-                    ErrorCode.CALLBACK_TIMEOUT.message(),
-                    true,
-                    now
-            );
-            meterRegistry.counter("scrape.job.callback.timeout").increment();
-            recordQueuedAge(job, now);
-            affectedCount++;
-            log.warn("[BIZ] scrape.job.callback.timeout jobId={} outboxId={} attempt={} outboxStatus={} queueMessageId={}",
-                    job.getJobId(), outbox.getOutboxId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
+            try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(contextFor(job, outbox))) {
+                job.markFailed(
+                        ErrorCode.CALLBACK_TIMEOUT.name(),
+                        ErrorCode.CALLBACK_TIMEOUT.message(),
+                        true,
+                        now
+                );
+                meterRegistry.counter("scrape.job.callback.timeout").increment();
+                recordQueuedAge(job, now);
+                affectedCount++;
+                log.warn("[BIZ] scrape.job.callback.timeout jobId={} outboxId={} attempt={} outboxStatus={} queueMessageId={}",
+                        job.getJobId(), outbox.getOutboxId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
+            }
         }
         return affectedCount;
+    }
+
+    private SentryMdcContext.Context contextFor(ScrapeJob job, ScrapeJobOutbox outbox) {
+        return new SentryMdcContext.Context(
+                job.getUserId().toString(),
+                job.getJobId(),
+                outbox.getOutboxId(),
+                job.getOperationType().name(),
+                null
+        );
     }
 
     private void recordQueuedAge(ScrapeJob job, Instant finishedAt) {

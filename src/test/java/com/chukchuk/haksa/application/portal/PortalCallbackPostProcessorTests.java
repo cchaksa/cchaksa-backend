@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -70,6 +72,12 @@ class PortalCallbackPostProcessorTests {
     void handle_linkSuccess() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        doAnswer(invocation -> {
+            assertThat(MDC.get("userId")).isEqualTo(job.getUserId().toString());
+            assertThat(MDC.get("jobId")).isEqualTo(job.getJobId());
+            assertThat(MDC.get("operationType")).isEqualTo(ScrapeJobOperationType.LINK.name());
+            return null;
+        }).when(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         processor.process(
                 job.getJobId(),
@@ -86,6 +94,8 @@ class PortalCallbackPostProcessorTests {
         verify(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.success").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(MDC.get("userId")).isNull();
+        assertThat(MDC.get("jobId")).isNull();
     }
 
     @Test

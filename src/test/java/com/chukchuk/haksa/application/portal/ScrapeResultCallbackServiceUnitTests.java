@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 
 import java.time.Instant;
 import java.security.MessageDigest;
@@ -30,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -123,6 +125,14 @@ class ScrapeResultCallbackServiceUnitTests {
                           \"academic_records\":{\"listSmrCretSumTabYearSmr\":[{\"cretGainYear\":\"2024\",\"gainPoint\":\"18\"}]}
                         }
                         """);
+        doAnswer(invocation -> {
+            assertThat(MDC.get("userId")).isEqualTo(userId.toString());
+            assertThat(MDC.get("jobId")).isEqualTo(job.getJobId());
+            assertThat(MDC.get("operationType")).isEqualTo("LINK");
+            assertThat(MDC.get("workerRequestId")).isEqualTo("req-1");
+            return null;
+        }).when(portalCallbackPostProcessor)
+                .process(any(), any(), any(), any(), any(), any(), anyInt(), any(), any());
 
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), "2", "req-1");
 
@@ -140,6 +150,8 @@ class ScrapeResultCallbackServiceUnitTests {
         );
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
         assertThat(job.getResultS3Key()).isEqualTo("callbacks/%s/result.json".formatted(job.getJobId()));
+        assertThat(MDC.get("userId")).isNull();
+        assertThat(MDC.get("jobId")).isNull();
     }
 
     @Test

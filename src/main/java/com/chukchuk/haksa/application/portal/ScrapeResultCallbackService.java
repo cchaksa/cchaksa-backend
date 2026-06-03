@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
 import com.chukchuk.haksa.infrastructure.portal.client.ScrapeResultStoreClient;
 import com.chukchuk.haksa.infrastructure.portal.exception.ScrapeResultPayloadAccessException;
 import com.chukchuk.haksa.infrastructure.security.HmacSignatureVerifier;
@@ -127,106 +128,110 @@ public class ScrapeResultCallbackService {
                 attempt,
                 bodyHash
         );
-        logStage(
-                "receipt_committed",
-                receipt.jobId(),
-                attempt,
-                receipt.status(),
-                request.result_s3_key(),
-                workerRequestId,
-                elapsedMillis(receiptStartedAt)
-        );
-        if (receipt.duplicate()) {
-            handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
-            return;
-        }
-
-        try {
-            long s3StartedAt = System.nanoTime();
-            PayloadBundle payloadBundle = fetchAndNormalizePayload(request.result_s3_key());
-            verifyChecksum(request.resultChecksum(), payloadBundle.rawPayloadJson());
+        SentryMdcContext.Context context = contextFor(receipt, workerRequestId);
+        SentryMdcContext.bindToCurrentRequest(context);
+        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(context)) {
             logStage(
-                    "payload_ready",
+                    "receipt_committed",
                     receipt.jobId(),
                     attempt,
                     receipt.status(),
                     request.result_s3_key(),
                     workerRequestId,
-                    elapsedMillis(s3StartedAt)
+                    elapsedMillis(receiptStartedAt)
             );
+            if (receipt.duplicate()) {
+                handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
+                return;
+            }
 
-            meterRegistry.counter("scrape.job.callback.persisted").increment();
-            String payloadHash = hashRawBody(payloadBundle.rawPayloadJson());
-            log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={}",
-                    receipt.jobId(), attempt, workerRequestId, payloadHash);
+            try {
+                long s3StartedAt = System.nanoTime();
+                PayloadBundle payloadBundle = fetchAndNormalizePayload(request.result_s3_key());
+                verifyChecksum(request.resultChecksum(), payloadBundle.rawPayloadJson());
+                logStage(
+                        "payload_ready",
+                        receipt.jobId(),
+                        attempt,
+                        receipt.status(),
+                        request.result_s3_key(),
+                        workerRequestId,
+                        elapsedMillis(s3StartedAt)
+                );
 
-            long postProcessStartedAt = System.nanoTime();
-            portalCallbackPostProcessor.process(
-                    receipt.jobId(),
-                    receipt.userId(),
-                    receipt.operationType(),
-                    payloadBundle.normalizedPayloadJson(),
-                    finishedAt,
-                    receipt.queuedAgeSeconds(),
-                    attempt,
-                    workerRequestId,
-                    payloadHash
-            );
-            logStage(
-                    "postprocess_committed",
-                    receipt.jobId(),
-                    attempt,
-                    "succeeded",
-                    request.result_s3_key(),
-                    workerRequestId,
-                    elapsedMillis(postProcessStartedAt)
-            );
-        } catch (CommonException exception) {
-            if (shouldMarkSchemaFailure(exception)) {
+                meterRegistry.counter("scrape.job.callback.persisted").increment();
+                String payloadHash = hashRawBody(payloadBundle.rawPayloadJson());
+                log.info("[BIZ] scrape.job.callback.persisted jobId={} attempt={} requestId={} payloadHash={}",
+                        receipt.jobId(), attempt, workerRequestId, payloadHash);
+
+                long postProcessStartedAt = System.nanoTime();
+                portalCallbackPostProcessor.process(
+                        receipt.jobId(),
+                        receipt.userId(),
+                        receipt.operationType(),
+                        payloadBundle.normalizedPayloadJson(),
+                        finishedAt,
+                        receipt.queuedAgeSeconds(),
+                        attempt,
+                        workerRequestId,
+                        payloadHash
+                );
+                logStage(
+                        "postprocess_committed",
+                        receipt.jobId(),
+                        attempt,
+                        "succeeded",
+                        request.result_s3_key(),
+                        workerRequestId,
+                        elapsedMillis(postProcessStartedAt)
+                );
+            } catch (CommonException exception) {
+                if (shouldMarkSchemaFailure(exception)) {
+                    scrapeResultCallbackTxService.markFailed(
+                            receipt.jobId(),
+                            finishedAt,
+                            receipt.queuedAgeSeconds(),
+                            FAILED_RESULT_SCHEMA,
+                            exception.getMessage(),
+                            false
+                    );
+                }
+                throw exception;
+            } catch (ScrapeResultPayloadAccessException exception) {
+                scrapeResultCallbackTxService.markFailed(
+                        receipt.jobId(),
+                        finishedAt,
+                        receipt.queuedAgeSeconds(),
+                        FAILED_S3_READ,
+                        exception.getMessage(),
+                        exception.isRetryable()
+                );
+                log.error("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
+                        receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
+                throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
+            } catch (JsonProcessingException exception) {
                 scrapeResultCallbackTxService.markFailed(
                         receipt.jobId(),
                         finishedAt,
                         receipt.queuedAgeSeconds(),
                         FAILED_RESULT_SCHEMA,
-                        exception.getMessage(),
+                        exception.getOriginalMessage(),
                         false
                 );
+                log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_parse jobId={} resultS3Key={} message={}",
+                        receipt.jobId(), request.result_s3_key(), exception.getOriginalMessage());
+                throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
+            } finally {
+                logStage(
+                        "completed",
+                        receipt.jobId(),
+                        attempt,
+                        normalizedStatus(request.status()),
+                        request.result_s3_key(),
+                        workerRequestId,
+                        elapsedMillis(startedAt)
+                );
             }
-            throw exception;
-        } catch (ScrapeResultPayloadAccessException exception) {
-            scrapeResultCallbackTxService.markFailed(
-                    receipt.jobId(),
-                    finishedAt,
-                    receipt.queuedAgeSeconds(),
-                    FAILED_S3_READ,
-                    exception.getMessage(),
-                    exception.isRetryable()
-            );
-            log.error("[BIZ] scrape.job.s3.fail jobId={} key={} attempt={} reason={}",
-                    receipt.jobId(), request.result_s3_key(), attempt, exception.getMessage());
-            throw new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED, exception);
-        } catch (JsonProcessingException exception) {
-            scrapeResultCallbackTxService.markFailed(
-                    receipt.jobId(),
-                    finishedAt,
-                    receipt.queuedAgeSeconds(),
-                    FAILED_RESULT_SCHEMA,
-                    exception.getOriginalMessage(),
-                    false
-            );
-            log.warn("[BIZ] scrape.job.callback.invalid_payload stage=result_payload_parse jobId={} resultS3Key={} message={}",
-                    receipt.jobId(), request.result_s3_key(), exception.getOriginalMessage());
-            throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
-        } finally {
-            logStage(
-                    "completed",
-                    receipt.jobId(),
-                    attempt,
-                    normalizedStatus(request.status()),
-                    request.result_s3_key(),
-                    workerRequestId,
-                    elapsedMillis(startedAt)
-            );
         }
     }
 
@@ -248,20 +253,37 @@ public class ScrapeResultCallbackService {
                 attempt,
                 bodyHash
         );
-        if (receipt.duplicate()) {
-            handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
-            return;
+        SentryMdcContext.Context context = contextFor(receipt, workerRequestId);
+        SentryMdcContext.bindToCurrentRequest(context);
+        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(context)) {
+            if (receipt.duplicate()) {
+                handleDuplicate(receipt, attempt, workerRequestId, request.result_s3_key());
+                return;
+            }
+            log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
+                    receipt.jobId(), request.error_code(), request.retryable(), attempt, workerRequestId);
+            logStage(
+                    "completed",
+                    receipt.jobId(),
+                    attempt,
+                    receipt.status(),
+                    request.result_s3_key(),
+                    workerRequestId,
+                    elapsedMillis(startedAt)
+            );
         }
-        log.info("[BIZ] scrape.job.failed jobId={} errorCode={} retryable={} attempt={} requestId={}",
-                receipt.jobId(), request.error_code(), request.retryable(), attempt, workerRequestId);
-        logStage(
-                "completed",
+    }
+
+    private SentryMdcContext.Context contextFor(
+            ScrapeResultCallbackTxService.CallbackReceipt receipt,
+            String workerRequestId
+    ) {
+        return new SentryMdcContext.Context(
+                receipt.userId().toString(),
                 receipt.jobId(),
-                attempt,
-                receipt.status(),
-                request.result_s3_key(),
-                workerRequestId,
-                elapsedMillis(startedAt)
+                null,
+                receipt.operationType().name(),
+                workerRequestId
         );
     }
 
