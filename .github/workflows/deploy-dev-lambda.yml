@@ -4,7 +4,15 @@ on:
   workflow_dispatch:
 
 jobs:
+  migrate:
+    uses: ./.github/workflows/flyway-migration.yml
+    with:
+      environment: dev
+      ref: ${{ github.ref }}
+    secrets: inherit
+
   deploy:
+    needs: migrate
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.DEV_AWS_REGION }}

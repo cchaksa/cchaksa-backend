@@ -28,6 +28,11 @@ spring:
           batch_versioned_data: true
         order_inserts: true
         order_updates: true
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    baseline-version: 1
 
 server:
   port: 8080

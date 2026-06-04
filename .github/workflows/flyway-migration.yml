@@ -1,0 +1,142 @@
+name: Flyway Migration for DB schema
+
+on:
+  # 수동 실행은 배포와 분리해서 DB migration만 확인/실행할 때 사용한다.
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 마이그레이션 대상 DB 환경
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      ref:
+        # 기본값은 workflow 실행 ref이며, prod 배포에서는 main을 명시적으로 넘긴다.
+        description: 마이그레이션 파일이 포함된 Git ref. 미입력 시 workflow 실행 ref를 사용한다.
+        required: false
+        type: string
+  # dev/prod Lambda 배포 workflow에서 선행 job으로 호출된다.
+  workflow_call:
+    inputs:
+      environment:
+        description: 마이그레이션 대상 DB 환경
+        required: true
+        type: string
+      ref:
+        description: 마이그레이션 파일이 포함된 Git ref. 미입력 시 workflow 실행 ref를 사용한다.
+        required: false
+        type: string
+
+jobs:
+  migrate:
+    name: Migrate ${{ inputs.environment }} DB schema
+    runs-on: ubuntu-latest
+    # GitHub Environment 보호 규칙을 통해 prod migration 승인 게이트를 둘 수 있다.
+    environment: ${{ inputs.environment }}
+    concurrency:
+      # 같은 환경의 migration이 동시에 실행되어 DB 락을 경합하지 않도록 직렬화한다.
+      group: flyway-migration-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      FLYWAY_DOCKER_IMAGE: flyway/flyway:12.7.0
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_SCHEMAS: public
+      DEV_DB_URL: ${{ secrets.DEV_FLYWAY_DB_URL }}
+      DEV_DB_USER: ${{ secrets.DEV_FLYWAY_DB_USER }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_FLYWAY_DB_PASSWORD }}
+      PROD_DB_URL: ${{ secrets.PROD_FLYWAY_DB_URL }}
+      PROD_DB_USER: ${{ secrets.PROD_FLYWAY_DB_USER }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_FLYWAY_DB_PASSWORD }}
+
+    steps:
+      - name: Validate target environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.environment }}" in
+            dev|prod)
+              ;;
+            *)
+              echo "Unsupported environment: ${{ inputs.environment }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout migration files
+        uses: actions/checkout@v4
+        with:
+          # dev는 실행 ref, prod는 main을 사용해 실제 배포 코드와 migration SQL을 일치시킨다.
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Select database credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ inputs.environment }}" = "prod" ]; then
+            DB_URL="${PROD_DB_URL}"
+            DB_USER="${PROD_DB_USER}"
+            DB_PASSWORD="${PROD_DB_PASSWORD}"
+          else
+            DB_URL="${DEV_DB_URL}"
+            DB_USER="${DEV_DB_USER}"
+            DB_PASSWORD="${DEV_DB_PASSWORD}"
+          fi
+
+          if [ -z "${DB_URL}" ] || [ -z "${DB_USER}" ] || [ -z "${DB_PASSWORD}" ]; then
+            echo "Missing Flyway DB credentials for ${{ inputs.environment }}." >&2
+            exit 1
+          fi
+
+          {
+            echo "DB_URL=${DB_URL}"
+            echo "DB_USER=${DB_USER}"
+            echo "DB_PASSWORD=${DB_PASSWORD}"
+          } >> "$GITHUB_ENV"
+
+      - name: Show pending migration info
+        shell: bash
+        run: |
+          set -euo pipefail
+          # migrate 전에 Flyway가 인식하는 현재/대기 migration 상태를 Actions 로그에 남긴다.
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
+            "${FLYWAY_DOCKER_IMAGE}" \
+            -url="${DB_URL}" \
+            -user="${DB_USER}" \
+            -password="${DB_PASSWORD}" \
+            -schemas="${FLYWAY_SCHEMAS}" \
+            -locations="${FLYWAY_LOCATIONS}" \
+            -connectRetries=3 \
+            info
+
+      - name: Run Flyway migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 최초 baseline은 수동 1회 작업이며, 이 workflow는 baseline 이후 migrate만 수행한다.
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}/src/main/resources/db/migration:/flyway/sql:ro" \
+            "${FLYWAY_DOCKER_IMAGE}" \
+            -url="${DB_URL}" \
+            -user="${DB_USER}" \
+            -password="${DB_PASSWORD}" \
+            -schemas="${FLYWAY_SCHEMAS}" \
+            -locations="${FLYWAY_LOCATIONS}" \
+            -connectRetries=3 \
+            migrate
+
+      - name: Write migration summary
+        shell: bash
+        run: |
+          {
+            echo "## Flyway Migration"
+            echo ""
+            echo "- Environment: \`${{ inputs.environment }}\`"
+            echo "- Schema: \`${FLYWAY_SCHEMAS}\`"
+            echo "- Locations: \`${FLYWAY_LOCATIONS}\`"
+            echo "- Docker image: \`${FLYWAY_DOCKER_IMAGE}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
