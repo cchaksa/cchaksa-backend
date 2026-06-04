@@ -61,6 +61,10 @@ class PortalLinkJobTxServiceUnitTests {
 
         assertThat(preparedJob.reused()).isFalse();
         assertThat(preparedJob.dispatchRequired()).isTrue();
+        ArgumentCaptor<ScrapeJob> jobCaptor = ArgumentCaptor.forClass(ScrapeJob.class);
+        verify(scrapeJobRepository).save(jobCaptor.capture());
+        assertThat(jobCaptor.getValue().getLinkStartedAt()).isEqualTo(Instant.parse("2026-04-17T01:02:03Z"));
+        assertThat(jobCaptor.getValue().getLinkEndedAt()).isNull();
         ArgumentCaptor<ScrapeJobOutbox> captor = ArgumentCaptor.forClass(ScrapeJobOutbox.class);
         verify(scrapeJobOutboxRepository).save(captor.capture());
         JsonNode payload = new ObjectMapper().readTree(captor.getValue().getPayloadJson());

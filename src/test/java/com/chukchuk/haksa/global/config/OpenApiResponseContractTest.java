@@ -40,6 +40,7 @@ class OpenApiResponseContractTest {
             new OperationRef("/portal/link", "post"),
             new OperationRef("/portal/link/jobs/{jobId}", "get"),
             new OperationRef("/portal/link/jobs/{jobId}/summary", "get"),
+            new OperationRef("/portal/link/jobs/{jobId}/duration", "get"),
             new OperationRef("/api/users/analytics-id", "get"),
             new OperationRef("/api/users/me", "get"),
             new OperationRef("/api/users/delete", "delete"),

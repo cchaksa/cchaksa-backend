@@ -68,7 +68,8 @@ public class ScrapeResultCallbackTxService {
                 errorCode,
                 errorMessage,
                 retryable,
-                finishedAt
+                finishedAt,
+                Instant.now()
         );
         recordQueuedAge(job, finishedAt);
         return CallbackReceipt.accepted(job);
@@ -96,7 +97,7 @@ public class ScrapeResultCallbackTxService {
         }
 
         Instant resolvedFinishedAt = resolveFinishedAt(finishedAt);
-        job.markSucceeded(payloadJson, resolvedFinishedAt);
+        job.markSucceeded(payloadJson, resolvedFinishedAt, Instant.now());
         recordQueuedAge(job, finishedAt, queuedAgeSeconds);
         log.info("[BIZ] scrape.job.succeeded jobId={} operationType={} payloadHash={} finishedAt={}",
                 job.getJobId(), job.getOperationType(), payloadHash, resolvedFinishedAt);
@@ -117,7 +118,7 @@ public class ScrapeResultCallbackTxService {
                     job.getJobId(), job.getStatus(), errorCode);
             return;
         }
-        job.markFailed(errorCode, message, retryable, resolveFinishedAt(finishedAt));
+        job.markFailed(errorCode, message, retryable, resolveFinishedAt(finishedAt), Instant.now());
         recordQueuedAge(job, finishedAt, queuedAgeSeconds);
     }
 

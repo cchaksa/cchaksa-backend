@@ -52,6 +52,18 @@ public class ScrapeJobStaleReconciler {
                 continue;
             }
 
+            job.markFailed(
+                    ErrorCode.CALLBACK_TIMEOUT.name(),
+                    ErrorCode.CALLBACK_TIMEOUT.message(),
+                    true,
+                    now,
+                    now
+            );
+            meterRegistry.counter("scrape.job.callback.timeout").increment();
+            recordQueuedAge(job, now);
+            affectedCount++;
+            log.warn("[BIZ] scrape.job.callback.timeout jobId={} outboxId={} attempt={} outboxStatus={} queueMessageId={}",
+                    job.getJobId(), outbox.getOutboxId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
             try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(contextFor(job, outbox))) {
                 job.markFailed(
                         ErrorCode.CALLBACK_TIMEOUT.name(),
