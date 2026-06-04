@@ -178,6 +178,64 @@ class PortalLinkJobQueryServiceUnitTests {
     }
 
     @Test
+    @DisplayName("완료 job duration timestamp가 일부 없으면 소요 시간은 null로 반환한다")
+    void getJobDuration_returnsNullElapsedTimeWhenTerminalTimestampMissing() {
+        UUID userId = UUID.randomUUID();
+        Instant workerFinishedAt = Instant.parse("2026-06-04T10:00:03.120Z");
+        ScrapeJob job = ScrapeJob.createQueued(
+                userId,
+                "suwon",
+                ScrapeJobOperationType.LINK,
+                "idem-1",
+                "finger",
+                "{\"username\":\"17019013\"}",
+                null
+        );
+        job.markFailed("INVALID_PAYLOAD", "missing", false, workerFinishedAt, null);
+        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+
+        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+
+        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+
+        assertThat(response.status()).isEqualTo("failed");
+        assertThat(response.success()).isFalse();
+        assertThat(response.started_at()).isNull();
+        assertThat(response.ended_at()).isNull();
+        assertThat(response.elapsed_millis()).isNull();
+        assertThat(response.elapsed_time()).isNull();
+    }
+
+    @Test
+    @DisplayName("종료 시각이 시작 시각보다 빠르면 duration은 0ms로 보정한다")
+    void getJobDuration_clampsNegativeElapsedTimeToZero() {
+        UUID userId = UUID.randomUUID();
+        Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
+        Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
+        Instant serverEndedAt = Instant.parse("2026-06-04T09:59:59.500Z");
+        ScrapeJob job = ScrapeJob.createQueued(
+                userId,
+                "suwon",
+                ScrapeJobOperationType.LINK,
+                "idem-1",
+                "finger",
+                "{\"username\":\"17019013\"}",
+                startedAt
+        );
+        job.markSucceeded("{}", workerFinishedAt, serverEndedAt);
+        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+
+        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+
+        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+
+        assertThat(response.status()).isEqualTo("succeeded");
+        assertThat(response.success()).isTrue();
+        assertThat(response.elapsed_millis()).isZero();
+        assertThat(response.elapsed_time()).isEqualTo("0s 0ms");
+    }
+
+    @Test
     @DisplayName("실패 job 요약 요청 시 실패 상태 예외를 던진다")
     void getJobSummary_throwsWhenJobFailed() {
         UUID userId = UUID.randomUUID();
