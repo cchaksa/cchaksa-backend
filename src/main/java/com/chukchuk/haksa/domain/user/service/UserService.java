@@ -45,6 +45,11 @@ public class UserService {
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
     }
 
+    public UserDto.MeResponse getMe(UUID userId) {
+        User user = getUserById(userId);
+        return new UserDto.MeResponse(Boolean.TRUE.equals(user.getPortalConnected()));
+    }
+
     @Transactional
     public void save(User user) {
         userRepository.save(user);
