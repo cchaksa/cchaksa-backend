@@ -29,7 +29,7 @@ spring:
         order_inserts: true
         order_updates: true
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: false
     baseline-version: 1
