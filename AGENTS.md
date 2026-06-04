@@ -36,6 +36,14 @@
 - Redis auto-configuration is excluded in `application.yml`; local cache is the default.
 - Keep API documentation in `src/main/resources/public/openapi.yaml` aligned with externally visible API changes.
 
+## Database Migration Rules
+- DB DDL 변경이 필요한 코드 변경은 반드시 `src/main/resources/db/migration` 아래 Flyway SQL 파일로 남긴다.
+- 엔티티, 컬럼, 테이블, 인덱스, 제약 조건 변경은 Java 코드만 수정해서 끝내지 않는다.
+- Migration 파일명은 현재 마지막 version 다음 번호를 사용한다. 예: `V4__add_xxx_column.sql`.
+- 이미 dev/prod 중 하나라도 적용된 migration 파일은 수정하지 않는다.
+- 적용된 migration의 보정이 필요하면 기존 파일을 고치지 않고 다음 version의 새 migration 파일을 추가한다.
+- Hibernate `ddl-auto`는 dev/prod에서 schema 변경 수단으로 사용하지 않는다. DB 변경은 Flyway migration을 통해 수행한다.
+
 ## Planning And Specs
 - Use `docs/specs/<YYYYMMDD-slug>/` for non-trivial feature work, bug fixes, refactors, or operational changes that affect domain rules, public APIs, schema, transactions, deployment, or rollback.
 - For small, mechanical, documentation-only, or test-only changes, a concise plan in the conversation is enough.
