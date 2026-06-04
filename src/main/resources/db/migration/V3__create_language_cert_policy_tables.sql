@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS public.language_cert_requirements (
     display_text VARCHAR(255) NOT NULL,
     sort_order INTEGER NOT NULL,
     CONSTRAINT pk_language_cert_requirements PRIMARY KEY (id),
-    CONSTRAINT uk_language_cert_requirements_group_test UNIQUE (policy_group_id, test_type)
+    CONSTRAINT uk_language_cert_requirements_group_test UNIQUE (policy_group_id, test_type),
+    CONSTRAINT fk_language_cert_requirements_policy_group
+        FOREIGN KEY (policy_group_id) REFERENCES public.language_cert_policy_groups (id)
 );
 
 CREATE TABLE IF NOT EXISTS public.department_language_cert_policy_mappings (
@@ -38,16 +40,10 @@ CREATE TABLE IF NOT EXISTS public.department_language_cert_policy_mappings (
         department_code,
         admission_year_from,
         admission_year_to
-    )
+    ),
+    CONSTRAINT fk_dept_lang_cert_policy_mapping_group
+        FOREIGN KEY (policy_group_id) REFERENCES public.language_cert_policy_groups (id)
 );
-
-ALTER TABLE public.language_cert_requirements
-    ADD CONSTRAINT fk_language_cert_requirements_policy_group_id
-    FOREIGN KEY (policy_group_id) REFERENCES public.language_cert_policy_groups (id);
-
-ALTER TABLE public.department_language_cert_policy_mappings
-    ADD CONSTRAINT fk_department_language_cert_policy_mappings_policy_group_id
-    FOREIGN KEY (policy_group_id) REFERENCES public.language_cert_policy_groups (id);
 
 CREATE INDEX IF NOT EXISTS idx_dept_lang_cert_policy_lookup
     ON public.department_language_cert_policy_mappings (
