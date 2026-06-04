@@ -386,7 +386,14 @@ public class GraduationQueryRepository {
                 dto.getCredits(),
                 dto.getGrade(),
                 dto.getSemester(),
-                dto.getLiberalAreaCode()
+                missionLiberalAreaCode(dto)
         );
+    }
+
+    private Integer missionLiberalAreaCode(CourseInternalDto dto) {
+        if (!FacultyDivision.선교.name().equals(dto.getAreaType())) {
+            return null;
+        }
+        return dto.getLiberalAreaCode();
     }
 }

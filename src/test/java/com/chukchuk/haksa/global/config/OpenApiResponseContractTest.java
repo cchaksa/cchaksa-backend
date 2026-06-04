@@ -144,6 +144,31 @@ class OpenApiResponseContractTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void staticOpenApiDocumentsMissionLiberalAreaCodeForGraduationAndAcademicRecord() throws Exception {
+        Map<String, Object> staticOpenApi;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
+            staticOpenApi = new Yaml().load(inputStream);
+        }
+
+        Map<String, Object> paths = (Map<String, Object>) staticOpenApi.get("paths");
+        assertThat(paths).containsKeys("/api/graduation/progress", "/api/academic/record");
+
+        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+
+        Map<String, Object> graduationCourse = (Map<String, Object>) schemas.get("GraduationCourse");
+        Map<String, Object> graduationCourseProperties = (Map<String, Object>) graduationCourse.get("properties");
+        Map<String, Object> graduationLiberalAreaCode = (Map<String, Object>) graduationCourseProperties.get("liberalAreaCode");
+        assertThat(graduationLiberalAreaCode.get("type")).isEqualTo("integer");
+
+        Map<String, Object> studentCourseDetail = (Map<String, Object>) schemas.get("StudentCourseDetail");
+        Map<String, Object> studentCourseDetailProperties = (Map<String, Object>) studentCourseDetail.get("properties");
+        Map<String, Object> academicLiberalAreaCode = (Map<String, Object>) studentCourseDetailProperties.get("liberalAreaCode");
+        assertThat(academicLiberalAreaCode.get("type")).isEqualTo("integer");
+    }
+
+    @Test
     void jsonResponsesDoNotUseWildcardMediaType() throws Exception {
         JsonNode apiDocs = apiDocs();
 

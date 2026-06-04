@@ -21,7 +21,7 @@ public interface GraduationControllerDocs {
 
     @Operation(
             summary = "졸업 요건 진행 상황 조회",
-            description = "로그인된 사용자의 졸업 요건 충족 여부와 외국어 졸업 인증 통과 여부를 조회합니다.",
+            description = "로그인된 사용자의 졸업 요건 충족 여부와 외국어 졸업 인증 통과 여부를 조회합니다. areaType이 선교인 영역의 courses[] 과목은 liberalAreaCode를 포함할 수 있습니다. areaType이 선교가 아닌 영역의 courses[] 과목은 liberalAreaCode 키가 응답에 포함되지 않습니다.",
             responses = {
                     @ApiResponse(
                             responseCode = "200",
