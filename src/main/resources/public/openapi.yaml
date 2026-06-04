@@ -81,6 +81,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/users/me:
+    get:
+      summary: 내 사용자 정보 조회
+      description: 로그인된 사용자의 포털 연동 여부를 조회합니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 내 사용자 정보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: 사용자 정보 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/users/signin:
     post:
       summary: 회원 가입 및 로그인
@@ -204,6 +230,32 @@ components:
           nullable: true
         error:
           $ref: '#/components/schemas/ErrorDetail'
+
+    MeApiResponse:
+      type: object
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/MeResponse'
+        message:
+          type: string
+          example: 요청 성공
+
+    MeResponse:
+      type: object
+      required:
+        - isPortalLinked
+      properties:
+        isPortalLinked:
+          type: boolean
+          description: 포털 연동 여부
+          example: true
 
     GraduationProgressApiResponse:
       type: object

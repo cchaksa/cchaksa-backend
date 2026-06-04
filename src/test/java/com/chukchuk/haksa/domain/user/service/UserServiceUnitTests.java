@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Date;
@@ -93,6 +94,62 @@ class UserServiceUnitTests {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getUserById(userId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .satisfies(ex -> assertThat(((EntityNotFoundException) ex).getCode()).isEqualTo(ErrorCode.USER_NOT_FOUND.code()));
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 시 포털 연동 여부를 true로 반환한다")
+    void getMe_whenPortalConnected_returnsTrue() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("linked@example.com")
+                .profileNickname("linked")
+                .build();
+        user.markPortalConnected(Instant.parse("2026-06-04T00:00:00Z"));
+
+        UserService userService = createService();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        UserDto.MeResponse response = userService.getMe(userId);
+
+        assertThat(response.isPortalLinked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 시 포털 연동 여부가 false 또는 null이면 false를 반환한다")
+    void getMe_whenPortalConnectedFalseOrNull_returnsFalse() {
+        UUID falseUserId = UUID.randomUUID();
+        UUID nullUserId = UUID.randomUUID();
+        User falseUser = User.builder()
+                .id(falseUserId)
+                .email("false@example.com")
+                .profileNickname("false")
+                .build();
+        User nullUser = User.builder()
+                .id(nullUserId)
+                .email("null@example.com")
+                .profileNickname("null")
+                .build();
+        ReflectionTestUtils.setField(nullUser, "portalConnected", null);
+
+        UserService userService = createService();
+        when(userRepository.findById(falseUserId)).thenReturn(Optional.of(falseUser));
+        when(userRepository.findById(nullUserId)).thenReturn(Optional.of(nullUser));
+
+        assertThat(userService.getMe(falseUserId).isPortalLinked()).isFalse();
+        assertThat(userService.getMe(nullUserId).isPortalLinked()).isFalse();
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 대상 사용자가 없으면 USER_NOT_FOUND 예외를 던진다")
+    void getMe_userNotFound_throws() {
+        UUID userId = UUID.randomUUID();
+        UserService userService = createService();
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getMe(userId))
                 .isInstanceOf(EntityNotFoundException.class)
                 .satisfies(ex -> assertThat(((EntityNotFoundException) ex).getCode()).isEqualTo(ErrorCode.USER_NOT_FOUND.code()));
     }

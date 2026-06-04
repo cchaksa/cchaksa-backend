@@ -8,8 +8,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.yaml.snakeyaml.Yaml;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -36,6 +41,7 @@ class OpenApiResponseContractTest {
             new OperationRef("/portal/link/jobs/{jobId}", "get"),
             new OperationRef("/portal/link/jobs/{jobId}/summary", "get"),
             new OperationRef("/api/users/analytics-id", "get"),
+            new OperationRef("/api/users/me", "get"),
             new OperationRef("/api/users/delete", "delete"),
             new OperationRef("/api/student/target-gpa", "post"),
             new OperationRef("/api/student/profile", "get"),
@@ -94,6 +100,47 @@ class OpenApiResponseContractTest {
         JsonNode sentryResponses = operation(apiDocs, new OperationRef("/sentry-test", "get")).path("responses");
         assertThat(sentryResponses.has("200")).isFalse();
         assertJsonResponseRef(apiDocs, "/sentry-test", "get", "500", "ErrorResponseWrapper");
+    }
+
+    @Test
+    void userApiResponsesUseDedicatedWrappers() throws Exception {
+        JsonNode apiDocs = apiDocs();
+
+        assertJsonResponseRef(apiDocs, "/api/users/me", "get", "200", "MeApiResponse");
+        assertThat(apiDocs.path("components").path("schemas").path("MeApiResponse")
+                .path("properties").path("data").path("$ref").asText())
+                .isEqualTo("#/components/schemas/MeResponse");
+        assertThat(apiDocs.path("components").path("schemas").path("MeApiResponse")
+                .path("properties").path("message").path("type").asText())
+                .isEqualTo("string");
+        assertThat(apiDocs.path("components").path("schemas").path("MeResponse")
+                .path("properties").path("isPortalLinked").path("type").asText())
+                .isEqualTo("boolean");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void staticOpenApiMeResponseMatchesGeneratedSchemaShape() throws Exception {
+        Map<String, Object> staticOpenApi;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
+            staticOpenApi = new Yaml().load(inputStream);
+        }
+
+        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> meApiResponse = (Map<String, Object>) schemas.get("MeApiResponse");
+        Map<String, Object> meApiProperties = (Map<String, Object>) meApiResponse.get("properties");
+        Map<String, Object> data = (Map<String, Object>) meApiProperties.get("data");
+        Object meResponseObject = schemas.get("MeResponse");
+
+        assertThat(data.get("$ref")).isEqualTo("#/components/schemas/MeResponse");
+        assertThat(meResponseObject).isInstanceOf(Map.class);
+
+        Map<String, Object> meResponse = (Map<String, Object>) meResponseObject;
+        Map<String, Object> meResponseProperties = (Map<String, Object>) meResponse.get("properties");
+        Map<String, Object> isPortalLinked = (Map<String, Object>) meResponseProperties.get("isPortalLinked");
+
+        assertThat(isPortalLinked.get("type")).isEqualTo("boolean");
     }
 
     @Test

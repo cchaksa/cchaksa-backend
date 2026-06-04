@@ -36,4 +36,10 @@ public class UserDto {
             @Schema(description = "Amplitude 사용자 식별자", example = "550e8400-e29b-41d4-a716-446655440000", required = true)
             String analyticsId
     ) {}
+
+    @Schema(description = "내 사용자 정보 응답")
+    public record MeResponse(
+            @Schema(description = "포털 연동 여부", example = "true", required = true)
+            boolean isPortalLinked
+    ) {}
 }
