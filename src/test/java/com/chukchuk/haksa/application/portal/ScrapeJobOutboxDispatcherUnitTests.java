@@ -3,6 +3,7 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutbox;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
+import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -114,7 +116,13 @@ class ScrapeJobOutboxDispatcherUnitTests {
         when(scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(eq(outbox.getOutboxId()), any(), any())).thenReturn(Optional.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
         when(scrapeJobOutboxRepository.findForUpdateByOutboxId(outbox.getOutboxId())).thenReturn(Optional.of(outbox));
-        when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenThrow(SdkClientException.create("temporary failure"));
+        when(scrapeJobPublisher.publish(outbox.getPayloadJson())).thenAnswer(invocation -> {
+            assertThat(MDC.get("userId")).isEqualTo(job.getUserId().toString());
+            assertThat(MDC.get("jobId")).isEqualTo(job.getJobId());
+            assertThat(MDC.get("outboxId")).isEqualTo(outbox.getOutboxId());
+            assertThat(MDC.get("operationType")).isEqualTo(ScrapeJobOperationType.LINK.name());
+            throw SdkClientException.create("temporary failure");
+        });
         when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
 
         dispatcher.dispatchOnce(outbox.getOutboxId());
@@ -122,6 +130,8 @@ class ScrapeJobOutboxDispatcherUnitTests {
         assertThat(outbox.getStatus()).isEqualTo(ScrapeJobOutboxStatus.RETRYABLE_FAILED);
         assertThat(outbox.getNextAttemptAt()).isNotNull();
         assertThat(outbox.getAttemptCount()).isEqualTo(1);
+        assertThat(MDC.get("userId")).isNull();
+        assertThat(MDC.get("jobId")).isNull();
         verify(scrapeJobPublisher, times(3)).publish(outbox.getPayloadJson());
     }
 
@@ -227,7 +237,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
         return ScrapeJob.createQueued(
                 UUID.randomUUID(),
                 "suwon",
-                com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType.LINK,
+                ScrapeJobOperationType.LINK,
                 "idem-1",
                 "fingerprint",
                 "{\"username\":\"17019013\",\"password\":\"pw\"}"

@@ -30,6 +30,10 @@
         <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
         <mdcTags>
             <tag>userId</tag>
+            <tag>jobId</tag>
+            <tag>outboxId</tag>
+            <tag>operationType</tag>
+            <tag>workerRequestId</tag>
             <tag>student_code</tag>
             <tag>admission_year</tag>
             <tag>primary_department_id</tag>
@@ -45,6 +49,10 @@
         <stacktrace.app.packages>com.chukchuk.haksa</stacktrace.app.packages>
         <mdcTags>
             <tag>userId</tag>
+            <tag>jobId</tag>
+            <tag>outboxId</tag>
+            <tag>operationType</tag>
+            <tag>workerRequestId</tag>
             <tag>student_code</tag>
             <tag>admission_year</tag>
             <tag>primary_department_id</tag>

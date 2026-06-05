@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.chukchuk.haksa.infrastructure.portal.mapper.PortalDataMapper;
@@ -40,6 +41,34 @@ public class PortalCallbackPostProcessor {
     }
 
     public void process(
+            String jobId,
+            UUID userId,
+            ScrapeJobOperationType operationType,
+            String payloadJson,
+            Instant finishedAt,
+            Double queuedAgeSeconds,
+            int attempt,
+            String workerRequestId,
+            String payloadHash
+    ) {
+        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(
+                SentryMdcContext.from(userId, jobId, null, operationType, workerRequestId)
+        )) {
+            processWithContext(
+                    jobId,
+                    userId,
+                    operationType,
+                    payloadJson,
+                    finishedAt,
+                    queuedAgeSeconds,
+                    attempt,
+                    workerRequestId,
+                    payloadHash
+            );
+        }
+    }
+
+    private void processWithContext(
             String jobId,
             UUID userId,
             ScrapeJobOperationType operationType,
@@ -101,7 +130,7 @@ public class PortalCallbackPostProcessor {
             Exception exception
     ) {
         meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").increment();
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
+        log.warn("[BIZ] scrape.job.callback.postprocess.fail jobId={} userId={} operationType={} reason=invalid_payload message={}",
                 jobId, userId, operationType, message, exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID, exception);
     }
@@ -124,7 +153,7 @@ public class PortalCallbackPostProcessor {
                 failureDetail + ":" + exception.getMessage(),
                 false
         );
-        log.error("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
+        log.warn("[BIZ] scrape.job.callback.postprocess.fail jobId={} operationType={} reason={} detail={}",
                 jobId, operationType, reason, failureDetail, exception);
         throw new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED, exception);
     }

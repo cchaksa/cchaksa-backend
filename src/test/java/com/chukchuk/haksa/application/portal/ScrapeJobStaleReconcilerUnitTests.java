@@ -8,6 +8,9 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.List;
@@ -66,11 +70,30 @@ class ScrapeJobStaleReconcilerUnitTests {
                 .thenReturn(List.of(outbox));
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
-        int affectedCount = reconciler.reconcileStaleQueuedJobs();
+        Logger logger = (Logger) LoggerFactory.getLogger(ScrapeJobStaleReconciler.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        int affectedCount;
+        try {
+            affectedCount = reconciler.reconcileStaleQueuedJobs();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
 
         assertThat(affectedCount).isEqualTo(1);
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("CALLBACK_TIMEOUT");
         assertThat(job.getRetryable()).isTrue();
+        assertThat(appender.list)
+                .filteredOn(event -> event.getFormattedMessage().contains("scrape.job.callback.timeout"))
+                .singleElement()
+                .satisfies(event -> assertThat(event.getMDCPropertyMap())
+                        .containsEntry("userId", job.getUserId().toString())
+                        .containsEntry("jobId", job.getJobId())
+                        .containsEntry("outboxId", outbox.getOutboxId())
+                        .containsEntry("operationType", ScrapeJobOperationType.REFRESH.name()));
     }
 }

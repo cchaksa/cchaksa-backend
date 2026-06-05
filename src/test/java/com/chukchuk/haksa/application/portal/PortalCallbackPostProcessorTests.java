@@ -9,6 +9,10 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -25,6 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -70,6 +77,12 @@ class PortalCallbackPostProcessorTests {
     void handle_linkSuccess() {
         ScrapeJob job = newJob(ScrapeJobOperationType.LINK);
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
+        doAnswer(invocation -> {
+            assertThat(MDC.get("userId")).isEqualTo(job.getUserId().toString());
+            assertThat(MDC.get("jobId")).isEqualTo(job.getJobId());
+            assertThat(MDC.get("operationType")).isEqualTo(ScrapeJobOperationType.LINK.name());
+            return null;
+        }).when(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
         processor.process(
                 job.getJobId(),
@@ -86,6 +99,8 @@ class PortalCallbackPostProcessorTests {
         verify(portalSyncService).syncWithPortal(eq(job.getUserId()), any());
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.success").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.SUCCEEDED);
+        assertThat(MDC.get("userId")).isNull();
+        assertThat(MDC.get("jobId")).isNull();
     }
 
     @Test
@@ -147,21 +162,32 @@ class PortalCallbackPostProcessorTests {
         job.markPostProcessing("callbacks/" + job.getJobId() + "/result.json", null, null, 1, Instant.now());
         Instant finishedAt = Instant.parse("2026-04-08T00:00:00Z");
 
-        assertThatThrownBy(() -> processor.process(
-            job.getJobId(),
-            job.getUserId(),
-            ScrapeJobOperationType.LINK,
-            "{invalid-json}",
-            finishedAt,
-            1.0,
-            1,
-            "",
-            "invalid"
-        )).isInstanceOf(CommonException.class)
-                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code()));
+        Logger logger = (Logger) LoggerFactory.getLogger(PortalCallbackPostProcessor.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            assertThatThrownBy(() -> processor.process(
+                job.getJobId(),
+                job.getUserId(),
+                ScrapeJobOperationType.LINK,
+                "{invalid-json}",
+                finishedAt,
+                1.0,
+                1,
+                "",
+                "invalid"
+            )).isInstanceOf(CommonException.class)
+                    .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID.code()));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
 
         assertThat(meterRegistry.counter("scrape.job.callback.postprocess.fail", "reason", "invalid_payload").count()).isEqualTo(1.0);
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.POST_PROCESSING);
+        assertThat(appender.list).noneMatch(event -> event.getLevel().equals(Level.ERROR));
         verify(scrapeJobRepository, never()).findForUpdateByJobId(job.getJobId());
     }
 
