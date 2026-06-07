@@ -61,6 +61,51 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/academic/record:
+    get:
+      tags:
+        - AcademicRecord
+      summary: 학기별 성적 및 수강 과목 정보 조회
+      description: 지정한 학기(year, semester)에 해당하는 성적 및 수강 과목 정보를 조회합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          description: 이수 연도
+          example: 2024
+        - name: semester
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
+      responses:
+        '200':
+          description: 지정 학기 성적 및 수강 과목 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcademicRecordApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: 해당 학기 성적 데이터 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/users/analytics-id:
     get:
       summary: 사용자 분석 식별자 조회
@@ -506,3 +551,218 @@ components:
           format: int32
           description: 이수 학기
           example: 10
+        liberalAreaCode:
+          type: integer
+          format: int32
+          nullable: true
+          description: 선교 영역 세부 코드. areaType이 선교인 과목에 한해 노출됩니다. areaType이 선교가 아닌 과목은 이 키가 응답에 포함되지 않습니다.
+          example: 7
+
+    AcademicRecordApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AcademicRecordResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AcademicRecordResponse:
+      type: object
+      required:
+        - semesterGrade
+        - courses
+      properties:
+        semesterGrade:
+          $ref: '#/components/schemas/SemesterGrade'
+        courses:
+          $ref: '#/components/schemas/AcademicRecordCourses'
+
+    SemesterGrade:
+      type: object
+      required:
+        - year
+        - semester
+        - earnedCredits
+        - attemptedCredits
+        - semesterGpa
+        - percentile
+      properties:
+        year:
+          type: integer
+          format: int32
+          description: 이수 연도
+          example: 2024
+        semester:
+          type: integer
+          format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
+        earnedCredits:
+          type: integer
+          format: int32
+          description: 취득 학점
+          example: 15
+        attemptedCredits:
+          type: integer
+          format: int32
+          description: 신청 학점
+          example: 18
+        semesterGpa:
+          type: number
+          description: 학기 GPA
+          example: 3.85
+        classRank:
+          type: integer
+          format: int32
+          nullable: true
+          description: 석차
+          example: 5
+        totalStudents:
+          type: integer
+          format: int32
+          nullable: true
+          description: 전체 학생 수
+          example: 150
+        percentile:
+          type: number
+          description: 백분율
+          example: 92.4
+
+    AcademicRecordCourses:
+      type: object
+      required:
+        - major
+        - liberal
+        - etc
+      properties:
+        major:
+          type: array
+          description: 전공 과목 목록
+          items:
+            $ref: '#/components/schemas/StudentCourseDetail'
+        liberal:
+          type: array
+          description: 교양 과목 목록. areaType이 선교인 과목은 liberalAreaCode를 포함할 수 있고, 선교가 아닌 과목은 해당 키가 응답에 포함되지 않습니다.
+          items:
+            $ref: '#/components/schemas/StudentCourseDetail'
+        etc:
+          type: array
+          description: 기타 과목 목록
+          items:
+            $ref: '#/components/schemas/StudentCourseDetail'
+
+    StudentCourseDetail:
+      type: object
+      required:
+        - id
+        - courseName
+        - courseCode
+        - areaType
+        - credits
+        - professor
+        - grade
+        - score
+        - isRetake
+        - isOnline
+        - year
+        - semester
+        - originalScore
+        - isRetakeDelete
+      properties:
+        id:
+          type: string
+          description: 수강 ID
+          example: "123"
+        courseName:
+          type: string
+          description: 과목명
+          example: 기독교의 이해
+        courseCode:
+          type: string
+          description: 학수번호
+          example: GEN001
+        areaType:
+          type: string
+          description: 영역 유형
+          enum:
+            - 중핵
+            - 기교
+            - 선교
+            - 소교
+            - 전교
+            - 전취
+            - 전핵
+            - 전선
+            - 일선
+            - 복선
+            - 복핵
+            - 복교
+            - 기타
+          example: 선교
+        rawAreaType:
+          type: string
+          nullable: true
+          description: 포털 원본 이수 구분
+          example: 교직
+        credits:
+          type: integer
+          format: int32
+          description: 학점
+          example: 3
+        professor:
+          type: string
+          description: 교수명
+          example: 김교수
+        grade:
+          type: string
+          description: 성적
+          example: A+
+        score:
+          type: integer
+          format: int32
+          description: 실 점수
+          example: 3
+        isRetake:
+          type: boolean
+          description: 재수강 여부
+          example: false
+        isOnline:
+          type: boolean
+          description: 사이버 강의 여부
+          example: false
+        year:
+          type: integer
+          format: int32
+          description: 이수 연도
+          example: 2024
+        semester:
+          type: integer
+          format: int32
+          description: 이수 학기
+          example: 10
+        originalScore:
+          type: integer
+          format: int32
+          description: 원점수
+          example: 95
+        liberalAreaCode:
+          type: integer
+          format: int32
+          nullable: true
+          description: 선교 영역 세부 코드. areaType이 선교인 과목에 한해 노출됩니다. areaType이 선교가 아닌 과목은 이 키가 응답에 포함되지 않습니다.
+          example: 7
+        isRetakeDelete:
+          type: boolean
+          description: 재수강 삭제 과목 여부
+          example: false

@@ -75,4 +75,26 @@ class GraduationQueryRepositoryMapperTest {
         assertThat(dto.getYear()).isEqualTo(2023);
         assertThat(dto.getCourseName()).isEqualTo("자료구조");
     }
+
+    @Test
+    @DisplayName("toCourseResponseDto 는 선교가 아닌 과목의 liberalAreaCode 를 노출하지 않는다")
+    void toCourseResponseDto_omitsLiberalAreaCodeForNonMissionCourse() {
+        GraduationQueryRepository repository = newRepository();
+        CourseInternalDto internal = new CourseInternalDto(
+                3L,
+                "전핵",
+                3,
+                "A+",
+                "자료구조",
+                20,
+                2024,
+                "CSE101",
+                95,
+                7
+        );
+
+        CourseDto dto = repository.toCourseResponseDto(internal);
+
+        assertThat(dto.getLiberalAreaCode()).isNull();
+    }
 }
