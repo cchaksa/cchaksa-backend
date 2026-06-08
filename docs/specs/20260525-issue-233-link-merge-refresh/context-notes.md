@@ -7,3 +7,4 @@
 - 최초 LINK 사용자는 `portalConnected=false` 상태를 유지하므로 기존 초기화 경로에 남아야 한다.
 - 이번 범위는 백엔드 application 계층 분기와 회귀 테스트로 제한한다.
 - 대상 테스트 RED는 신규 초기화 호출 assertion으로 실패했고, 수정 후 같은 테스트가 통과했다.
+- Gemini 리뷰를 반영해 REFRESH helper에 `User`를 직접 전달하고, 테스트의 중복 `lenient().doAnswer` 스텁을 제거했다.

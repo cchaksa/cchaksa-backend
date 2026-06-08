@@ -2,6 +2,8 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.application.dto.ScrapingResponse;
+import com.chukchuk.haksa.domain.graduation.service.StudentGraduationProgressService;
+import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -29,6 +31,7 @@ public class PortalSyncService {
     private final SyncAcademicRecordService syncAcademicRecordService;
     private final UserService userService;
     private final StudentService studentService;
+    private final StudentGraduationProgressService studentGraduationProgressService;
 
     @Transactional
     public ScrapingResponse syncWithPortal(UUID userId, PortalData portalData) {
@@ -37,7 +40,7 @@ public class PortalSyncService {
         UUID activeUserId = mergedUser.getId();
         if (Boolean.TRUE.equals(mergedUser.getPortalConnected())) {
             log.info("[BIZ] portal.sync.refresh_after_merge userId={} activeUserId={}", userId, activeUserId);
-            return refreshActiveUserFromPortal(userId, activeUserId, portalData, t0);
+            return refreshActiveUserFromPortal(userId, mergedUser, portalData, t0);
         }
 
         // 1. 포털 초기화
@@ -54,7 +57,10 @@ public class PortalSyncService {
             throw new PortalScrapeException(ErrorCode.SCRAPING_FAILED);
         }
 
-        // 3. 포털 연결 마킹
+        // 3. 외국어 졸업 인증 동기화
+        syncLanguageCert(activeUserId, portalData);
+
+        // 4. 포털 연결 마킹
         User user = userService.getUserById(activeUserId);
         user.markPortalConnected(Instant.now());
         userService.save(user);
@@ -63,7 +69,7 @@ public class PortalSyncService {
         long tookMs = LogTime.elapsedMs(t0);
         log.info("[BIZ] portal.sync.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
-        // 4. 응답 생성
+        // 5. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
     }
 
@@ -71,11 +77,12 @@ public class PortalSyncService {
     public ScrapingResponse refreshFromPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
         User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
-        UUID activeUserId = mergedUser.getId();
-        return refreshActiveUserFromPortal(userId, activeUserId, portalData, t0);
+        return refreshActiveUserFromPortal(userId, mergedUser, portalData, t0);
     }
 
-    private ScrapingResponse refreshActiveUserFromPortal(UUID userId, UUID activeUserId, PortalData portalData, long t0) {
+    private ScrapingResponse refreshActiveUserFromPortal(UUID userId, User activeUser, PortalData portalData, long t0) {
+        UUID activeUserId = activeUser.getId();
+
         // 1. 포털 연동 정보 갱신
         PortalConnectionResult conn = refreshPortalConnectionService.executeWithPortalData(activeUserId, portalData);
         if (!conn.isSuccess()) {
@@ -90,17 +97,26 @@ public class PortalSyncService {
             throw new PortalScrapeException(ErrorCode.REFRESH_FAILED);
         }
 
-        // 3. 마지막 동기화 시간만 업데이트 (포털 연결은 유지)
-        User user = userService.getUserById(activeUserId);
-        user.updateLastSyncedAt(Instant.now());
-        userService.save(user);
-        studentService.markReconnectedByUser(user);
+        // 3. 외국어 졸업 인증 동기화
+        syncLanguageCert(activeUserId, portalData);
+
+        // 4. 마지막 동기화 시간만 업데이트 (포털 연결은 유지)
+        activeUser.updateLastSyncedAt(Instant.now());
+        userService.save(activeUser);
+        studentService.markReconnectedByUser(activeUser);
 
         long tookMs = LogTime.elapsedMs(t0);
         log.info("[BIZ] portal.refresh.done userId={} activeUserId={} took_ms={}", userId, activeUserId, tookMs);
 
-        // 4. 응답 생성
+        // 5. 응답 생성
         return ScrapingResponse.success(UUID.randomUUID().toString(), conn.studentInfo());
     }
 
+    private void syncLanguageCert(UUID activeUserId, PortalData portalData) {
+        Student student = studentService.getStudentByUserId(activeUserId);
+        studentGraduationProgressService.syncLanguageCert(
+                student,
+                portalData.student().languageCertFulfilled()
+        );
+    }
 }

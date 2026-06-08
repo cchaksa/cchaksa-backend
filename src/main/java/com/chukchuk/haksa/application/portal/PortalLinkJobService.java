@@ -61,7 +61,7 @@ public class PortalLinkJobService {
         } catch (CommonException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            log.error("[BIZ] scrape.job.enqueue.fail userId={} portalType={} idempotencyKey={}",
+            log.warn("[BIZ] scrape.job.enqueue.fail userId={} portalType={} idempotencyKey={}",
                     userId, request.portal_type(), idempotencyKey, exception);
             throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, exception);
         }
@@ -139,7 +139,7 @@ public class PortalLinkJobService {
             scrapeJobOutboxDispatcher.dispatchOnce(preparedJob.outboxId());
             PortalLinkJobTxService.DispatchSnapshot snapshot = portalLinkJobTxService.loadDispatchSnapshot(preparedJob.outboxId());
             if (!snapshot.isSent()) {
-                log.error("[BIZ] scrape.job.enqueue.sync.fail jobId={} outboxId={} portalType={} idempotencyKey={} jobStatus={} outboxStatus={} queueMessageId={} lastError={}",
+                log.warn("[BIZ] scrape.job.enqueue.sync.fail jobId={} outboxId={} portalType={} idempotencyKey={} jobStatus={} outboxStatus={} queueMessageId={} lastError={}",
                         snapshot.jobId(),
                         snapshot.outboxId(),
                         portalType,
@@ -153,7 +153,7 @@ public class PortalLinkJobService {
         } catch (CommonException exception) {
             throw exception;
         } catch (RuntimeException exception) {
-            log.error("[BIZ] scrape.job.enqueue.sync.exception jobId={} outboxId={} portalType={} idempotencyKey={}",
+            log.warn("[BIZ] scrape.job.enqueue.sync.exception jobId={} outboxId={} portalType={} idempotencyKey={}",
                     preparedJob.jobId(), preparedJob.outboxId(), portalType, idempotencyKey, exception);
             throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, exception);
         }

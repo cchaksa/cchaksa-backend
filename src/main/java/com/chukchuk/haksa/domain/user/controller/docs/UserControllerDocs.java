@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.user.controller.docs;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.wrapper.AnalyticsIdApiResponse;
 import com.chukchuk.haksa.domain.user.wrapper.DeleteUserApiResponse;
+import com.chukchuk.haksa.domain.user.wrapper.MeApiResponse;
 import com.chukchuk.haksa.domain.user.wrapper.SignInApiResponse;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
@@ -33,6 +34,23 @@ public interface UserControllerDocs {
     )
     @SecurityRequirement(name = "bearerAuth")
     ResponseEntity<SuccessResponse<UserDto.AnalyticsIdResponse>> getAnalyticsId(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    );
+
+    @Operation(
+            summary = "내 사용자 정보 조회",
+            description = "로그인된 사용자의 포털 연동 여부를 조회합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "내 사용자 정보 조회 성공",
+                            content = @Content(schema = @Schema(implementation = MeApiResponse.class))),
+                    @ApiResponse(responseCode = "401", description = "인증 실패",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+                    @ApiResponse(responseCode = "404", description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
+                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+            }
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<UserDto.MeResponse>> getMe(
             @AuthenticationPrincipal CustomUserDetails userDetails
     );
 

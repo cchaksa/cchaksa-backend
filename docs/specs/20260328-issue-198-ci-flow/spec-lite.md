@@ -21,8 +21,8 @@
 - [x] 분석 결과 정리 및 spec-lite/답변 업데이트
 
 ## Findings (2026-03-28)
-- `.github/workflows`에는 autofix, issue-linker, dev/prod EC2, dev/prod Lambda 6개 workflow만 존재하며 모두 GitHub Actions에서 관리한다.
-- CI 측면에서는 `autofix.yml` 외 별도 테스트/빌드 workflow가 없어서 PR/PUSH 시 Gradle 테스트가 자동 실행되지 않는다.
-- 배포는 `workflow_dispatch` 기반으로 Dev/Prod 각각 EC2와 Lambda가 분리돼 있고, EC2 job은 dev/main 브랜치를 체크아웃해 Jar를 빌드한 후 SCP/SSH로 롤백 가능한 방식으로 배포하며 Lambda job은 `lambdaZip` 산출물을 S3에 올려 alias를 전환한다.
+- `.github/workflows`에는 autofix, issue-linker, dev/prod Lambda workflow가 존재하며 모두 GitHub Actions에서 관리한다.
+- CI 측면에서는 `ci.yml`이 Gradle 검증을 담당한다.
+- 배포는 `workflow_dispatch` 기반의 Dev/Prod Lambda workflow가 담당하며, `lambdaZip` 산출물을 S3에 올려 Lambda alias를 전환한다.
 
 > Lite 스펙은 Scope < 1 day & API 변경 없음일 때만 허용. 조건을 벗어나면 즉시 Standard 스펙으로 승격한다.

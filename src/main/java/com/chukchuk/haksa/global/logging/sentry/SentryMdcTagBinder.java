@@ -15,6 +15,10 @@ public final class SentryMdcTagBinder {
 
     private static final List<String> TAG_KEYS = List.of(
             "userId",
+            "jobId",
+            "outboxId",
+            "operationType",
+            "workerRequestId",
             "student_code",
             "admission_year",
             "primary_department_id",

@@ -79,8 +79,6 @@
 - Observability: Sentry, Grafana Cloud(OTLP), CloudWatch Logs
 - Docker 기반 Lambda 패키징 및 GitHub Actions 배포
 
-> 장애 롤백 대비를 위해 기존 EC2 ASG 경로는 보조 배포선으로 유지합니다.
-
 ### Tools
 - Git, GitHub
 - Swagger (OpenAPI)

@@ -18,12 +18,14 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         jdbc:
           use_get_generated_keys: true
           statement_cache_size: 0
+  flyway:
+    enabled: false
 
 sentry:
   dsn: ${DEV_SENTRY_DSN}

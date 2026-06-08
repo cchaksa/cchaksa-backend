@@ -55,6 +55,8 @@ public class CourseOfferingService {
         for (CourseOffering offering : existing) {
             CourseOfferingKey key = CourseOfferingKey.from(offering);
             if (commandByKey.containsKey(key)) {
+                CreateOfferingCommand cmd = commandByKey.get(key);
+                backfillMissionAreaCodeIfNeeded(offering, cmd);
                 result.putIfAbsent(key, offering);
             }
         }
@@ -95,7 +97,7 @@ public class CourseOfferingService {
         }
 
         EvaluationType evaluationType = resolveEvaluationType(cmd.evaluationType());
-        FacultyDivision facultyDivision = resolveFacultyDivision(cmd.facultyDivisionName());
+        FacultyDivisionResolution facultyDivision = FacultyDivisionResolution.from(cmd.facultyDivisionName());
 
         return new CourseOffering(
                 cmd.subjectEstablishmentSemester(),
@@ -108,7 +110,8 @@ public class CourseOfferingService {
                 cmd.originalAreaCode(),
                 cmd.points(),
                 evaluationType,
-                facultyDivision,
+                facultyDivision.value(),
+                facultyDivision.rawValue(),
                 course,
                 professor,
                 department,
@@ -123,11 +126,30 @@ public class CourseOfferingService {
         return EvaluationType.valueOf(rawValue);
     }
 
-    private FacultyDivision resolveFacultyDivision(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
+    /**
+     * 선교(미션) 영역의 historical NULL area_code 단방향 backfill (Issue #226 2차 작업).
+     * <p>4개 조건이 모두 충족될 때만 도메인 메서드를 호출한다:
+     * <ol>
+     *   <li>{@code existing.facultyDivisionName == FacultyDivision.선교}</li>
+     *   <li>{@code existing.liberalArtsAreaCode == null}</li>
+     *   <li>{@code cmd.areaCode() != null}</li>
+     *   <li>{@code cmd.areaCode() != 0} ({@code extractLeadingDigit} 실패 시 0 반환을 거름)</li>
+     * </ol>
+     * 가드 통과 시 {@code @Transactional} dirty checking 으로 자동 UPDATE flush.
+     */
+    private void backfillMissionAreaCodeIfNeeded(CourseOffering existing, CreateOfferingCommand cmd) {
+        if (!shouldBackfillMissionAreaCode(existing, cmd)) {
+            return;
         }
-        return FacultyDivision.valueOf(rawValue);
+        LiberalArtsAreaCode area = liberalArtsAreaCodeRepository.getReferenceById(cmd.areaCode());
+        existing.backfillMissionLiberalAreaCode(area);
+    }
+
+    private boolean shouldBackfillMissionAreaCode(CourseOffering existing, CreateOfferingCommand cmd) {
+        return existing.getFacultyDivisionName() == FacultyDivision.선교
+                && existing.getLiberalArtsAreaCode() == null
+                && cmd.areaCode() != null
+                && cmd.areaCode() != 0;
     }
 
     public record CourseOfferingKey(
@@ -137,16 +159,19 @@ public class CourseOfferingService {
             String classSection,
             Long professorId,
             String facultyDivisionName,
+            String rawFacultyDivisionName,
             String hostDepartment
     ) {
         public static CourseOfferingKey from(CreateOfferingCommand cmd) {
+            FacultyDivisionResolution facultyDivision = FacultyDivisionResolution.from(cmd.facultyDivisionName());
             return new CourseOfferingKey(
                     cmd.courseId(),
                     cmd.year(),
                     cmd.semester(),
                     normalizeBlank(cmd.classSection()),
                     cmd.professorId(),
-                    normalizeBlank(cmd.facultyDivisionName()),
+                    facultyDivision.value() != null ? facultyDivision.value().name() : null,
+                    facultyDivision.rawValue(),
                     normalizeBlank(cmd.hostDepartment())
             );
         }
@@ -159,6 +184,7 @@ public class CourseOfferingService {
                     normalizeBlank(offering.getClassSection()),
                     offering.getProfessor().getId(),
                     offering.getFacultyDivisionName() != null ? normalizeBlank(offering.getFacultyDivisionName().name()) : null,
+                    normalizeBlank(offering.getRawFacultyDivisionName()),
                     normalizeBlank(offering.getHostDepartment())
             );
         }
@@ -168,6 +194,21 @@ public class CourseOfferingService {
                 return null;
             }
             return value.trim();
+        }
+    }
+
+    private record FacultyDivisionResolution(FacultyDivision value, String rawValue) {
+        private static FacultyDivisionResolution from(String rawValue) {
+            String normalized = CourseOfferingKey.normalizeBlank(rawValue);
+            if (normalized == null) {
+                return new FacultyDivisionResolution(null, null);
+            }
+
+            try {
+                return new FacultyDivisionResolution(FacultyDivision.valueOf(normalized), null);
+            } catch (IllegalArgumentException ignored) {
+                return new FacultyDivisionResolution(FacultyDivision.기타, normalized);
+            }
         }
     }
 }

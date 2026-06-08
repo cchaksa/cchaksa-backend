@@ -19,5 +19,6 @@ public record RawPortalStudentDTO(
         String enscSmrCd,
         String enscDvcd,
         Integer studGrde,
-        Integer facSmrCnt
+        Integer facSmrCnt,
+        String flangPassGb
 ) {}

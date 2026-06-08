@@ -15,5 +15,6 @@ public class CourseInternalDto {
     private Integer year;
     private String courseCode;
     private Integer originalScore;
+    private Integer liberalAreaCode; // course_offerings.area_code (LiberalArtsAreaCode FK), nullable
 }
 

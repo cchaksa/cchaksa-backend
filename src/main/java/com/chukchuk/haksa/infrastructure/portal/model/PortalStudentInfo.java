@@ -9,5 +9,6 @@ public record PortalStudentInfo(
         CodeName secondaryMajor,
         String status,
         AdmissionInfo admission,
-        PortalAcademicInfo academic
+        PortalAcademicInfo academic,
+        Boolean languageCertFulfilled
 ) {}

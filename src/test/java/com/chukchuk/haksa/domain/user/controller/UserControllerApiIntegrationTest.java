@@ -1,8 +1,10 @@
 package com.chukchuk.haksa.domain.user.controller;
 
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
+import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.exception.type.TokenException;
 import com.chukchuk.haksa.support.ApiControllerWebMvcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,6 +51,34 @@ class UserControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.analyticsId").value(userId.toString()));
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 성공 시 포털 연동 여부를 반환한다")
+    void getMe_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        when(userService.getMe(userId)).thenReturn(new UserDto.MeResponse(true));
+
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.isPortalLinked").value(true))
+                .andExpect(jsonPath("$.message").value("요청 성공"));
+    }
+
+    @Test
+    @DisplayName("내 정보 조회 시 사용자가 없으면 U01 응답을 반환한다")
+    void getMe_userNotFound() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        when(userService.getMe(userId))
+                .thenThrow(new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
+
+        mockMvc.perform(get("/api/users/me"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("U01"));
     }
 
     @Test

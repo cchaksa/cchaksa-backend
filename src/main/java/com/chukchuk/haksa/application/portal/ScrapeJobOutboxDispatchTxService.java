@@ -138,6 +138,8 @@ public class ScrapeJobOutboxDispatchTxService {
             candidates.add(new ScrapeJobOutboxPublishCandidate(
                     outbox.getOutboxId(),
                     outbox.getJobId(),
+                    job.getUserId(),
+                    job.getOperationType(),
                     outbox.getPayloadJson(),
                     outbox.getAttemptCount(),
                     outbox.getStatus(),

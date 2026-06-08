@@ -1,5 +1,7 @@
 # Context Notes
 
+- 2026-05-26: 사용자는 `origin/main`과 `origin/dev` 기준 PR을 각각 요청했다.
+- 2026-05-26: `origin/dev`에는 Issue 208의 `etc`, `rawAreaType` 응답 변경이 포함되어 있다.
 - 2026-05-26: 사용자는 `origin/main` 기준 `feat/238` 브랜치에서 작업하기를 요청했다.
 - 2026-05-26: 이번 작업에서는 repo-local `codex/skills` 하위 파일을 무시한다.
 - 2026-05-26: `FacultyDivision`에는 `복핵`, `복선`, `복교`가 정의되어 있다.

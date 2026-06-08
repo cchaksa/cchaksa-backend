@@ -2,6 +2,7 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
+import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -116,14 +117,26 @@ public class ScrapeJobOutboxDispatcher {
     }
 
     private void publishSingle(ScrapeJobOutboxPublishCandidate candidate, Instant attemptedAt, String trigger) {
-        try {
-            log.info("[BIZ] scrape.outbox.publish.start trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
-                    trigger, candidate.outboxId(), candidate.jobId(), candidate.attemptCount(), candidate.status(), candidate.queueMessageId());
-            String queueMessageId = publishWithBoundedRetry(candidate, trigger);
-            dispatchTxService.markSent(candidate.outboxId(), queueMessageId, attemptedAt, trigger);
-        } catch (RuntimeException e) {
-            dispatchTxService.markFailed(candidate.outboxId(), attemptedAt, trigger, e);
+        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.open(contextFor(candidate))) {
+            try {
+                log.info("[BIZ] scrape.outbox.publish.start trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
+                        trigger, candidate.outboxId(), candidate.jobId(), candidate.attemptCount(), candidate.status(), candidate.queueMessageId());
+                String queueMessageId = publishWithBoundedRetry(candidate, trigger);
+                dispatchTxService.markSent(candidate.outboxId(), queueMessageId, attemptedAt, trigger);
+            } catch (RuntimeException e) {
+                dispatchTxService.markFailed(candidate.outboxId(), attemptedAt, trigger, e);
+            }
         }
+    }
+
+    private SentryMdcContext.Context contextFor(ScrapeJobOutboxPublishCandidate candidate) {
+        return SentryMdcContext.from(
+                candidate.userId(),
+                candidate.jobId(),
+                candidate.outboxId(),
+                candidate.operationType(),
+                null
+        );
     }
 
     private String publishWithBoundedRetry(ScrapeJobOutboxPublishCandidate candidate, String trigger) {

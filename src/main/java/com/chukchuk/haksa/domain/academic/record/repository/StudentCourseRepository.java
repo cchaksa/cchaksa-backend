@@ -17,6 +17,7 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, Lo
         JOIN FETCH sc.offering co
         JOIN FETCH co.course c
         LEFT JOIN FETCH co.professor p
+        LEFT JOIN FETCH co.liberalArtsAreaCode lac
         WHERE sc.student.id = :studentId
         AND co.year = :year
         AND co.semester = :semester

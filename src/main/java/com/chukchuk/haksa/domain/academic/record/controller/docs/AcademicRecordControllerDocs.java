@@ -22,7 +22,7 @@ public interface AcademicRecordControllerDocs {
 
     @Operation(
             summary = "학기별 성적 및 수강 과목 정보 조회",
-            description = "지정한 학기(year, semester)에 해당하는 성적 및 수강 과목 정보를 조회합니다.",
+            description = "지정한 학기(year, semester)에 해당하는 성적 및 수강 과목 정보를 조회합니다. courses.liberal[] 중 areaType이 선교인 과목은 liberalAreaCode를 포함할 수 있습니다. areaType이 선교가 아닌 과목은 liberalAreaCode 키가 응답에 포함되지 않습니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "지정 학기 성적 및 수강 과목 조회 성공",
                             content = @Content(schema = @Schema(implementation = AcademicRecordApiResponse.class))),

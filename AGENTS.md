@@ -1,81 +1,69 @@
 # Repository Guidelines
 
-## Technology Stack
-- Java 17 (Gradle toolchain)
-- Spring Boot 3.2.5
-- Spring Web (MVC) and Spring WebFlux
-- Spring Security with JWT (jjwt)
-- Spring Data JPA (Hibernate)
-- PostgreSQL
-- Caffeine (local cache)
-- Hibernate Validator / Jakarta Validation
-- OpenAPI via springdoc
-- Observability: Actuator, Sentry, Micrometer + OpenTelemetry
-- Logging: Logback with logstash encoder
+## Project Facts
+- Java 17 Gradle toolchain.
+- Spring Boot 3.2.5.
+- Spring Web MVC and WebFlux.
+- Spring Security with JWT through `jjwt`.
+- Spring Data JPA with PostgreSQL.
+- Caffeine local cache.
+- Hibernate Validator and Jakarta Validation.
+- OpenAPI via springdoc.
+- Observability through Actuator, Sentry, Micrometer, and OpenTelemetry.
+- Logging through Logback with logstash encoder.
 
-## Package Structure
-- Base package: `com.chukchuk.haksa`
-- `application`: use-case orchestration and application services
-- `domain`: core models, services, controllers, repositories, wrappers, DTOs
-- `infrastructure`: portal clients, cache, mappers, repositories, DTOs
-- `global`: config, security, logging, exceptions, common response
-- Resources: `src/main/resources` with `application-*.yml`, `logback-spring.xml`, and `public/openapi.yaml`
+## Package Map
+- Base package: `com.chukchuk.haksa`.
+- `domain`: core models, domain services, controllers, repositories, wrappers, and DTOs.
+- `application`: use-case orchestration and application services.
+- `infrastructure`: portal clients, cache, mappers, repository implementations, and integration DTOs.
+- `global`: configuration, security, logging, exceptions, and common response code.
+- Resources live under `src/main/resources`, including `application-*.yml`, `logback-spring.xml`, and `public/openapi.yaml`.
 
-## Test Structure
-- Tests live under `src/test/java`
-- JUnit 5 via Spring Boot test starter
-- Example test location: `src/test/java/com/chukchuk/haksa/global/security/cache/AuthTokenCacheTests.java`
-- `tasks.test` uses JUnit Platform
+## Agent Instruction Policy
+- `AGENTS.md` is the only project-level AI Agent instruction source.
+- Do not add or maintain separate project-local agent rule files, including `codex/skills`, `CLAUDE.md`, `GEMINI.md`, or tool-specific rule folders.
+- Keep this file short and durable. Put task-specific decisions in the relevant issue, PR, spec, or final response instead.
+- Update `AGENTS.md` only when a durable project-wide rule changes, and call that out explicitly.
 
-## Implicit Development Rules (Observed)
-- Java formatting uses 4-space indentation
-- Configuration is environment-specific via `application-local.yml`, `application-dev.yml`, `application-prod.yml`
-- Redis auto-configuration is excluded in `application.yml` (local cache is default)
-- API documentation is served from `src/main/resources/public/openapi.yaml`
-- Project-local Codex skills are managed under `codex/skills`
-- Before starting work, read all files under `codex` and reflect their rules during execution
-- Primary intent routing uses these task skills:
-  - `FEATURE_DEVELOPMENT.md`
-  - `REFACTORING.md`
-  - `BUG_FIX.md`
-  - `ISSUE_ANALYSIS.md`
-- 모든 Context 산출물은 `docs/specs/<YYYYMMDD-slug>/` 아래 Spec Kit 하이브리드 구조(Standard 또는 Lite)를 따른다.
-- If the repository guidelines change or new facts are discovered during work, update `AGENTS.md` accordingly
+## Development Rules
+- Inspect the actual files and nearby call sites before editing.
+- Keep changes surgical and directly tied to the request.
+- Prefer the smallest explicit solution that preserves existing behavior.
+- Do not change business logic, public API contracts, dependencies, or transaction boundaries without clear context.
+- Match existing Java formatting with 4-space indentation.
+- Keep configuration environment-specific through `application-local.yml`, `application-dev.yml`, and `application-prod.yml`.
+- Redis auto-configuration is excluded in `application.yml`; local cache is the default.
+- Keep API documentation in `src/main/resources/public/openapi.yaml` aligned with externally visible API changes.
 
-## Architecture Style
-- Layered architecture with package boundaries: `domain` → `application` → `infrastructure` and shared `global`
-- Spring Boot application entry point at `com.chukchuk.haksa.ChukchukHaksaApplication`
-- Environment profiles: `local`, `dev`, `prod`
+## Database Migration Rules
+- DB DDL 변경이 필요한 코드 변경은 반드시 `src/main/resources/db/migration` 아래 Flyway SQL 파일로 남긴다.
+- 엔티티, 컬럼, 테이블, 인덱스, 제약 조건 변경은 Java 코드만 수정해서 끝내지 않는다.
+- Migration 파일명은 현재 마지막 version 다음 번호를 사용한다. 예: `V4__add_xxx_column.sql`.
+- 이미 dev/prod 중 하나라도 적용된 migration 파일은 수정하지 않는다.
+- 적용된 migration의 보정이 필요하면 기존 파일을 고치지 않고 다음 version의 새 migration 파일을 추가한다.
+- Hibernate `ddl-auto`는 dev/prod에서 schema 변경 수단으로 사용하지 않는다. DB 변경은 Flyway migration을 통해 수행한다.
 
-## Policy Layer
+## Planning And Specs
+- Use `docs/specs/<YYYYMMDD-slug>/` for non-trivial feature work, bug fixes, refactors, or operational changes that affect domain rules, public APIs, schema, transactions, deployment, or rollback.
+- For small, mechanical, documentation-only, or test-only changes, a concise plan in the conversation is enough.
+- Standard spec bundles use `spec.md`, `clarify.md`, `plan.md`, and `tasks.md`.
+- Lite specs use `spec-lite.md` when the work is under one day, does not change external contracts, and has limited domain impact.
+- If requirements are unclear, ask before editing the unclear part. Record durable decisions in the spec when one exists.
+- `./scripts/new-spec.sh <YYYYMMDD-slug> [--lite]` can create the expected spec files.
 
-### Spec Bundle Rules
-- Standard 경로: `spec.md`, `clarify.md`, `plan.md`, `tasks.md`를 모두 작성하고 Phase 1 종료 전에 승인받는다.
-- Lite 경로: Scope < 1 day & 외부 API/계약 수정 없음 & 도메인 영향이 제한적일 때만 허용하며 `spec-lite.md`만 작성한다.
-- Lite로 시작했다가 조건을 벗어나면 즉시 Standard 구조로 승격해 네 개 파일을 채운다.
-- 브랜치명과 `docs/specs` 폴더명은 1:1 매핑한다(`YYYYMMDD-slug`).
-- Spec/Lite 문서 작성 후에는 담당자의 승인(“OK to implement”)을 명시적으로 받은 뒤에만 Phase 2(구현)로 진행한다. 승인 근거는 `clarify.md`나 spec에 기록한다.
+## Testing
+- Tests live under `src/test/java`.
+- JUnit 5 is provided by the Spring Boot test starter.
+- `tasks.test` uses JUnit Platform.
+- If code changes, run the smallest relevant test first, then broader checks when risk is high.
+- If public API, configuration, security, persistence, or integration behavior changes, run `./gradlew test` unless there is a concrete blocker.
+- Do not commit with failing tests. If verification cannot run, state the exact reason.
 
-### 1. Absolute Rules (Non-negotiable)
-- Do not commit with failing tests.
-- Do not change existing business logic without explicit context.
-- Do not change public APIs exposed externally without a clear reason.
-- Do not add new dependencies without a clear reason.
-- Do not introduce changes that break transactional integrity.
-
-### 2. Priorities (When Trade-offs Conflict)
-- Safety > Correctness > Readability > Performance > Abstraction
-- Prefer minimal change over broad refactors.
-- Prefer explicit, readable code over clever code.
-- Prefer consistency with existing style over introducing new patterns.
-
-### 3. Future-Facing Rules (Direction, Not Hard Requirements Yet)
-- When modifying code without tests, add tests when possible.
-- Move business logic gradually into the domain layer.
-- Gradually reduce transaction scope.
-- Split commits by meaningful units (feature, refactor, test).
-- 커밋은 반드시 작업 최소 단위(기능/버그 수정/테스트 추가 등)별로 분리해라.
-
-### Git Branch Naming
-- 모든 작업 브랜치는 사용자가 지정한 GitHub Issue 번호와 1:1로 매핑되며, 브랜치명은 항상 `feat/{github-issue-number}` 형식을 따른다. (예: `feat/123`)
-- 만약 이슈 번호가 제공되지 않았다면 작업을 시작하기 전에 사용자에게 이슈 번호를 물어보고 기록한다.
+## Git
+- Work branches map to a GitHub issue and use `feat/{github-issue-number}`. Ask for the issue number before starting if it is missing.
+- Keep unrelated user changes intact. Do not revert, overwrite, or reformat them.
+- Split commits by meaningful unit when changes are separable.
+- Commit messages are written in Korean and start with the branch issue number.
+- Commit message format: `{issue-number} {type}: {message}`.
+- Example: `236 chore: 프로젝트 로컬 에이전트 규약 제거`.

@@ -34,6 +34,14 @@ public class UserController implements UserControllerDocs {
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<SuccessResponse<UserDto.MeResponse>> getMe(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        UserDto.MeResponse response = userService.getMe(userDetails.getId());
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
+
     @DeleteMapping("/delete")
     public ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
             @AuthenticationPrincipal CustomUserDetails userDetails

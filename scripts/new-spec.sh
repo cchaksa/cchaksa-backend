@@ -12,7 +12,6 @@ USAGE
 }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TEMPLATE_DIR="$ROOT_DIR/codex/skills/templates"
 SPECS_DIR="$ROOT_DIR/docs/specs"
 
 if [[ $# -lt 1 ]]; then
@@ -47,24 +46,20 @@ fi
 
 mkdir -p "$DEST"
 
-copy_template() {
-  local src="$1"
+create_file() {
   local dest_name="$2"
-  if [[ ! -f "$src" ]]; then
-    echo "Missing template: $src" >&2
-    exit 1
-  fi
-  cp "$src" "$DEST/$dest_name"
+  local title="$1"
+  printf '# %s\n\n' "$title" > "$DEST/$dest_name"
 }
 
 if [[ "$MODE" == "lite" ]]; then
-  copy_template "$TEMPLATE_DIR/SPEC_LITE.md" "spec-lite.md"
+  create_file "Spec Lite" "spec-lite.md"
   echo "Lite spec created at $DEST/spec-lite.md"
 else
-  copy_template "$TEMPLATE_DIR/SPEC.md" "spec.md"
-  copy_template "$TEMPLATE_DIR/CLARIFY.md" "clarify.md"
-  copy_template "$TEMPLATE_DIR/PLAN.md" "plan.md"
-  copy_template "$TEMPLATE_DIR/TASKS.md" "tasks.md"
+  create_file "Spec" "spec.md"
+  create_file "Clarify" "clarify.md"
+  create_file "Plan" "plan.md"
+  create_file "Tasks" "tasks.md"
   echo "Standard spec bundle created under $DEST"
 fi
 

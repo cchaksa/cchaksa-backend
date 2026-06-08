@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +43,8 @@ class GraduationServiceTests {
     private AcademicCache academicCache;
     @Mock
     private GraduationMajorResolver graduationMajorResolver;
+    @Mock
+    private StudentGraduationProgressService studentGraduationProgressService;
 
     @InjectMocks
     private GraduationService graduationService;
@@ -202,6 +205,66 @@ class GraduationServiceTests {
         assertThat(response.getGraduationProgress()).hasSize(1);
     }
 
+    @Test
+    @DisplayName("외국어 인증 값이 없으면 새로고침 필요 상태로 반환한다")
+    void getGraduationProgressReturnsRefreshNeededWhenLanguageCertMissing() {
+        Student student = mockStudent(10L, null);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
+                .thenReturn(sampleProgress());
+        when(studentGraduationProgressService.getLanguageCertFulfilled(STUDENT_ID))
+                .thenReturn(Optional.empty());
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getLanguageCertFulfilled()).isNull();
+        assertThat(response.isLanguageCertNeedsRefresh()).isTrue();
+    }
+
+    @Test
+    @DisplayName("외국어 인증 통과 값이 있으면 통과와 새로고침 불필요 상태를 반환한다")
+    void getGraduationProgressReturnsLanguageCertFulfilled() {
+        Student student = mockStudent(10L, null);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
+                .thenReturn(sampleProgress());
+        when(studentGraduationProgressService.getLanguageCertFulfilled(STUDENT_ID))
+                .thenReturn(Optional.of(true));
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getLanguageCertFulfilled()).isTrue();
+        assertThat(response.isLanguageCertNeedsRefresh()).isFalse();
+    }
+
+    @Test
+    @DisplayName("외국어 인증 미통과 값이 있으면 미통과와 새로고침 불필요 상태를 반환한다")
+    void getGraduationProgressReturnsLanguageCertNotFulfilled() {
+        Student student = mockStudent(10L, null);
+
+        when(studentService.getStudentById(STUDENT_ID)).thenReturn(student);
+        when(academicCache.getGraduationProgress(STUDENT_ID)).thenReturn(null);
+        when(graduationMajorResolver.resolve(student, ADMISSION_YEAR))
+                .thenReturn(new MajorResolutionResult(10L, null));
+        when(graduationQueryRepository.getStudentAreaProgress(STUDENT_ID, 10L, ADMISSION_YEAR))
+                .thenReturn(sampleProgress());
+        when(studentGraduationProgressService.getLanguageCertFulfilled(STUDENT_ID))
+                .thenReturn(Optional.of(false));
+
+        GraduationProgressResponse response = graduationService.getGraduationProgress(STUDENT_ID);
+
+        assertThat(response.getLanguageCertFulfilled()).isFalse();
+        assertThat(response.isLanguageCertNeedsRefresh()).isFalse();
+    }
+
     private Student mockStudent(Long majorId, Long secondaryId) {
         return mockStudent(majorId, secondaryId, ADMISSION_YEAR, false);
     }
@@ -236,7 +299,7 @@ class GraduationServiceTests {
     }
 
     private List<AreaProgressDto> sampleProgress() {
-        CourseDto course = new CourseDto(2022, "Data Structures", 3, "A+", 1);
+        CourseDto course = new CourseDto(2022, "Data Structures", 3, "A+", 1, null);
         AreaProgressDto dto = new AreaProgressDto(
                 FacultyDivision.전핵,
                 12,

@@ -19,8 +19,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldReportOtherCommonExceptions() {
-        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.INVALID_ARGUMENT))).isTrue();
+    void shouldSkipSentryCaptureForExpectedPortalClientErrors() {
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.PORTAL_LOGIN_FAILED))).isFalse();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.PORTAL_ACCOUNT_LOCKED))).isFalse();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.INVALID_CALLBACK_SIGNATURE))).isFalse();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_INVALID_CALLBACK_REQUEST))).isFalse();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_INVALID_S3_KEY))).isFalse();
+    }
+
+    @Test
+    void shouldReportSystemPortalExceptions() {
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED))).isTrue();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_RESULT_S3_FAILED))).isTrue();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_RESULT_SCHEMA_INVALID))).isTrue();
+        assertThat(handler.shouldReportBaseException(new CommonException(ErrorCode.SCRAPE_RESULT_POST_PROCESSING_FAILED))).isTrue();
     }
 
     @Test

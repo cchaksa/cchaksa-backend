@@ -1,5 +1,6 @@
 # Checklist
 
+- [x] origin/dev 기준 `feat/238-dev` worktree 생성
 - [x] origin/main 기준 `feat/238` worktree 생성
 - [x] 현재 학업 기록 분류 로직 확인
 - [x] `복핵` 전공 분류 실패 테스트 추가 및 RED 확인
