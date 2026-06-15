@@ -59,6 +59,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = jwtProvider.parseToken(token);
             String userId = claims.getSubject();
+            if (userId == null || userId.isBlank()) {
+                throw new JwtException("Missing token subject");
+            }
 
             UserDetails userDetails = authTokenCache.getOrLoad(
                     userId,

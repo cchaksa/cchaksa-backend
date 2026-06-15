@@ -130,6 +130,22 @@ class JwtAuthenticationFilterTests {
                 .andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"TOKEN_INVALID\""));
     }
 
+    @Test
+    @DisplayName("subject가 없는 acToken으로 /api/users/me 호출 시 401 TOKEN_INVALID를 반환한다")
+    void getMe_withMissingSubjectAccessToken_returns401() throws Exception {
+        String token = "missing-subject-access-token";
+        Claims claims = Jwts.claims();
+
+        when(jwtProvider.parseToken(token)).thenReturn(claims);
+
+        mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value(ErrorCode.TOKEN_INVALID.code()))
+                .andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"TOKEN_INVALID\""));
+    }
+
     @TestConfiguration
     static class TestCorsConfig {
         @Bean("corsConfigurationSource")
