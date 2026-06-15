@@ -78,7 +78,7 @@ class UserServiceTests {
 
         when(jwtProvider.createAccessToken(userId.toString(), "apple@example.com", "USER"))
                 .thenReturn("access");
-        when(jwtProvider.createRefreshToken(userId.toString()))
+        when(refreshTokenService.issueForSignIn(userId.toString()))
                 .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh", new Date()));
 
         UserService userService = new UserService(
@@ -106,6 +106,6 @@ class UserServiceTests {
 
         verify(socialAccountRepository).findByProviderAndSocialId(providerCaptor.capture(), eq("apple-sub"));
         assertThat(providerCaptor.getValue()).isEqualTo(OidcProvider.APPLE);
-        verify(refreshTokenService).save(eq(userId.toString()), eq("refresh"), any(Date.class));
+        verify(refreshTokenService).issueForSignIn(userId.toString());
     }
 }

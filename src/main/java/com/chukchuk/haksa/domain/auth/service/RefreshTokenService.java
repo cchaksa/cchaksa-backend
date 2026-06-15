@@ -42,6 +42,18 @@ public class RefreshTokenService {
         refreshTokenRepository.save(token);
     }
 
+    @Transactional
+    public AuthDto.RefreshTokenWithExpiry issueForSignIn(String userId) {
+        return refreshTokenRepository.findById(userId)
+                .filter(saved -> !shouldRenewRefreshToken(saved.getExpiry()))
+                .map(saved -> new AuthDto.RefreshTokenWithExpiry(saved.getToken(), saved.getExpiry()))
+                .orElseGet(() -> {
+                    AuthDto.RefreshTokenWithExpiry refresh = jwtProvider.createRefreshToken(userId);
+                    save(userId, refresh.token(), refresh.expiry());
+                    return refresh;
+                });
+    }
+
     /* 토큰 재발급 */
     @Transactional
     public AuthDto.RefreshResponse reissue(String refreshToken) {
