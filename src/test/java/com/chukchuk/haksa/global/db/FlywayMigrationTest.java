@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FlywayMigrationTest {
 
     @Test
-    void freshDatabaseMigratesFromV1ToV4() throws Exception {
+    void freshDatabaseMigratesFromV1ToV5() throws Exception {
         String dbName = "flyway-migration-" + UUID.randomUUID();
         String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
@@ -49,7 +49,8 @@ class FlywayMigrationTest {
                         MigrationVersion.fromVersion("1"),
                         MigrationVersion.fromVersion("2"),
                         MigrationVersion.fromVersion("3"),
-                        MigrationVersion.fromVersion("4")
+                        MigrationVersion.fromVersion("4"),
+                        MigrationVersion.fromVersion("5")
                 );
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
@@ -60,6 +61,8 @@ class FlywayMigrationTest {
             assertThat(hasTable(connection, "department_language_cert_policy_mappings")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_started_at")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_ended_at")).isTrue();
+            assertThat(hasColumn(connection, "refresh_token", "session_id")).isTrue();
+            assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
         }
     }
 
@@ -88,6 +91,13 @@ class FlywayMigrationTest {
     private boolean hasTable(Connection connection, String tableName) throws Exception {
         try (var tables = connection.getMetaData().getTables(null, "public", tableName, new String[]{"TABLE"})) {
             return tables.next();
+        }
+    }
+
+    private String primaryKeyColumn(Connection connection, String tableName) throws Exception {
+        try (var primaryKeys = connection.getMetaData().getPrimaryKeys(null, "public", tableName)) {
+            assertThat(primaryKeys.next()).isTrue();
+            return primaryKeys.getString("COLUMN_NAME");
         }
     }
 }
