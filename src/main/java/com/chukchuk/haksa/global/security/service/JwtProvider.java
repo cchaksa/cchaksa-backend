@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.UUID;
 
 import static com.chukchuk.haksa.domain.auth.dto.AuthDto.RefreshTokenWithExpiry;
 
@@ -49,17 +50,23 @@ public class JwtProvider {
 
     // RefreshToken 생성
     public RefreshTokenWithExpiry createRefreshToken(String userId) {
+        return createRefreshToken(userId, UUID.randomUUID().toString());
+    }
+
+    // RefreshToken 생성
+    public RefreshTokenWithExpiry createRefreshToken(String userId, String sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + refreshTokenExpiration);
 
         String token = Jwts.builder()
                 .setSubject(userId)
+                .claim("sid", sessionId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        return new RefreshTokenWithExpiry(token, expiry);
+        return new RefreshTokenWithExpiry(token, expiry, sessionId);
     }
 
     // 토큰 검증

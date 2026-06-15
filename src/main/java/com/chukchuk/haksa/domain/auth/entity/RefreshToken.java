@@ -14,6 +14,10 @@ import java.util.Date;
 public class RefreshToken {
 
     @Id
+    @Column(name = "session_id", nullable = false)
+    private String sessionId;
+
+    @Column(name = "user_id", nullable = false)
     private String userId;
 
     @Column(nullable = false)
@@ -22,7 +26,8 @@ public class RefreshToken {
     @Column(nullable = false)
     private Date expiry;
 
-    public RefreshToken(String userId, String token, Date expiry) {
+    public RefreshToken(String sessionId, String userId, String token, Date expiry) {
+        this.sessionId = sessionId;
         this.userId = userId;
         this.token = token;
         this.expiry = expiry;

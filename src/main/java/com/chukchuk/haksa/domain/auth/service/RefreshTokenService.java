@@ -32,8 +32,8 @@ public class RefreshTokenService {
 
     /* Refresh Token 저장 */
     @Transactional
-    public void save(String userId, String refreshToken, Date expiry) {
-        RefreshToken token = new RefreshToken(userId, refreshToken, expiry);
+    public void save(String sessionId, String userId, String refreshToken, Date expiry) {
+        RefreshToken token = new RefreshToken(sessionId, userId, refreshToken, expiry);
 
         refreshTokenRepository.save(token);
     }
@@ -45,15 +45,16 @@ public class RefreshTokenService {
 
         Claims claims = jwtProvider.parseToken(refreshToken);
         String userId = claims.getSubject();
+        String sessionId = resolveSessionId(claims, userId);
 
-        RefreshToken saved = refreshTokenRepository.findById(userId)
+        RefreshToken saved = refreshTokenRepository.findById(sessionId)
                 .orElseThrow(() -> {
-                    log.warn("[BIZ] auth.refresh.not_found userId={}", userId);
+                    log.warn("[BIZ] auth.refresh.not_found userId={} sessionId={}", userId, sessionId);
                     return new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
                 });
 
         if (!saved.getToken().equals(refreshToken)) {
-            log.warn("[BIZ] auth.refresh.mismatch userId={}", userId);
+            log.warn("[BIZ] auth.refresh.mismatch userId={} sessionId={}", userId, sessionId);
             throw new TokenException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
 
@@ -64,8 +65,8 @@ public class RefreshTokenService {
                 });
 
         String newAccessToken = jwtProvider.createAccessToken(userId, user.getEmail(), "USER");
-        AuthDto.RefreshTokenWithExpiry newRefresh = jwtProvider.createRefreshToken(userId);
-        save(userId, newRefresh.token(), newRefresh.expiry());
+        AuthDto.RefreshTokenWithExpiry newRefresh = jwtProvider.createRefreshToken(userId, sessionId);
+        save(sessionId, userId, newRefresh.token(), newRefresh.expiry());
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
@@ -74,8 +75,8 @@ public class RefreshTokenService {
         return new AuthDto.RefreshResponse(newAccessToken, newRefresh.token());
     }
 
-    public RefreshToken findByUserId(String userId) {
-        return refreshTokenRepository.findById(userId)
+    public RefreshToken findBySessionId(String sessionId) {
+        return refreshTokenRepository.findById(sessionId)
                 .orElseThrow(() -> new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
     }
 
@@ -86,5 +87,13 @@ public class RefreshTokenService {
         int deleted = refreshTokenRepository.deleteByExpiryBefore(now);
         log.info("[BIZ] auth.refresh.cleanup.deleted count={}", deleted);
         return deleted;
+    }
+
+    private String resolveSessionId(Claims claims, String userId) {
+        String sessionId = claims.get("sid", String.class);
+        if (sessionId == null || sessionId.isBlank()) {
+            return userId;
+        }
+        return sessionId;
     }
 }
