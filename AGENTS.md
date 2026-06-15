@@ -26,6 +26,10 @@
 - Keep this file short and durable. Put task-specific decisions in the relevant issue, PR, spec, or final response instead.
 - Update `AGENTS.md` only when a durable project-wide rule changes, and call that out explicitly.
 
+## Communication
+- When the user writes in Korean, respond in Korean unless the task requires another language.
+- Korean sentences should end with `.`, `?`, or `!`, not a closing colon.
+
 ## Development Rules
 - Inspect the actual files and nearby call sites before editing.
 - Keep changes surgical and directly tied to the request.
@@ -49,7 +53,7 @@
 - Do not create a spec for small mechanical changes, narrow bug fixes, test-only changes, documentation-only changes, or single-file config updates unless the user asks for one.
 - Prefer a single `spec-lite.md` for work expected to fit within one day.
 - Use the full bundle, `spec.md`, `clarify.md`, `plan.md`, and `tasks.md`, only when requirements are unclear, the work spans multiple modules, or the rollout/rollback path needs explicit tracking.
-- If the user says to skip specs, use a concise conversation plan instead. Still record a `spec-lite.md` when the change affects database schema, public API contracts, or security/auth behavior.
+- If the user says to skip specs, use a concise conversation plan instead. When the change affects database schema, public API contracts, or security/auth behavior, briefly confirm whether they still want no spec before proceeding without one.
 - `./scripts/new-spec.sh <YYYYMMDD-slug> [--lite]` can create the expected spec files.
 
 ## Testing
@@ -58,10 +62,12 @@
 - `tasks.test` uses JUnit Platform.
 - If code changes, run the smallest relevant test first, then broader checks when risk is high.
 - If public API, configuration, security, persistence, or integration behavior changes, run `./gradlew test` unless there is a concrete blocker.
+- Final replies after code or docs changes must include the exact checks run, their result, and any remaining risk.
 - Do not commit with failing tests. If verification cannot run, state the exact reason.
 
 ## Git
 - Work branches map to a GitHub issue and use `feat/{github-issue-number}`. Ask for the issue number before starting if it is missing.
+- If the current checkout has unrelated dirty changes and the task needs a new branch, prefer an isolated git worktree.
 - Keep unrelated user changes intact. Do not revert, overwrite, or reformat them.
 - Split commits by meaningful unit when changes are separable.
 - Commit messages are written in Korean and start with the branch issue number.
