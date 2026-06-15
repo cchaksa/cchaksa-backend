@@ -32,6 +32,8 @@ sentry:
   environment: dev
 
 security:
+  jwt:
+    refresh-renewal-threshold: ${JWT_REFRESH_RENEWAL_THRESHOLD:172800000}
   cookie:
     dev-mode: true
 
