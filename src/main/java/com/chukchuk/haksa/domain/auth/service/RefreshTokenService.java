@@ -95,6 +95,9 @@ public class RefreshTokenService {
     }
 
     private boolean shouldRenewRefreshToken(Date expiry) {
+        if (expiry == null) {
+            return true;
+        }
         long remainingMs = expiry.getTime() - System.currentTimeMillis();
         return remainingMs <= refreshTokenRenewalThresholdMs;
     }

@@ -19,3 +19,5 @@
 - GREEN 확인: 동일 targeted test, `RefreshTokenServiceUnitTests` 전체, `./gradlew test`가 통과했다.
 - 추가 RED 확인: `RefreshTokenServiceUnitTests.issueForSignIn_refreshExpiryBeyondThreshold_returnsExistingRefreshToken`가 `issueForSignIn` 메서드 부재로 실패했다.
 - 추가 GREEN 확인: 로그인용 refresh token 발급 테스트와 `UserServiceUnitTests`가 통과했다.
+- PR #266 리뷰에서 저장된 refresh token의 `expiry`가 null이면 `shouldRenewRefreshToken`에서 NPE가 날 수 있다는 지적이 있었다.
+- `expiry`가 null인 refresh token은 남은 만료기간을 신뢰할 수 없으므로 갱신 대상으로 처리한다.

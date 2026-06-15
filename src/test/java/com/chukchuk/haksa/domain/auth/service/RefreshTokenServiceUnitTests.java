@@ -124,6 +124,38 @@ class RefreshTokenServiceUnitTests {
     }
 
     @Test
+    @DisplayName("reissue는 저장된 refresh token 만료시각이 없으면 새 refresh token을 저장한다")
+    void reissue_refreshExpiryNull_renewsRefreshToken() {
+        UUID userId = UUID.randomUUID();
+        String userIdText = userId.toString();
+        String oldRefresh = "old-refresh";
+        Date newExpiry = new Date(System.currentTimeMillis() + Duration.ofDays(14).toMillis());
+
+        Claims claims = Jwts.claims();
+        claims.setSubject(userIdText);
+
+        User user = User.builder()
+                .id(userId)
+                .email("user@example.com")
+                .profileNickname("user")
+                .build();
+
+        when(jwtProvider.parseToken(oldRefresh)).thenReturn(claims);
+        when(refreshTokenRepository.findById(userIdText))
+                .thenReturn(Optional.of(new RefreshToken(userIdText, oldRefresh, null)));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(jwtProvider.createAccessToken(userIdText, "user@example.com", "USER")).thenReturn("new-access");
+        when(jwtProvider.createRefreshToken(userIdText))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh", newExpiry));
+
+        AuthDto.RefreshResponse response = refreshTokenService.reissue(oldRefresh);
+
+        assertThat(response.accessToken()).isEqualTo("new-access");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
     @DisplayName("로그인 토큰 발급은 refresh token 만료가 임계값보다 많이 남으면 기존 refresh token을 반환한다")
     void issueForSignIn_refreshExpiryBeyondThreshold_returnsExistingRefreshToken() {
         String userId = UUID.randomUUID().toString();
