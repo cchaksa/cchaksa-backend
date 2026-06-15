@@ -45,11 +45,11 @@
 - Hibernate `ddl-auto`는 dev/prod에서 schema 변경 수단으로 사용하지 않는다. DB 변경은 Flyway migration을 통해 수행한다.
 
 ## Planning And Specs
-- Use `docs/specs/<YYYYMMDD-slug>/` for non-trivial feature work, bug fixes, refactors, or operational changes that affect domain rules, public APIs, schema, transactions, deployment, or rollback.
-- For small, mechanical, documentation-only, or test-only changes, a concise plan in the conversation is enough.
-- Standard spec bundles use `spec.md`, `clarify.md`, `plan.md`, and `tasks.md`.
-- Lite specs use `spec-lite.md` when the work is under one day, does not change external contracts, and has limited domain impact.
-- If requirements are unclear, ask before editing the unclear part. Record durable decisions in the spec when one exists.
+- Use `docs/specs/<YYYYMMDD-slug>/` only when the work affects one or more of these areas: domain rules, public API contracts, database schema, security/auth behavior, transactions, deployment, rollback, or cross-module architecture.
+- Do not create a spec for small mechanical changes, narrow bug fixes, test-only changes, documentation-only changes, or single-file config updates unless the user asks for one.
+- Prefer a single `spec-lite.md` for work expected to fit within one day.
+- Use the full bundle, `spec.md`, `clarify.md`, `plan.md`, and `tasks.md`, only when requirements are unclear, the work spans multiple modules, or the rollout/rollback path needs explicit tracking.
+- If the user says to skip specs, use a concise conversation plan instead. Still record a `spec-lite.md` when the change affects database schema, public API contracts, or security/auth behavior.
 - `./scripts/new-spec.sh <YYYYMMDD-slug> [--lite]` can create the expected spec files.
 
 ## Testing
