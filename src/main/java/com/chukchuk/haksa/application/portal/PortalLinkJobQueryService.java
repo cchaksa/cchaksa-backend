@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -66,6 +68,37 @@ public class PortalLinkJobQueryService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public PortalLinkDto.JobDurationResponse getJobDuration(UUID userId, String jobId) {
+        ScrapeJob job = findOwnedJob(userId, jobId);
+
+        if (!job.isCompleted()) {
+            return new PortalLinkDto.JobDurationResponse(
+                    job.getJobId(),
+                    "pending",
+                    null,
+                    job.getLinkStartedAt(),
+                    null,
+                    null,
+                    null
+            );
+        }
+
+        boolean succeeded = job.getStatus() == ScrapeJobStatus.SUCCEEDED;
+        Instant startedAt = job.getLinkStartedAt();
+        Instant endedAt = job.getLinkEndedAt();
+        Long elapsedMillis = calculateElapsedMillis(startedAt, endedAt);
+        return new PortalLinkDto.JobDurationResponse(
+                job.getJobId(),
+                job.getStatus().name().toLowerCase(Locale.ROOT),
+                succeeded,
+                startedAt,
+                endedAt,
+                elapsedMillis,
+                elapsedMillis != null ? formatElapsedTime(elapsedMillis) : null
+        );
+    }
+
     private ScrapeJob findOwnedJob(UUID userId, String jobId) {
         return scrapeJobRepository.findByJobIdAndUserId(jobId, userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.SCRAPE_JOB_NOT_FOUND));
@@ -106,5 +139,18 @@ public class PortalLinkJobQueryService {
 
     private static String defaultString(String value) {
         return value != null ? value : "";
+    }
+
+    private static String formatElapsedTime(long elapsedMillis) {
+        long seconds = elapsedMillis / 1_000;
+        long millis = elapsedMillis % 1_000;
+        return seconds + "s " + millis + "ms";
+    }
+
+    private static Long calculateElapsedMillis(Instant startedAt, Instant endedAt) {
+        if (startedAt == null || endedAt == null) {
+            return null;
+        }
+        return Math.max(0L, Duration.between(startedAt, endedAt).toMillis());
     }
 }

@@ -1,6 +1,7 @@
 package com.chukchuk.haksa.domain.portal.controller.docs;
 
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
+import com.chukchuk.haksa.domain.portal.wrapper.PortalLinkJobDurationApiResponse;
 import com.chukchuk.haksa.domain.portal.wrapper.PortalLinkJobStatusApiResponse;
 import com.chukchuk.haksa.domain.portal.wrapper.PortalLinkJobSummaryApiResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
@@ -52,6 +53,24 @@ public interface PortalLinkQueryControllerDocs {
     )
     @SecurityRequirement(name = "bearerAuth")
     ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String jobId
+    );
+
+    @Operation(
+            summary = "비동기 job 소요 시간 조회",
+            description = "요청된 job_id의 서버 기준 연동 시작/종료 시각과 소요 시간을 제공합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "소요 시간 조회 성공",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = PortalLinkJobDurationApiResponse.class))),
+                    @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
+                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
+            }
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable String jobId
     );

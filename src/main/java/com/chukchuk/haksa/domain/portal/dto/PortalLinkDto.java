@@ -66,6 +66,22 @@ public class PortalLinkDto {
             Instant finished_at
     ) {}
 
+    @Schema(description = "스크래핑 job 소요 시간 응답")
+    public record JobDurationResponse(
+            @JsonProperty("job_id")
+            String job_id,
+            String status,
+            Boolean success,
+            @JsonProperty("started_at")
+            Instant started_at,
+            @JsonProperty("ended_at")
+            Instant ended_at,
+            @JsonProperty("elapsed_millis")
+            Long elapsed_millis,
+            @JsonProperty("elapsed_time")
+            String elapsed_time
+    ) {}
+
     @Schema(description = "포털 학생 요약 정보")
     public record StudentInfoSummary(
             String name,

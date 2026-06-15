@@ -93,7 +93,8 @@ public class PortalLinkJobTxService {
                 operationType,
                 idempotencyKey,
                 requestFingerprint,
-                requestPayloadJson
+                requestPayloadJson,
+                requestedAt
         ));
         ScrapeJobOutbox savedOutbox = scrapeJobOutboxRepository.save(
                 ScrapeJobOutbox.createPending(

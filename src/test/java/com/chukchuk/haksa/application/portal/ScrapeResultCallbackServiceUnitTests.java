@@ -231,11 +231,15 @@ class ScrapeResultCallbackServiceUnitTests {
 
         when(scrapeJobRepository.findForUpdateByJobId(job.getJobId())).thenReturn(Optional.of(job));
 
+        Instant beforeHandle = Instant.now();
         service.handleCallback(rawBody, timestamp, sign(timestamp, rawBody), null, null);
 
         assertThat(job.getStatus().name()).isEqualTo("FAILED");
         assertThat(job.getErrorCode()).isEqualTo("PORTAL_AUTH_FAILED");
         assertThat(job.getRetryable()).isFalse();
+        assertThat(job.getFinishedAt()).isEqualTo(Instant.parse("2026-03-14T10:01:00Z"));
+        assertThat(job.getLinkEndedAt()).isAfterOrEqualTo(beforeHandle);
+        assertThat(job.getLinkEndedAt()).isNotEqualTo(job.getFinishedAt());
         verify(resultStoreClient, never()).fetch(any());
     }
 
@@ -389,6 +393,7 @@ class ScrapeResultCallbackServiceUnitTests {
         assertThat(job.getStatus()).isEqualTo(ScrapeJobStatus.FAILED);
         assertThat(job.getErrorCode()).isEqualTo("FAILED_RESULT_SCHEMA");
         assertThat(job.getRetryable()).isFalse();
+        assertThat(job.getLinkEndedAt()).isNotNull();
         verify(portalSyncService, never()).syncWithPortal(any(), any());
     }
 

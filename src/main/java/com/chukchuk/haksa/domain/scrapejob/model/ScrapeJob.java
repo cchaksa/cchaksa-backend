@@ -87,6 +87,12 @@ public class ScrapeJob extends BaseEntity {
     @Column(name = "finished_at")
     private Instant finishedAt;
 
+    @Column(name = "link_started_at", nullable = false, updatable = false)
+    private Instant linkStartedAt;
+
+    @Column(name = "link_ended_at")
+    private Instant linkEndedAt;
+
     private ScrapeJob(
             String jobId,
             UUID userId,
@@ -95,7 +101,8 @@ public class ScrapeJob extends BaseEntity {
             String idempotencyKey,
             String requestFingerprint,
             ScrapeJobStatus status,
-            String requestPayloadJson
+            String requestPayloadJson,
+            Instant linkStartedAt
     ) {
         this.jobId = jobId;
         this.userId = userId;
@@ -105,6 +112,7 @@ public class ScrapeJob extends BaseEntity {
         this.requestFingerprint = requestFingerprint;
         this.status = status;
         this.requestPayloadJson = requestPayloadJson;
+        this.linkStartedAt = linkStartedAt;
     }
 
     public static ScrapeJob createQueued(
@@ -115,6 +123,26 @@ public class ScrapeJob extends BaseEntity {
             String requestFingerprint,
             String requestPayloadJson
     ) {
+        return createQueued(
+                userId,
+                portalType,
+                operationType,
+                idempotencyKey,
+                requestFingerprint,
+                requestPayloadJson,
+                Instant.now()
+        );
+    }
+
+    public static ScrapeJob createQueued(
+            UUID userId,
+            String portalType,
+            ScrapeJobOperationType operationType,
+            String idempotencyKey,
+            String requestFingerprint,
+            String requestPayloadJson,
+            Instant linkStartedAt
+    ) {
         return new ScrapeJob(
                 UUID.randomUUID().toString(),
                 userId,
@@ -123,7 +151,8 @@ public class ScrapeJob extends BaseEntity {
                 idempotencyKey,
                 requestFingerprint,
                 ScrapeJobStatus.QUEUED,
-                requestPayloadJson
+                requestPayloadJson,
+                linkStartedAt
         );
     }
 
@@ -167,8 +196,13 @@ public class ScrapeJob extends BaseEntity {
     }
 
     public void markSucceeded(String resultPayloadJson, Instant finishedAt) {
+        markSucceeded(resultPayloadJson, finishedAt, Instant.now());
+    }
+
+    public void markSucceeded(String resultPayloadJson, Instant finishedAt, Instant linkEndedAt) {
         recordWorkerResult(resultPayloadJson, finishedAt);
         this.status = ScrapeJobStatus.SUCCEEDED;
+        this.linkEndedAt = linkEndedAt;
     }
 
     public void recordWorkerResult(String resultPayloadJson, Instant finishedAt) {
@@ -198,16 +232,34 @@ public class ScrapeJob extends BaseEntity {
             Boolean retryable,
             Instant finishedAt
     ) {
+        recordFailedCallback(attempt, receivedAt, callbackMetadataJson, errorCode, errorMessage, retryable, finishedAt, Instant.now());
+    }
+
+    public void recordFailedCallback(
+            int attempt,
+            Instant receivedAt,
+            String callbackMetadataJson,
+            String errorCode,
+            String errorMessage,
+            Boolean retryable,
+            Instant finishedAt,
+            Instant linkEndedAt
+    ) {
         recordCallbackAttempt(attempt, receivedAt);
         this.callbackMetadataJson = callbackMetadataJson;
-        markFailed(errorCode, errorMessage, retryable, finishedAt);
+        markFailed(errorCode, errorMessage, retryable, finishedAt, linkEndedAt);
     }
 
     public void markFailed(String errorCode, String errorMessage, Boolean retryable, Instant finishedAt) {
+        markFailed(errorCode, errorMessage, retryable, finishedAt, Instant.now());
+    }
+
+    public void markFailed(String errorCode, String errorMessage, Boolean retryable, Instant finishedAt, Instant linkEndedAt) {
         this.status = ScrapeJobStatus.FAILED;
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
         this.retryable = retryable;
         this.finishedAt = finishedAt;
+        this.linkEndedAt = linkEndedAt;
     }
 }

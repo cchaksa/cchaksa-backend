@@ -181,6 +181,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
+
+  /portal/link/jobs/{jobId}/duration:
+    get:
+      tags:
+        - Portal Link
+      summary: 비동기 job 소요 시간 조회
+      description: 요청된 job_id의 서버 기준 연동 시작/종료 시각과 소요 시간을 제공합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 소요 시간 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalLinkJobDurationApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: job 미존재 또는 권한 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
 components:
   securitySchemes:
     bearerAuth:
@@ -301,6 +335,58 @@ components:
           type: boolean
           description: 포털 연동 여부
           example: true
+
+    PortalLinkJobDurationApiResponse:
+      type: object
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/JobDurationResponse'
+        message:
+          type: string
+          example: 요청 성공
+
+    JobDurationResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          example: job-123
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+          example: succeeded
+        success:
+          type: boolean
+          nullable: true
+          example: true
+        started_at:
+          type: string
+          format: date-time
+          example: '2026-06-04T10:00:00Z'
+        ended_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2026-06-04T10:00:12.345Z'
+        elapsed_millis:
+          type: integer
+          format: int64
+          nullable: true
+          example: 12345
+        elapsed_time:
+          type: string
+          nullable: true
+          example: 12s 345ms
 
     GraduationProgressApiResponse:
       type: object

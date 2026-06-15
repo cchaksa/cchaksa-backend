@@ -57,6 +57,7 @@ public class ScrapeJobStaleReconciler {
                         ErrorCode.CALLBACK_TIMEOUT.name(),
                         ErrorCode.CALLBACK_TIMEOUT.message(),
                         true,
+                        now,
                         now
                 );
                 meterRegistry.counter("scrape.job.callback.timeout").increment();
