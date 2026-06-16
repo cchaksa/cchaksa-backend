@@ -3,6 +3,7 @@ package com.chukchuk.haksa.infrastructure.portal.client;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.infrastructure.portal.dto.raw.RawPortalData;
+import com.chukchuk.haksa.infrastructure.portal.exception.PortalLoginException;
 import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,30 @@ public class PortalClient {
     private String baseUrl;
 
     private final WebClient webClient = WebClient.builder().build();
+
+    public void validateLogin(String username, String password) {
+        String uri = "/login";
+        long t0 = LogTime.start();
+
+        try {
+            webClient.post()
+                    .uri(baseUrl + uri)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(new LoginRequest(username, password))
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+
+        } catch (WebClientResponseException e) {
+            logHttpError(uri, t0, e);
+            throw new PortalLoginException(mapHttpStatus(e.getStatusCode()), e);
+
+        } catch (Exception e) {
+            long tookMs = LogTime.elapsedMs(t0);
+            log.warn("[EXT] method=POST uri={} unexpected_error took_ms={}", uri, tookMs, e);
+            throw new PortalLoginException(ErrorCode.PORTAL_SCRAPE_FAILED, e);
+        }
+    }
 
     public RawPortalData scrapeAll(String username, String password) {
         String uri = "/scrape";
