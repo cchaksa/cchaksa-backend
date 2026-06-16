@@ -9,6 +9,7 @@ import java.sql.DriverManager;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class FlywayMigrationTest {
 
@@ -62,6 +63,46 @@ class FlywayMigrationTest {
             assertThat(hasColumn(connection, "scrape_jobs", "link_started_at")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_ended_at")).isTrue();
             assertThat(hasColumn(connection, "refresh_token", "session_id")).isTrue();
+            assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
+        }
+    }
+
+    @Test
+    void refreshTokenMigrationHandlesDefaultPrimaryKeyConstraintName() throws Exception {
+        String dbName = "flyway-migration-" + UUID.randomUUID();
+        String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+                + "DB_CLOSE_DELAY=-1;"
+                + "INIT=CREATE SCHEMA IF NOT EXISTS public";
+
+        Flyway flywayToV4 = Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("4"))
+                .load();
+
+        flywayToV4.migrate();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "");
+             var statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE public.refresh_token DROP CONSTRAINT pk_refresh_token");
+            statement.execute("ALTER TABLE public.refresh_token ADD CONSTRAINT refresh_token_pkey PRIMARY KEY (user_id)");
+            statement.execute("""
+                    INSERT INTO public.refresh_token (user_id, token, expiry)
+                    VALUES ('user-a', 'refresh-token-a', CURRENT_TIMESTAMP)
+                    """);
+        }
+
+        Flyway flyway = Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .load();
+
+        assertThatCode(flyway::migrate)
+                .doesNotThrowAnyException();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "")) {
             assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
         }
     }

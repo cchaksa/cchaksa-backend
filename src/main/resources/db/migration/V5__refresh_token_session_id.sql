@@ -13,6 +13,9 @@ ALTER TABLE public.refresh_token
     DROP CONSTRAINT IF EXISTS pk_refresh_token;
 
 ALTER TABLE public.refresh_token
+    DROP CONSTRAINT IF EXISTS refresh_token_pkey;
+
+ALTER TABLE public.refresh_token
     ADD CONSTRAINT pk_refresh_token PRIMARY KEY (session_id);
 
 CREATE INDEX IF NOT EXISTS idx_refresh_token_user_id
