@@ -63,6 +63,8 @@ class FlywayMigrationTest {
             assertThat(hasColumn(connection, "scrape_jobs", "link_started_at")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_ended_at")).isTrue();
             assertThat(hasColumn(connection, "refresh_token", "session_id")).isTrue();
+            assertThat(hasColumn(connection, "refresh_token", "token_hash")).isTrue();
+            assertThat(isNullable(connection, "refresh_token", "token")).isTrue();
             assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
         }
     }
@@ -132,6 +134,13 @@ class FlywayMigrationTest {
     private boolean hasTable(Connection connection, String tableName) throws Exception {
         try (var tables = connection.getMetaData().getTables(null, "public", tableName, new String[]{"TABLE"})) {
             return tables.next();
+        }
+    }
+
+    private boolean isNullable(Connection connection, String tableName, String columnName) throws Exception {
+        try (var columns = connection.getMetaData().getColumns(null, "public", tableName, columnName)) {
+            assertThat(columns.next()).isTrue();
+            return columns.getInt("NULLABLE") == java.sql.DatabaseMetaData.columnNullable;
         }
     }
 
