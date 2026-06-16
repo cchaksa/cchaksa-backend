@@ -35,6 +35,11 @@ security:
 crawler:
   base-url: http://localhost:8081
 
+portal:
+  login-verification:
+    secret: test-portal-login-verification-secret
+    ttl-seconds: 300
+
 sentry:
   enable: false
 
