@@ -33,6 +33,14 @@ class PortalLinkOpenApiTest {
 
         assertSuccessResponseSchema(
                 apiDocs,
+                "/portal/login",
+                "post",
+                "200",
+                "PortalLoginApiResponse",
+                "LoginResponse"
+        );
+        assertSuccessResponseSchema(
+                apiDocs,
                 "/portal/link",
                 "post",
                 "202",
