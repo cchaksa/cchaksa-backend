@@ -29,11 +29,12 @@ public class RefreshTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
+    private final RefreshTokenHasher refreshTokenHasher;
 
     /* Refresh Token 저장 */
     @Transactional
     public void save(String sessionId, String userId, String refreshToken, Date expiry) {
-        RefreshToken token = new RefreshToken(sessionId, userId, refreshToken, expiry);
+        RefreshToken token = new RefreshToken(sessionId, userId, null, refreshTokenHasher.hash(refreshToken), expiry);
 
         refreshTokenRepository.save(token);
     }
@@ -53,7 +54,7 @@ public class RefreshTokenService {
                     return new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
                 });
 
-        if (!saved.getToken().equals(refreshToken)) {
+        if (!matches(saved, refreshToken)) {
             log.warn("[BIZ] auth.refresh.mismatch userId={} sessionId={}", userId, sessionId);
             throw new TokenException(ErrorCode.REFRESH_TOKEN_MISMATCH);
         }
@@ -95,5 +96,13 @@ public class RefreshTokenService {
             return userId;
         }
         return sessionId;
+    }
+
+    private boolean matches(RefreshToken saved, String refreshToken) {
+        if (saved.hasTokenHash()) {
+            return refreshTokenHasher.matches(refreshToken, saved.getTokenHash());
+        }
+
+        return saved.getToken() != null && saved.getToken().equals(refreshToken);
     }
 }

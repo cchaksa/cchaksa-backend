@@ -42,6 +42,9 @@ class RefreshTokenServiceUnitTests {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private RefreshTokenHasher refreshTokenHasher;
+
     @InjectMocks
     private RefreshTokenService refreshTokenService;
 
@@ -49,6 +52,7 @@ class RefreshTokenServiceUnitTests {
     @DisplayName("save는 refresh token 엔티티를 생성해 저장한다")
     void save_persistsRefreshToken() {
         Date expiry = new Date(System.currentTimeMillis() + 60_000);
+        when(refreshTokenHasher.hash("refresh-token")).thenReturn("refresh-token-hash");
 
         refreshTokenService.save("session-1", "user-1", "refresh-token", expiry);
 
@@ -56,7 +60,8 @@ class RefreshTokenServiceUnitTests {
         verify(refreshTokenRepository).save(captor.capture());
         assertThat(captor.getValue().getSessionId()).isEqualTo("session-1");
         assertThat(captor.getValue().getUserId()).isEqualTo("user-1");
-        assertThat(captor.getValue().getToken()).isEqualTo("refresh-token");
+        assertThat(captor.getValue().getToken()).isNull();
+        assertThat(captor.getValue().getTokenHash()).isEqualTo("refresh-token-hash");
     }
 
     @Test
@@ -80,11 +85,13 @@ class RefreshTokenServiceUnitTests {
 
         when(jwtProvider.parseToken(oldRefresh)).thenReturn(claims);
         when(refreshTokenRepository.findById(sessionId))
-                .thenReturn(Optional.of(new RefreshToken(sessionId, userIdText, oldRefresh, new Date())));
+                .thenReturn(Optional.of(new RefreshToken(sessionId, userIdText, null, "old-refresh-hash", new Date())));
+        when(refreshTokenHasher.matches(oldRefresh, "old-refresh-hash")).thenReturn(true);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(jwtProvider.createAccessToken(userIdText, "user@example.com", "USER")).thenReturn("new-access");
         when(jwtProvider.createRefreshToken(userIdText, sessionId))
                 .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh", newExpiry, sessionId));
+        when(refreshTokenHasher.hash("new-refresh")).thenReturn("new-refresh-hash");
 
         AuthDto.RefreshResponse response = refreshTokenService.reissue(oldRefresh);
 
@@ -94,6 +101,8 @@ class RefreshTokenServiceUnitTests {
         verify(refreshTokenRepository).save(captor.capture());
         assertThat(captor.getValue().getSessionId()).isEqualTo(sessionId);
         assertThat(captor.getValue().getUserId()).isEqualTo(userIdText);
+        assertThat(captor.getValue().getToken()).isNull();
+        assertThat(captor.getValue().getTokenHash()).isEqualTo("new-refresh-hash");
     }
 
     @Test
@@ -120,11 +129,35 @@ class RefreshTokenServiceUnitTests {
         when(jwtProvider.createAccessToken(userIdText, "user@example.com", "USER")).thenReturn("new-access");
         when(jwtProvider.createRefreshToken(userIdText, userIdText))
                 .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh", newExpiry, userIdText));
+        when(refreshTokenHasher.hash("new-refresh")).thenReturn("new-refresh-hash");
 
         AuthDto.RefreshResponse response = refreshTokenService.reissue(oldRefresh);
 
         assertThat(response.accessToken()).isEqualTo("new-access");
         assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+        verify(refreshTokenRepository).save(captor.capture());
+        assertThat(captor.getValue().getToken()).isNull();
+        assertThat(captor.getValue().getTokenHash()).isEqualTo("new-refresh-hash");
+    }
+
+    @Test
+    @DisplayName("hash로 저장된 refresh token과 요청 token이 다르면 REFRESH_TOKEN_MISMATCH 예외를 던진다")
+    void reissue_tokenHashMismatch_throws() {
+        UUID userId = UUID.randomUUID();
+        String userIdText = userId.toString();
+        String sessionId = "session-1";
+        Claims claims = Jwts.claims();
+        claims.setSubject(userIdText);
+        claims.put("sid", sessionId);
+        when(jwtProvider.parseToken("request-token")).thenReturn(claims);
+        when(refreshTokenRepository.findById(sessionId))
+                .thenReturn(Optional.of(new RefreshToken(sessionId, userIdText, null, "stored-hash", new Date())));
+        when(refreshTokenHasher.matches("request-token", "stored-hash")).thenReturn(false);
+
+        assertThatThrownBy(() -> refreshTokenService.reissue("request-token"))
+                .isInstanceOf(TokenException.class)
+                .hasMessage(ErrorCode.REFRESH_TOKEN_MISMATCH.message());
     }
 
     @Test

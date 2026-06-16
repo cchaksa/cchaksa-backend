@@ -20,17 +20,29 @@ public class RefreshToken {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
-    @Column(nullable = false)
+    @Column
     private String token;
+
+    @Column(name = "token_hash")
+    private String tokenHash;
 
     @Column(nullable = false)
     private Date expiry;
 
     public RefreshToken(String sessionId, String userId, String token, Date expiry) {
+        this(sessionId, userId, token, null, expiry);
+    }
+
+    public RefreshToken(String sessionId, String userId, String token, String tokenHash, Date expiry) {
         this.sessionId = sessionId;
         this.userId = userId;
         this.token = token;
+        this.tokenHash = tokenHash;
         this.expiry = expiry;
+    }
+
+    public boolean hasTokenHash() {
+        return tokenHash != null && !tokenHash.isBlank();
     }
 
     public RefreshToken() {
