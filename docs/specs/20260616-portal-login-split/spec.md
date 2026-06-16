@@ -100,8 +100,9 @@ ECS, EC2 기반 상시 실행 구조에서는 스크래핑 서버가 이미 떠 
 이번 변경의 backend 책임은 다음 경계로 제한한다.
 
 - `PortalLoginService`가 `PortalLoginVerifier`를 호출하고 `PortalLoginVerificationTokenService`로 token을 발급한다.
-- token은 서버 저장 없이 HMAC 서명 기반 stateless token으로 발급한다.
-- token에는 비밀번호 원문을 넣지 않고, 사용자와 포털 타입, username hash, credential fingerprint, 만료 시각만 서명 대상에 포함한다.
+- token은 서버 저장 없이 `jjwt` 기반 HMAC 서명 JWT로 발급한다.
+- token payload에는 사용자와 포털 타입, username hash, 만료 시각만 포함한다.
+- 비밀번호는 token payload에 넣지 않고, token 서명 입력에만 사용해 `/portal/link`에서 다시 제출된 비밀번호가 로그인 검증 당시 값과 같은지 확인한다.
 - `PortalLinkJobService`는 job 생성 전에 token을 검증한다.
 - token 검증 실패 시 job을 생성하지 않는 흐름을 보장한다.
 - 실제 포털 검증 구현체는 스크래퍼 검증 경로에 맞춰 연결할 수 있도록 인터페이스로 분리한다.

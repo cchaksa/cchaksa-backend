@@ -3,25 +3,30 @@ package com.chukchuk.haksa.application.portal;
 
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.Key;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Base64;
+import java.time.Instant;
+import java.util.Date;
 import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
 public class PortalLoginVerificationTokenService {
 
-    private static final String VERSION = "v1";
-    private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String PORTAL_TYPE_CLAIM = "portal_type";
+    private static final String USERNAME_HASH_CLAIM = "username_hash";
 
     private final String secret;
     private final Duration ttl;
@@ -45,8 +50,16 @@ public class PortalLoginVerificationTokenService {
     }
 
     public String issue(UUID userId, String portalType, String username, String password) {
-        String canonical = canonicalPayload(userId, portalType, username, password);
-        return encode(canonical) + "." + encode(hmac(canonical));
+        Instant now = clock.instant();
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .claim(PORTAL_TYPE_CLAIM, normalize(portalType))
+                .claim(USERNAME_HASH_CLAIM, hash(normalizeUsername(username)))
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(now.plus(ttl)))
+                .setId(UUID.randomUUID().toString())
+                .signWith(signingKey(portalType, username, password), SignatureAlgorithm.HS256)
+                .compact();
     }
 
     public void verify(UUID userId, String portalType, String username, String password, String token) {
@@ -54,102 +67,45 @@ public class PortalLoginVerificationTokenService {
             throw invalidToken();
         }
 
-        String[] parts = token.split("\\.", -1);
-        if (parts.length != 2 || parts[0].isBlank() || parts[1].isBlank()) {
-            throw invalidToken();
-        }
-
-        String canonical = decodeToString(parts[0]);
-        byte[] expectedSignature = hmac(canonical);
-        byte[] actualSignature = decodeToBytes(parts[1]);
-        if (!MessageDigest.isEqual(expectedSignature, actualSignature)) {
-            throw invalidToken();
-        }
-
-        String[] fields = canonical.split("\\|", -1);
-        if (fields.length != 7) {
-            throw invalidToken();
-        }
-        if (!VERSION.equals(fields[0])) {
-            throw invalidToken();
-        }
-        if (!userId.toString().equals(fields[1])) {
-            throw invalidToken();
-        }
-        if (!normalize(portalType).equals(fields[2])) {
-            throw invalidToken();
-        }
-        if (!hash(normalizeUsername(username)).equals(fields[3])) {
-            throw invalidToken();
-        }
-        if (!credentialFingerprint(portalType, username, password).equals(fields[4])) {
-            throw invalidToken();
-        }
-        if (clock.instant().getEpochSecond() > parseExpiresAt(fields[5])) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(signingKey(portalType, username, password))
+                    .setClock(() -> Date.from(clock.instant()))
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            if (!userId.toString().equals(claims.getSubject())) {
+                throw invalidToken();
+            }
+            if (!normalize(portalType).equals(claims.get(PORTAL_TYPE_CLAIM, String.class))) {
+                throw invalidToken();
+            }
+            if (!hash(normalizeUsername(username)).equals(claims.get(USERNAME_HASH_CLAIM, String.class))) {
+                throw invalidToken();
+            }
+        } catch (JwtException | IllegalArgumentException exception) {
             throw invalidToken();
         }
     }
 
-    private String canonicalPayload(UUID userId, String portalType, String username, String password) {
-        long expiresAt = clock.instant().plus(ttl).getEpochSecond();
-        return String.join("|",
-                VERSION,
-                userId.toString(),
+    private Key signingKey(String portalType, String username, String password) {
+        return Keys.hmacShaKeyFor(hashBytes(String.join("\n",
+                secret,
                 normalize(portalType),
-                hash(normalizeUsername(username)),
-                credentialFingerprint(portalType, username, password),
-                String.valueOf(expiresAt),
-                UUID.randomUUID().toString()
-        );
-    }
-
-    private String credentialFingerprint(String portalType, String username, String password) {
-        return hash(String.join("\n", normalize(portalType), normalizeUsername(username), password));
-    }
-
-    private long parseExpiresAt(String value) {
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException exception) {
-            throw invalidToken();
-        }
-    }
-
-    private byte[] hmac(String value) {
-        try {
-            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
-            return mac.doFinal(value.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception exception) {
-            throw new CommonException(ErrorCode.INVALID_ARGUMENT, exception);
-        }
+                normalizeUsername(username),
+                password == null ? "" : password
+        )));
     }
 
     private String hash(String value) {
+        return HexFormat.of().formatHex(hashBytes(value));
+    }
+
+    private byte[] hashBytes(String value) {
         try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+            return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (Exception exception) {
             throw new CommonException(ErrorCode.INVALID_ARGUMENT, exception);
-        }
-    }
-
-    private String encode(String value) {
-        return encode(value.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String encode(byte[] value) {
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
-    }
-
-    private String decodeToString(String value) {
-        return new String(decodeToBytes(value), StandardCharsets.UTF_8);
-    }
-
-    private byte[] decodeToBytes(String value) {
-        try {
-            return Base64.getUrlDecoder().decode(value);
-        } catch (IllegalArgumentException exception) {
-            throw invalidToken();
         }
     }
 

@@ -16,7 +16,8 @@
 - 최종 흐름은 `POST /portal/login`으로 ID/PW를 먼저 검증하고, 성공 시 `portal_verification_token`을 반환하는 구조다.
 - 클라이언트는 `POST /portal/link`를 호출해 202 응답을 받은 직후 광고를 보여준다.
 - `POST /portal/link`는 포털 ID/PW와 `portal_verification_token`을 함께 받고, token 검증 성공 시에만 job을 만든다.
-- token은 서버 저장소 없이 HMAC 서명 기반 stateless token으로 발급한다.
-- token에는 비밀번호 원문을 넣지 않고 credential fingerprint만 포함한다.
+- token은 서버 저장소 없이 `jjwt` 기반 HMAC 서명 JWT로 발급한다.
+- token payload에는 비밀번호 원문이나 비밀번호 기반 fingerprint를 넣지 않는다.
+- 비밀번호 일치 여부는 `/portal/link`에서 다시 제출된 비밀번호로 token 서명을 재계산해 확인한다.
 - `/portal/login`, token service, `/portal/link` token 검증, OpenAPI 테스트를 추가했고 관련 테스트 묶음은 통과했다.
 - `./gradlew test`와 `git diff --check`가 통과했다.
