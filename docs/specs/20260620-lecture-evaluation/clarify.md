@@ -20,6 +20,7 @@
 | 10 | 신규 기능은 `lectureevaluations` 패키지에서 구현한다 | 기존 도메인과 분리된 기능 경계를 명확히 하기 위해 | 2026-06-20 |
 | 11 | 메인 노출 대상 학기는 Spring 설정값 `lecture-evaluation.target-year/target-semester`로 운영한다 | DB에 노출 대상 상태를 추가하지 않으면서도 과거 학기 pending row와 메인 진입점을 분리하기 위해 | 2026-06-20 |
 | 12 | `target-semester`는 DB 저장 semester code와 동일한 값을 사용한다 | 현재 포털 payload는 `2024-10`, `cretSmrCd=10`처럼 학기 코드를 저장하므로 표시값 1/2와 다를 수 있기 때문에 | 2026-06-20 |
+| 13 | 과제 관련 태그는 `HOMEWORK` 용어로 통일한다 | FE/팀 공유 시 `ASSIGNMENT`보다 직관적이고 문구와 의미가 맞기 때문에 | 2026-06-20 |
 
 ## Risks / Unknowns
 - Item:

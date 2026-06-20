@@ -120,7 +120,7 @@ class LectureEvaluationServiceUnitTests {
                 List.of(new LectureEvaluationDto.SubmitEvaluation(
                         1L,
                         11L,
-                        List.of("LOW_ASSIGNMENT"),
+                        List.of("LOW_HOMEWORK"),
                         "과제가 적어요"
                 ))
         );
