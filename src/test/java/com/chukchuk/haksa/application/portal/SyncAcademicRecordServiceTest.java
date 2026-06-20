@@ -3,6 +3,8 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.repository.AcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
+import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRepository;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -50,6 +52,8 @@ class SyncAcademicRecordServiceTest {
     private AcademicRecordRepository academicRecordRepository;
     @Mock
     private StudentCourseRepository studentCourseRepository;
+    @Mock
+    private SemesterAcademicRecordRepository semesterAcademicRecordRepository;
     @Mock
     private StudentService studentService;
     @Mock
@@ -179,6 +183,59 @@ class SyncAcademicRecordServiceTest {
         ));
 
         verify(studentCourseBulkRepository).insertAll(argThat(rows -> rows.size() == 1));
+    }
+
+    @Test
+    void executeForRefreshPortalData_marksLectureEvaluationRequiredWhenGradeChangesFromIpToCompleted() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+        doNothing().when(academicRecordRepository).updateChangedAcademicRecords(any(), any());
+
+        Professor professor = mock(Professor.class);
+        when(professor.getId()).thenReturn(11L);
+        when(professorService.getOrCreateAll(any())).thenReturn(Map.of(
+                "홍길동", professor,
+                "미확인 교수", professor
+        ));
+
+        Course course = mock(Course.class);
+        when(course.getId()).thenReturn(21L);
+        when(courseService.getOrCreateCourses(any())).thenReturn(Map.of("CSE101", course));
+
+        CourseOffering offering = mock(CourseOffering.class);
+        when(offering.getId()).thenReturn(31L);
+        when(offering.getYear()).thenReturn(2024);
+        when(offering.getSemester()).thenReturn(1);
+        when(courseOfferingService.getOrCreateAll(any())).thenAnswer(invocation -> {
+            List<CreateOfferingCommand> commands = invocation.getArgument(0);
+            return Map.of(CourseOfferingService.CourseOfferingKey.from(commands.get(0)), offering);
+        });
+
+        StudentCourse existing = new StudentCourse(
+                student,
+                offering,
+                Grade.createInProgress(),
+                3,
+                false,
+                0,
+                false
+        );
+        when(studentCourseRepository.findByStudent(student)).thenReturn(List.of(existing));
+
+        SemesterAcademicRecord semesterRecord = mock(SemesterAcademicRecord.class);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2024, 1))
+                .thenReturn(java.util.Optional.of(semesterRecord));
+
+        service.executeForRefreshPortalData(userId, new PortalData(
+                null,
+                sampleAcademicData(),
+                sampleCurriculumData()
+        ));
+
+        verify(semesterRecord).markLectureEvaluationRequired();
     }
 
     private PortalCurriculumData sampleCurriculumData() {
