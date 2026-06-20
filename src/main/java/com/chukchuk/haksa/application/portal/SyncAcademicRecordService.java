@@ -5,6 +5,7 @@ import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.repository.AcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRow;
@@ -41,6 +42,7 @@ public class SyncAcademicRecordService {
 
     private final AcademicRecordRepository academicRecordRepository;
     private final StudentCourseRepository studentCourseRepository;
+    private final SemesterAcademicRecordRepository semesterAcademicRecordRepository;
     private final StudentService studentService;
     private final CourseOfferingService courseOfferingService;
     private final ProfessorService professorService;
@@ -119,15 +121,19 @@ public class SyncAcademicRecordService {
                         ));
 
         // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
-        List<StudentCourse> toUpdate = existingEnrollments.stream()
-                .map(sc -> {
-                    CourseEnrollment pe = portalEnrollmentMap.get(sc.getOffering().getId());
-                    if (pe == null || !sc.isDifferentFrom(pe)) return null;
-                    sc.updateFromPortal(pe);
-                    return sc;
-                })
-                .filter(Objects::nonNull)
-                .toList();
+        List<StudentCourse> toUpdate = new ArrayList<>();
+        for (StudentCourse studentCourse : existingEnrollments) {
+            CourseEnrollment portalEnrollment = portalEnrollmentMap.get(studentCourse.getOffering().getId());
+            if (portalEnrollment == null || !studentCourse.isDifferentFrom(portalEnrollment)) {
+                continue;
+            }
+            boolean gradePublished = isGradePublished(studentCourse, portalEnrollment);
+            studentCourse.updateFromPortal(portalEnrollment);
+            if (gradePublished) {
+                markLectureEvaluationRequired(studentId, studentCourse);
+            }
+            toUpdate.add(studentCourse);
+        }
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         long offeringMappingStartNs = System.nanoTime();
@@ -487,6 +493,28 @@ public class SyncAcademicRecordService {
             if (picked != null) result.add(picked);
         }
         return result;
+    }
+
+    private boolean isGradePublished(StudentCourse current, CourseEnrollment incoming) {
+        return current.getGrade() != null
+                && current.getGrade().getValue() == GradeType.IP
+                && incoming.getGrade() != null
+                && incoming.getGrade().isCompleted();
+    }
+
+    private void markLectureEvaluationRequired(UUID studentId, StudentCourse studentCourse) {
+        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(
+                        studentId,
+                        studentCourse.getOffering().getYear(),
+                        studentCourse.getOffering().getSemester()
+                )
+                .ifPresent(record -> {
+                    record.markLectureEvaluationRequired();
+                    log.info("[BIZ] lecture_evaluation.required.marked studentId={} year={} semester={}",
+                            studentId,
+                            studentCourse.getOffering().getYear(),
+                            studentCourse.getOffering().getSemester());
+                });
     }
 
     private static class SyncStats { int inserted, updated, deleted; }

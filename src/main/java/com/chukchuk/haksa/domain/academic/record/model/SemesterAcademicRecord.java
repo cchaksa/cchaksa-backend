@@ -53,6 +53,12 @@ public class SemesterAcademicRecord extends BaseEntity {
     @Column(name = "earned_credits")
     private Integer earnedCredits;
 
+    @Column(name = "lecture_evaluation_required", nullable = false)
+    private boolean lectureEvaluationRequired = false;
+
+    @Column(name = "lecture_evaluation_completed", nullable = false)
+    private boolean lectureEvaluationCompleted = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     private Student student;
@@ -119,5 +125,21 @@ public class SemesterAcademicRecord extends BaseEntity {
         this.semesterGpa = src.semesterGpa;
         this.attemptedCredits = src.attemptedCredits;
         this.earnedCredits = src.earnedCredits;
+    }
+
+    public void markLectureEvaluationRequired() {
+        if (this.lectureEvaluationCompleted) {
+            return;
+        }
+        this.lectureEvaluationRequired = true;
+    }
+
+    public void markLectureEvaluationCompleted() {
+        this.lectureEvaluationRequired = true;
+        this.lectureEvaluationCompleted = true;
+    }
+
+    public boolean isLectureEvaluationPending() {
+        return this.lectureEvaluationRequired && !this.lectureEvaluationCompleted;
     }
 }
