@@ -8,7 +8,6 @@ import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseReposit
 import com.chukchuk.haksa.domain.lectureevaluations.config.LectureEvaluationProperties;
 import com.chukchuk.haksa.domain.lectureevaluations.dto.LectureEvaluationDto;
 import com.chukchuk.haksa.domain.lectureevaluations.model.CourseEvaluation;
-import com.chukchuk.haksa.domain.lectureevaluations.model.LectureEvaluationTag;
 import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationRepository;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -21,8 +20,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -73,8 +75,11 @@ public class LectureEvaluationService {
         List<StudentCourse> targets = findEvaluationTargets(student.getId(), request.year(), request.semester());
         validateSubmittedCourses(targets, request.evaluations());
 
+        Map<CourseProfessorKey, StudentCourse> targetMap = targets.stream()
+                .collect(Collectors.toMap(CourseProfessorKey::from, Function.identity()));
+
         List<CourseEvaluation> evaluations = request.evaluations().stream()
-                .map(submitted -> toEntity(student, request.year(), request.semester(), targets, submitted))
+                .map(submitted -> toEntity(student, request.year(), request.semester(), targetMap, submitted))
                 .toList();
 
         courseEvaluationRepository.saveAll(evaluations);
@@ -114,6 +119,7 @@ public class LectureEvaluationService {
     private List<StudentCourse> findEvaluationTargets(UUID studentId, Integer year, Integer semester) {
         return studentCourseRepository.findByStudentIdAndYearAndSemester(studentId, year, semester).stream()
                 .filter(this::isCompletedGrade)
+                .filter(this::hasProfessor)
                 .toList();
     }
 
@@ -121,6 +127,12 @@ public class LectureEvaluationService {
         return studentCourse.getGrade() != null
                 && studentCourse.getGrade().getValue() != null
                 && studentCourse.getGrade().getValue() != GradeType.IP;
+    }
+
+    private boolean hasProfessor(StudentCourse studentCourse) {
+        return studentCourse.getOffering() != null
+                && studentCourse.getOffering().getProfessor() != null
+                && studentCourse.getOffering().getProfessor().getId() != null;
     }
 
     private void validateSubmittedCourses(
@@ -145,13 +157,13 @@ public class LectureEvaluationService {
             Student student,
             Integer year,
             Integer semester,
-            List<StudentCourse> targets,
+            Map<CourseProfessorKey, StudentCourse> targetMap,
             LectureEvaluationDto.SubmitEvaluation submitted
     ) {
-        StudentCourse target = targets.stream()
-                .filter(studentCourse -> CourseProfessorKey.from(studentCourse).equals(CourseProfessorKey.from(submitted)))
-                .findFirst()
-                .orElseThrow(() -> new CommonException(ErrorCode.LECTURE_EVALUATION_COURSE_MISMATCH));
+        StudentCourse target = targetMap.get(CourseProfessorKey.from(submitted));
+        if (target == null) {
+            throw new CommonException(ErrorCode.LECTURE_EVALUATION_COURSE_MISMATCH);
+        }
 
         return new CourseEvaluation(
                 student,
@@ -160,21 +172,17 @@ public class LectureEvaluationService {
                 year,
                 semester,
                 submitted.review(),
-                parseTags(submitted.selectedTags())
+                submitted.selectedTags()
         );
-    }
-
-    private List<LectureEvaluationTag> parseTags(List<String> selectedTags) {
-        return selectedTags.stream()
-                .map(LectureEvaluationTag::valueOf)
-                .toList();
     }
 
     private record CourseProfessorKey(Long courseId, Long professorId) {
         static CourseProfessorKey from(StudentCourse studentCourse) {
             return new CourseProfessorKey(
                     studentCourse.getOffering().getCourse().getId(),
-                    studentCourse.getOffering().getProfessor().getId()
+                    studentCourse.getOffering().getProfessor() != null
+                            ? studentCourse.getOffering().getProfessor().getId()
+                            : null
             );
         }
 

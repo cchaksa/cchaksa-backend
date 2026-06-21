@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.academic.record.model.LectureEvaluationStatus;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.model.LiberalArtsAreaCode;
+import com.chukchuk.haksa.domain.lectureevaluations.model.LectureEvaluationTag;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
@@ -52,7 +53,9 @@ public class LectureEvaluationDto {
                     studentCourse.getOffering().getProfessor() != null
                             ? studentCourse.getOffering().getProfessor().getId()
                             : null,
-                    studentCourse.getGrade() != null ? studentCourse.getGrade().getValue().getValue() : null,
+                    studentCourse.getGrade() != null && studentCourse.getGrade().getValue() != null
+                            ? studentCourse.getGrade().getValue().getValue()
+                            : null,
                     studentCourse.getOriginalScore(),
                     missionLiberalAreaCode(studentCourse)
             );
@@ -80,7 +83,7 @@ public class LectureEvaluationDto {
     public record SubmitEvaluation(
             @NotNull Long courseId,
             @NotNull Long professorId,
-            @NotNull List<String> selectedTags,
+            @NotNull List<LectureEvaluationTag> selectedTags,
             @Size(max = 2000) String review
     ) {}
 

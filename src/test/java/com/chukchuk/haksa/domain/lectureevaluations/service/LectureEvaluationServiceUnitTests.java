@@ -10,6 +10,7 @@ import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.lectureevaluations.config.LectureEvaluationProperties;
 import com.chukchuk.haksa.domain.lectureevaluations.dto.LectureEvaluationDto;
+import com.chukchuk.haksa.domain.lectureevaluations.model.LectureEvaluationTag;
 import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationRepository;
 import com.chukchuk.haksa.domain.professor.model.Professor;
 import com.chukchuk.haksa.domain.student.model.Grade;
@@ -77,6 +78,41 @@ class LectureEvaluationServiceUnitTests {
     }
 
     @Test
+    @DisplayName("성적 값이 null이면 성적 카드 grade를 null로 반환한다")
+    void gradeCardFrom_returnsNullGradeWhenGradeValueMissing() {
+        StudentCourse target = studentCourse(1L, "CSE101", "컴퓨터네트워크", 11L, "김민규", null, 88);
+
+        LectureEvaluationDto.GradeCard gradeCard = LectureEvaluationDto.GradeCard.from(target);
+
+        assertThat(gradeCard.grade()).isNull();
+    }
+
+    @Test
+    @DisplayName("교수 정보가 없는 과목은 평가 대상에서 제외한다")
+    void getRequired_excludesCoursesWithoutProfessor() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+
+        SemesterAcademicRecord record = mock(SemesterAcademicRecord.class);
+        when(record.isLectureEvaluationPending()).thenReturn(true);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
+                .thenReturn(Optional.of(record));
+
+        StudentCourse withProfessor = studentCourse(1L, "CSE101", "컴퓨터네트워크", 11L, "김민규", GradeType.A_PLUS, 95);
+        StudentCourse withoutProfessor = studentCourse(2L, "CSE102", "운영체제", null, null, GradeType.A0, 90);
+        when(studentCourseRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
+                .thenReturn(List.of(withProfessor, withoutProfessor));
+
+        LectureEvaluationDto.RequiredResponse response = service.getRequired(userId);
+
+        assertThat(response.grades()).hasSize(1);
+        assertThat(response.grades().get(0).courseId()).isEqualTo(1L);
+    }
+
+    @Test
     @DisplayName("target 학기 row가 없으면 status null과 빈 grades를 반환한다")
     void getRequired_returnsNullStatusWhenTargetSemesterRecordMissing() {
         UUID userId = UUID.randomUUID();
@@ -120,7 +156,7 @@ class LectureEvaluationServiceUnitTests {
                 List.of(new LectureEvaluationDto.SubmitEvaluation(
                         1L,
                         11L,
-                        List.of("LOW_HOMEWORK"),
+                        List.of(LectureEvaluationTag.LOW_HOMEWORK),
                         "과제가 적어요"
                 ))
         );
@@ -198,7 +234,7 @@ class LectureEvaluationServiceUnitTests {
         StudentCourse studentCourse = mock(StudentCourse.class);
         CourseOffering offering = mock(CourseOffering.class);
         Course course = mock(Course.class);
-        Professor professor = mock(Professor.class);
+        Professor professor = professorId != null ? mock(Professor.class) : null;
 
         when(studentCourse.getOffering()).thenReturn(offering);
         when(studentCourse.getGrade()).thenReturn(new Grade(gradeType));
@@ -210,8 +246,10 @@ class LectureEvaluationServiceUnitTests {
         when(course.getId()).thenReturn(courseId);
         when(course.getCourseCode()).thenReturn(courseCode);
         when(course.getCourseName()).thenReturn(courseName);
-        when(professor.getId()).thenReturn(professorId);
-        when(professor.getProfessorName()).thenReturn(professorName);
+        if (professor != null) {
+            when(professor.getId()).thenReturn(professorId);
+            when(professor.getProfessorName()).thenReturn(professorName);
+        }
 
         return studentCourse;
     }

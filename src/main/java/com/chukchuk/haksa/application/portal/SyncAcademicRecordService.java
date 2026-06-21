@@ -122,6 +122,7 @@ public class SyncAcademicRecordService {
 
         // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
         List<StudentCourse> toUpdate = new ArrayList<>();
+        Set<SemesterKey> pendingSemesters = new HashSet<>();
         for (StudentCourse studentCourse : existingEnrollments) {
             CourseEnrollment portalEnrollment = portalEnrollmentMap.get(studentCourse.getOffering().getId());
             if (portalEnrollment == null || !studentCourse.isDifferentFrom(portalEnrollment)) {
@@ -130,10 +131,15 @@ public class SyncAcademicRecordService {
             boolean gradePublished = isGradePublished(studentCourse, portalEnrollment);
             studentCourse.updateFromPortal(portalEnrollment);
             if (gradePublished) {
-                markLectureEvaluationPending(studentId, studentCourse);
+                pendingSemesters.add(new SemesterKey(
+                        studentCourse.getOffering().getYear(),
+                        studentCourse.getOffering().getSemester()
+                ));
             }
             toUpdate.add(studentCourse);
         }
+        pendingSemesters.forEach(semester ->
+                markLectureEvaluationPending(studentId, semester.year(), semester.semester()));
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         long offeringMappingStartNs = System.nanoTime();
@@ -502,22 +508,20 @@ public class SyncAcademicRecordService {
                 && incoming.getGrade().isCompleted();
     }
 
-    private void markLectureEvaluationPending(UUID studentId, StudentCourse studentCourse) {
-        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(
-                        studentId,
-                        studentCourse.getOffering().getYear(),
-                        studentCourse.getOffering().getSemester()
-                )
+    private void markLectureEvaluationPending(UUID studentId, int year, int semester) {
+        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
                 .ifPresent(record -> {
                     record.markLectureEvaluationPending();
                     log.info("[BIZ] lecture_evaluation.pending.marked studentId={} year={} semester={}",
                             studentId,
-                            studentCourse.getOffering().getYear(),
-                            studentCourse.getOffering().getSemester());
+                            year,
+                            semester);
                 });
     }
 
     private static class SyncStats { int inserted, updated, deleted; }
+
+    private record SemesterKey(int year, int semester) {}
 
     private record OfferingKey(
             String courseCode,
