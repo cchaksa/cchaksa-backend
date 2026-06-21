@@ -126,10 +126,18 @@ public class SemesterAcademicRecord extends BaseEntity {
     }
 
     public void markLectureEvaluationPending() {
-        if (this.lectureEvaluationStatus != null) {
+        if (this.lectureEvaluationStatus == LectureEvaluationStatus.SKIPPED
+                || this.lectureEvaluationStatus == LectureEvaluationStatus.COMPLETED) {
             return;
         }
         this.lectureEvaluationStatus = LectureEvaluationStatus.PENDING;
+    }
+
+    public void markLectureEvaluationNotReleased() {
+        if (this.lectureEvaluationStatus != null) {
+            return;
+        }
+        this.lectureEvaluationStatus = LectureEvaluationStatus.NOT_RELEASED;
     }
 
     public void markLectureEvaluationSkipped() {

@@ -16,7 +16,11 @@ import java.util.List;
 public class LectureEvaluationDto {
 
     public record RequiredResponse(
-            @Schema(description = "강의평가 상태", allowableValues = {"PENDING", "SKIPPED", "COMPLETED"}, nullable = true)
+            @Schema(
+                    description = "강의평가 상태",
+                    allowableValues = {"NOT_RELEASED", "PENDING", "SKIPPED", "COMPLETED"},
+                    nullable = true
+            )
             LectureEvaluationStatus evaluationStatus,
             @Schema(description = "강의평가 대상 연도") Integer year,
             @Schema(description = "강의평가 대상 학기 코드") Integer semester,

@@ -794,8 +794,9 @@ components:
         evaluationStatus:
           type: string
           nullable: true
-          description: "강의평가 상태. PENDING이면 성적 카드를 노출하고, SKIPPED/COMPLETED/null이면 노출하지 않습니다."
+          description: "강의평가 상태. NOT_RELEASED는 수강 내역은 있으나 성적이 아직 공개되지 않은 상태입니다. PENDING이면 성적 카드를 노출하고, NOT_RELEASED/SKIPPED/COMPLETED/null이면 노출하지 않습니다."
           enum:
+            - NOT_RELEASED
             - PENDING
             - SKIPPED
             - COMPLETED
