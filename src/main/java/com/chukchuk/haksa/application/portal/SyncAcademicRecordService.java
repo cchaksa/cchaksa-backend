@@ -120,26 +120,18 @@ public class SyncAcademicRecordService {
                                 (a, b) -> b
                         ));
 
+        markLectureEvaluationStatusFromSnapshot(studentId, newEnrollments, offerings);
+
         // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
         List<StudentCourse> toUpdate = new ArrayList<>();
-        Set<SemesterKey> pendingSemesters = new HashSet<>();
         for (StudentCourse studentCourse : existingEnrollments) {
             CourseEnrollment portalEnrollment = portalEnrollmentMap.get(studentCourse.getOffering().getId());
             if (portalEnrollment == null || !studentCourse.isDifferentFrom(portalEnrollment)) {
                 continue;
             }
-            boolean gradePublished = isGradePublished(studentCourse, portalEnrollment);
             studentCourse.updateFromPortal(portalEnrollment);
-            if (gradePublished) {
-                pendingSemesters.add(new SemesterKey(
-                        studentCourse.getOffering().getYear(),
-                        studentCourse.getOffering().getSemester()
-                ));
-            }
             toUpdate.add(studentCourse);
         }
-        pendingSemesters.forEach(semester ->
-                markLectureEvaluationPending(studentId, semester.year(), semester.semester()));
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         long offeringMappingStartNs = System.nanoTime();
@@ -501,11 +493,29 @@ public class SyncAcademicRecordService {
         return result;
     }
 
-    private boolean isGradePublished(StudentCourse current, CourseEnrollment incoming) {
-        return current.getGrade() != null
-                && current.getGrade().getValue() == GradeType.IP
-                && incoming.getGrade() != null
-                && incoming.getGrade().isCompleted();
+    private void markLectureEvaluationStatusFromSnapshot(
+            UUID studentId,
+            List<CourseEnrollment> enrollments,
+            Map<Long, CourseOffering> offerings
+    ) {
+        Map<SemesterKey, Boolean> semesterHasCompletedGrade = new HashMap<>();
+        for (CourseEnrollment enrollment : enrollments) {
+            CourseOffering offering = offerings.get(enrollment.getOfferingId());
+            if (offering == null) {
+                continue;
+            }
+            SemesterKey semester = new SemesterKey(offering.getYear(), offering.getSemester());
+            boolean hasCompletedGrade = enrollment.getGrade() != null && enrollment.getGrade().isCompleted();
+            semesterHasCompletedGrade.merge(semester, hasCompletedGrade, Boolean::logicalOr);
+        }
+
+        semesterHasCompletedGrade.forEach((semester, hasCompletedGrade) -> {
+            if (hasCompletedGrade) {
+                markLectureEvaluationPending(studentId, semester.year(), semester.semester());
+            } else {
+                markLectureEvaluationNotReleased(studentId, semester.year(), semester.semester());
+            }
+        });
     }
 
     private void markLectureEvaluationPending(UUID studentId, int year, int semester) {
@@ -513,6 +523,17 @@ public class SyncAcademicRecordService {
                 .ifPresent(record -> {
                     record.markLectureEvaluationPending();
                     log.info("[BIZ] lecture_evaluation.pending.marked studentId={} year={} semester={}",
+                            studentId,
+                            year,
+                            semester);
+                });
+    }
+
+    private void markLectureEvaluationNotReleased(UUID studentId, int year, int semester) {
+        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
+                .ifPresent(record -> {
+                    record.markLectureEvaluationNotReleased();
+                    log.info("[BIZ] lecture_evaluation.not_released.marked studentId={} year={} semester={}",
                             studentId,
                             year,
                             semester);

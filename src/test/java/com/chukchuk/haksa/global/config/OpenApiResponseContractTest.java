@@ -173,6 +173,23 @@ class OpenApiResponseContractTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void staticOpenApiDocumentsNotReleasedLectureEvaluationStatus() throws Exception {
+        Map<String, Object> staticOpenApi;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
+            staticOpenApi = new Yaml().load(inputStream);
+        }
+
+        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> response = (Map<String, Object>) schemas.get("LectureEvaluationRequiredResponse");
+        Map<String, Object> properties = (Map<String, Object>) response.get("properties");
+        Map<String, Object> evaluationStatus = (Map<String, Object>) properties.get("evaluationStatus");
+
+        assertThat((List<String>) evaluationStatus.get("enum")).contains("NOT_RELEASED");
+    }
+
+    @Test
     void jsonResponsesDoNotUseWildcardMediaType() throws Exception {
         JsonNode apiDocs = apiDocs();
 
