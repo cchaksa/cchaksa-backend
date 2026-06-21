@@ -20,14 +20,14 @@ SET lecture_evaluation_status = CASE
           AND sc.grade IS NOT NULL
           AND sc.grade <> 'IP'
     ) THEN 'PENDING'
-    WHEN EXISTS (
-        SELECT 1
-        FROM public.student_courses sc
-        JOIN public.course_offerings co ON co.id = sc.offering_id
-        WHERE sc.student_id = sar.student_id
-          AND co.year = sar.year
-          AND co.semester = sar.semester
-    ) THEN 'NOT_RELEASED'
-    ELSE NULL
+    ELSE 'NOT_RELEASED'
 END
-WHERE sar.lecture_evaluation_status IS NULL;
+WHERE sar.lecture_evaluation_status IS NULL
+  AND EXISTS (
+      SELECT 1
+      FROM public.student_courses sc
+      JOIN public.course_offerings co ON co.id = sc.offering_id
+      WHERE sc.student_id = sar.student_id
+        AND co.year = sar.year
+        AND co.semester = sar.semester
+  );

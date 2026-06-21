@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -155,6 +157,18 @@ class FlywayMigrationTest {
                 assertThat(resultSet.getString("lecture_evaluation_status")).isEqualTo("PENDING");
             }
         }
+    }
+
+    @Test
+    void v7SkipsLectureEvaluationStatusUpdateWhenSemesterHasNoCourses() throws Exception {
+        String migrationSql = Files.readString(Path.of(
+                "src/main/resources/db/migration/V7__add_not_released_lecture_evaluation_status.sql"
+        ));
+
+        assertThat(migrationSql)
+                .contains("WHERE sar.lecture_evaluation_status IS NULL\n  AND EXISTS");
+        assertThat(migrationSql)
+                .doesNotContain("ELSE NULL");
     }
 
     private boolean hasColumn(Connection connection, String columnName) throws Exception {
