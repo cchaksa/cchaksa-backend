@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.lectureevaluations.service;
 
 import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.model.LectureEvaluationStatus;
 import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.course.model.Course;
@@ -54,8 +55,8 @@ class LectureEvaluationServiceUnitTests {
         when(studentService.getStudentByUserId(userId)).thenReturn(student);
 
         SemesterAcademicRecord record = mock(SemesterAcademicRecord.class);
-        when(record.isLectureEvaluationRequired()).thenReturn(true);
-        when(record.isLectureEvaluationCompleted()).thenReturn(false);
+        when(record.getLectureEvaluationStatus()).thenReturn(LectureEvaluationStatus.PENDING);
+        when(record.isLectureEvaluationPending()).thenReturn(true);
         when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
                 .thenReturn(Optional.of(record));
 
@@ -66,7 +67,7 @@ class LectureEvaluationServiceUnitTests {
 
         LectureEvaluationDto.RequiredResponse response = service.getRequired(userId);
 
-        assertThat(response.lectureEvaluationRequired()).isTrue();
+        assertThat(response.evaluationStatus()).isEqualTo(LectureEvaluationStatus.PENDING);
         assertThat(response.year()).isEqualTo(2026);
         assertThat(response.semester()).isEqualTo(10);
         assertThat(response.grades()).hasSize(1);
@@ -76,8 +77,8 @@ class LectureEvaluationServiceUnitTests {
     }
 
     @Test
-    @DisplayName("target 학기 row가 없으면 false와 빈 grades를 반환한다")
-    void getRequired_returnsFalseWhenTargetSemesterRecordMissing() {
+    @DisplayName("target 학기 row가 없으면 status null과 빈 grades를 반환한다")
+    void getRequired_returnsNullStatusWhenTargetSemesterRecordMissing() {
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         Student student = mock(Student.class);
@@ -88,7 +89,7 @@ class LectureEvaluationServiceUnitTests {
 
         LectureEvaluationDto.RequiredResponse response = service.getRequired(userId);
 
-        assertThat(response.lectureEvaluationRequired()).isFalse();
+        assertThat(response.evaluationStatus()).isNull();
         assertThat(response.year()).isEqualTo(2026);
         assertThat(response.semester()).isEqualTo(10);
         assertThat(response.grades()).isEmpty();
@@ -105,8 +106,7 @@ class LectureEvaluationServiceUnitTests {
         when(studentService.getStudentByUserId(userId)).thenReturn(student);
 
         SemesterAcademicRecord record = mock(SemesterAcademicRecord.class);
-        when(record.isLectureEvaluationRequired()).thenReturn(true);
-        when(record.isLectureEvaluationCompleted()).thenReturn(false);
+        when(record.isLectureEvaluationPending()).thenReturn(true);
         when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
                 .thenReturn(Optional.of(record));
 
@@ -132,6 +132,27 @@ class LectureEvaluationServiceUnitTests {
     }
 
     @Test
+    @DisplayName("건너뛰기 요청은 pending 학기를 skipped 상태로 변경한다")
+    void skip_marksPendingSemesterSkipped() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+
+        SemesterAcademicRecord record = mock(SemesterAcademicRecord.class);
+        when(record.isLectureEvaluationPending()).thenReturn(true);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
+                .thenReturn(Optional.of(record));
+
+        LectureEvaluationDto.SkipRequest request = new LectureEvaluationDto.SkipRequest(2026, 10);
+
+        service.skip(userId, request);
+
+        verify(record).markLectureEvaluationSkipped();
+    }
+
+    @Test
     @DisplayName("제출 과목이 평가 대상과 다르면 예외를 던진다")
     void submit_throwsWhenSubmittedCoursesDoNotMatchTargets() {
         UUID userId = UUID.randomUUID();
@@ -141,8 +162,7 @@ class LectureEvaluationServiceUnitTests {
         when(studentService.getStudentByUserId(userId)).thenReturn(student);
 
         SemesterAcademicRecord record = mock(SemesterAcademicRecord.class);
-        when(record.isLectureEvaluationRequired()).thenReturn(true);
-        when(record.isLectureEvaluationCompleted()).thenReturn(false);
+        when(record.isLectureEvaluationPending()).thenReturn(true);
         when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2026, 10))
                 .thenReturn(Optional.of(record));
 

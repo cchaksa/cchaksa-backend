@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.lectureevaluations.service;
 
+import com.chukchuk.haksa.domain.academic.record.model.LectureEvaluationStatus;
 import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
@@ -45,14 +46,15 @@ public class LectureEvaluationService {
                 .orElse(null);
 
         if (semesterRecord == null || !isPending(semesterRecord)) {
-            return LectureEvaluationDto.RequiredResponse.notRequired(year, semester);
+            LectureEvaluationStatus status = semesterRecord != null ? semesterRecord.getLectureEvaluationStatus() : null;
+            return LectureEvaluationDto.RequiredResponse.withoutGrades(status, year, semester);
         }
 
         List<LectureEvaluationDto.GradeCard> grades = findEvaluationTargets(studentId, year, semester).stream()
                 .map(LectureEvaluationDto.GradeCard::from)
                 .toList();
 
-        return new LectureEvaluationDto.RequiredResponse(true, year, semester, grades);
+        return new LectureEvaluationDto.RequiredResponse(LectureEvaluationStatus.PENDING, year, semester, grades);
     }
 
     @Transactional
@@ -79,14 +81,34 @@ public class LectureEvaluationService {
         semesterRecord.markLectureEvaluationCompleted();
     }
 
+    @Transactional
+    public void skip(UUID userId, LectureEvaluationDto.SkipRequest request) {
+        Student student = studentService.getStudentByUserId(userId);
+        validateTargetSemester(request.year(), request.semester());
+
+        SemesterAcademicRecord semesterRecord = semesterAcademicRecordRepository
+                .findByStudentIdAndYearAndSemester(student.getId(), request.year(), request.semester())
+                .orElseThrow(() -> new CommonException(ErrorCode.LECTURE_EVALUATION_NOT_REQUIRED));
+
+        if (!isPending(semesterRecord)) {
+            throw new CommonException(ErrorCode.LECTURE_EVALUATION_NOT_REQUIRED);
+        }
+
+        semesterRecord.markLectureEvaluationSkipped();
+    }
+
     private void validateTargetSemester(LectureEvaluationDto.SubmitRequest request) {
-        if (!properties.getTargetYear().equals(request.year()) || !properties.getTargetSemester().equals(request.semester())) {
+        validateTargetSemester(request.year(), request.semester());
+    }
+
+    private void validateTargetSemester(Integer year, Integer semester) {
+        if (!properties.getTargetYear().equals(year) || !properties.getTargetSemester().equals(semester)) {
             throw new CommonException(ErrorCode.LECTURE_EVALUATION_NOT_REQUIRED);
         }
     }
 
     private boolean isPending(SemesterAcademicRecord semesterRecord) {
-        return semesterRecord.isLectureEvaluationRequired() && !semesterRecord.isLectureEvaluationCompleted();
+        return semesterRecord.isLectureEvaluationPending();
     }
 
     private List<StudentCourse> findEvaluationTargets(UUID studentId, Integer year, Integer semester) {

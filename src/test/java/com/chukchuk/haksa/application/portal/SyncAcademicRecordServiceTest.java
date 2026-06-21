@@ -186,7 +186,7 @@ class SyncAcademicRecordServiceTest {
     }
 
     @Test
-    void executeForRefreshPortalData_marksLectureEvaluationRequiredWhenGradeChangesFromIpToCompleted() {
+    void executeForRefreshPortalData_marksLectureEvaluationPendingWhenGradeChangesFromIpToCompleted() {
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
         Student student = mock(Student.class);
@@ -235,7 +235,7 @@ class SyncAcademicRecordServiceTest {
                 sampleCurriculumData()
         ));
 
-        verify(semesterRecord).markLectureEvaluationRequired();
+        verify(semesterRecord).markLectureEvaluationPending();
     }
 
     private PortalCurriculumData sampleCurriculumData() {

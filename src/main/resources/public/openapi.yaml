@@ -110,13 +110,13 @@ paths:
     get:
       tags:
         - LectureEvaluations
-      summary: 강의평가 필요 여부 조회
-      description: 설정된 대상 학기의 강의평가 필요 여부와 성적 카드 목록을 조회합니다.
+      summary: 강의평가 상태 조회
+      description: 설정된 대상 학기의 강의평가 상태와 성적 카드 목록을 조회합니다. PENDING일 때만 grades가 내려오며, null은 평가 플로우가 아직 생성되지 않은 상태입니다.
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: 강의평가 필요 여부 조회 성공
+          description: 강의평가 상태 조회 성공
           content:
             application/json:
               schema:
@@ -151,6 +151,40 @@ paths:
                 $ref: '#/components/schemas/MessageOnlyApiResponse'
         '400':
           description: 강의평가 대상 학기가 아니거나 제출 과목이 일치하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/lecture-evaluations/skip:
+    post:
+      tags:
+        - LectureEvaluations
+      summary: 강의평가 건너뛰기
+      description: 설정된 대상 학기의 강의평가 상태를 SKIPPED로 변경합니다. PENDING 상태인 학기만 건너뛰기할 수 있습니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LectureEvaluationSkipRequest'
+      responses:
+        '200':
+          description: 강의평가 건너뛰기 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 강의평가 대상 학기가 아니거나 PENDING 상태가 아님
           content:
             application/json:
               schema:
@@ -752,15 +786,20 @@ components:
     LectureEvaluationRequiredResponse:
       type: object
       required:
-        - lectureEvaluationRequired
+        - evaluationStatus
         - year
         - semester
         - grades
       properties:
-        lectureEvaluationRequired:
-          type: boolean
-          description: 강의평가 필요 여부
-          example: true
+        evaluationStatus:
+          type: string
+          nullable: true
+          description: "강의평가 상태. PENDING이면 성적 카드를 노출하고, SKIPPED/COMPLETED/null이면 노출하지 않습니다."
+          enum:
+            - PENDING
+            - SKIPPED
+            - COMPLETED
+          example: PENDING
         year:
           type: integer
           format: int32
@@ -858,6 +897,22 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/LectureEvaluationSubmitItem'
+
+    LectureEvaluationSkipRequest:
+      type: object
+      required:
+        - year
+        - semester
+      properties:
+        year:
+          type: integer
+          format: int32
+          example: 2026
+        semester:
+          type: integer
+          format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
 
     LectureEvaluationSubmitItem:
       type: object

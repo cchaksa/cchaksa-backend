@@ -53,7 +53,8 @@ class OpenApiResponseContractTest {
             new OperationRef("/api/academic/summary", "get"),
             new OperationRef("/api/academic/record", "get"),
             new OperationRef("/api/lecture-evaluations/required", "get"),
-            new OperationRef("/api/lecture-evaluations", "post")
+            new OperationRef("/api/lecture-evaluations", "post"),
+            new OperationRef("/api/lecture-evaluations/skip", "post")
     );
 
     @Autowired

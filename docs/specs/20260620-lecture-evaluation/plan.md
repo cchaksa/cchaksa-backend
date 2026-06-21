@@ -3,13 +3,13 @@
 ## Architecture / Layering
 - Domain impact:
   - `domain/lectureevaluations` 신규 패키지를 만들고 controller, docs, dto, model, repository, service를 둔다.
-  - `SemesterAcademicRecord`에 강의평가 필요/완료 상태와 상태 변경 메서드를 추가한다.
+  - `SemesterAcademicRecord`에 강의평가 상태와 상태 변경 메서드를 추가한다.
   - `SyncAcademicRecordService`의 기존 수강 기록 갱신 지점에서 `IP -> completed grade` 변경을 감지한다.
 - Application orchestration:
   - 별도 application layer는 추가하지 않고 controller -> `LectureEvaluationService` -> repositories 경로로 처리한다.
   - 포털 동기화는 기존 application service에서 semester record 상태만 갱신한다.
 - Infrastructure touchpoints:
-  - Flyway `V5__create_lecture_evaluation_tables.sql` 추가
+  - Flyway `V5__create_lecture_evaluation_tables.sql`, `V6__replace_lecture_evaluation_flags_with_status.sql` 추가
   - `StudentCourseRepository`에 강의평가 대상 과목 fetch query 추가
   - `SemesterAcademicRecordRepository`에 상태 변경 대상 조회 재사용
 - Global/config changes:
@@ -31,7 +31,7 @@
 - Transaction scope:
   - 조회 API는 read-only transaction
   - 제출 API는 평가 row 저장, tag row 저장, semester 상태 갱신을 하나의 transaction으로 처리
-  - 포털 동기화는 기존 sync transaction 안에서 required 상태를 갱신
+  - 포털 동기화는 기존 sync transaction 안에서 `PENDING` 상태를 갱신
 - Consistency expectations:
   - POST 성공 후 같은 학기 재제출은 service check와 DB unique constraint 양쪽에서 차단한다.
 
@@ -54,16 +54,21 @@
   - `tag VARCHAR(64) NOT NULL`
   - unique: `(course_evaluation_id, tag)`
   - index: `(course_evaluation_id)`
+- `semester_academic_records`
+  - `lecture_evaluation_status VARCHAR(32) NULL`
+  - allowed values: `PENDING`, `SKIPPED`, `COMPLETED`
+  - `NULL` means the lecture evaluation flow has not been created for the target semester.
 
 ## API Contracts
 - `GET /api/lecture-evaluations/required`
   - Returns:
-    - `lectureEvaluationRequired`
+    - `evaluationStatus`
     - `year`
     - `semester`
     - `grades`
   - `grades.score` is nullable and maps from `student_courses.original_score`.
-  - Uses configured target year/semester. If target semester record is absent or not pending, returns `lectureEvaluationRequired=false` and `grades=[]`.
+  - Uses configured target year/semester. If target semester record is absent, returns `evaluationStatus=null` and `grades=[]`.
+  - Returns grade cards only when `evaluationStatus=PENDING`.
 - `POST /api/lecture-evaluations`
   - Body:
     - `year`
@@ -74,20 +79,28 @@
     - `evaluations[].review`
   - Returns:
     - `MessageOnlyResponse`
+- `POST /api/lecture-evaluations/skip`
+  - Body:
+    - `year`
+    - `semester`
+  - Returns:
+    - `MessageOnlyResponse`
+  - Changes target semester status from `PENDING` to `SKIPPED`.
 
 ## Testing Strategy
 - Domain/model tests:
   - `SemesterAcademicRecord` 상태 변경 메서드
   - `CourseEvaluationTag` 중복 제거 또는 service tag set 처리
 - Service tests:
-  - 평가 필요 조회 true/false
+  - 평가 상태 조회 `PENDING`/`null`
   - `score` null 유지
   - `IP` 과목 제외
-  - 제출 성공 시 평가 저장과 completed 상태 갱신
+  - 제출 성공 시 평가 저장과 `COMPLETED` 상태 갱신
+  - 건너뛰기 성공 시 `SKIPPED` 상태 갱신
   - 누락/중복/미수강 과목 제출 실패
 - Sync tests:
-  - 현재 수료 학기 `IP -> completed grade` 변경 시 required true
-  - completed 상태 학기는 required 재설정하지 않음
+  - 현재 수료 학기 `IP -> completed grade` 변경 시 `PENDING`
+  - `SKIPPED`/`COMPLETED` 상태 학기는 `PENDING` 재설정하지 않음
 - Migration/OpenAPI tests:
   - `./gradlew test --tests 'com.chukchuk.haksa.global.db.FlywayMigrationTest'`
   - `./gradlew test --tests 'com.chukchuk.haksa.global.config.OpenApiResponseContractTest'`

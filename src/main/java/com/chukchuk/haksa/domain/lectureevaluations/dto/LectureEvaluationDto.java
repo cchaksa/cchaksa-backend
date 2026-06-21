@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.lectureevaluations.dto;
 
+import com.chukchuk.haksa.domain.academic.record.model.LectureEvaluationStatus;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.model.LiberalArtsAreaCode;
@@ -14,13 +15,14 @@ import java.util.List;
 public class LectureEvaluationDto {
 
     public record RequiredResponse(
-            @Schema(description = "강의평가 필요 여부") boolean lectureEvaluationRequired,
+            @Schema(description = "강의평가 상태", allowableValues = {"PENDING", "SKIPPED", "COMPLETED"}, nullable = true)
+            LectureEvaluationStatus evaluationStatus,
             @Schema(description = "강의평가 대상 연도") Integer year,
             @Schema(description = "강의평가 대상 학기 코드") Integer semester,
             @Schema(description = "성적 카드 목록") List<GradeCard> grades
     ) {
-        public static RequiredResponse notRequired(Integer year, Integer semester) {
-            return new RequiredResponse(false, year, semester, List.of());
+        public static RequiredResponse withoutGrades(LectureEvaluationStatus evaluationStatus, Integer year, Integer semester) {
+            return new RequiredResponse(evaluationStatus, year, semester, List.of());
         }
     }
 
@@ -80,5 +82,10 @@ public class LectureEvaluationDto {
             @NotNull Long professorId,
             @NotNull List<String> selectedTags,
             @Size(max = 2000) String review
+    ) {}
+
+    public record SkipRequest(
+            @NotNull Integer year,
+            @NotNull Integer semester
     ) {}
 }

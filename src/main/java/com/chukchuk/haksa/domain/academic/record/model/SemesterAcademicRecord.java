@@ -53,11 +53,9 @@ public class SemesterAcademicRecord extends BaseEntity {
     @Column(name = "earned_credits")
     private Integer earnedCredits;
 
-    @Column(name = "lecture_evaluation_required", nullable = false)
-    private boolean lectureEvaluationRequired = false;
-
-    @Column(name = "lecture_evaluation_completed", nullable = false)
-    private boolean lectureEvaluationCompleted = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lecture_evaluation_status")
+    private LectureEvaluationStatus lectureEvaluationStatus;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
@@ -127,19 +125,24 @@ public class SemesterAcademicRecord extends BaseEntity {
         this.earnedCredits = src.earnedCredits;
     }
 
-    public void markLectureEvaluationRequired() {
-        if (this.lectureEvaluationCompleted) {
+    public void markLectureEvaluationPending() {
+        if (this.lectureEvaluationStatus != null) {
             return;
         }
-        this.lectureEvaluationRequired = true;
+        this.lectureEvaluationStatus = LectureEvaluationStatus.PENDING;
+    }
+
+    public void markLectureEvaluationSkipped() {
+        if (isLectureEvaluationPending()) {
+            this.lectureEvaluationStatus = LectureEvaluationStatus.SKIPPED;
+        }
     }
 
     public void markLectureEvaluationCompleted() {
-        this.lectureEvaluationRequired = true;
-        this.lectureEvaluationCompleted = true;
+        this.lectureEvaluationStatus = LectureEvaluationStatus.COMPLETED;
     }
 
     public boolean isLectureEvaluationPending() {
-        return this.lectureEvaluationRequired && !this.lectureEvaluationCompleted;
+        return this.lectureEvaluationStatus == LectureEvaluationStatus.PENDING;
     }
 }

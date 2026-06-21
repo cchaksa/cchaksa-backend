@@ -130,7 +130,7 @@ public class SyncAcademicRecordService {
             boolean gradePublished = isGradePublished(studentCourse, portalEnrollment);
             studentCourse.updateFromPortal(portalEnrollment);
             if (gradePublished) {
-                markLectureEvaluationRequired(studentId, studentCourse);
+                markLectureEvaluationPending(studentId, studentCourse);
             }
             toUpdate.add(studentCourse);
         }
@@ -502,15 +502,15 @@ public class SyncAcademicRecordService {
                 && incoming.getGrade().isCompleted();
     }
 
-    private void markLectureEvaluationRequired(UUID studentId, StudentCourse studentCourse) {
+    private void markLectureEvaluationPending(UUID studentId, StudentCourse studentCourse) {
         semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(
                         studentId,
                         studentCourse.getOffering().getYear(),
                         studentCourse.getOffering().getSemester()
                 )
                 .ifPresent(record -> {
-                    record.markLectureEvaluationRequired();
-                    log.info("[BIZ] lecture_evaluation.required.marked studentId={} year={} semester={}",
+                    record.markLectureEvaluationPending();
+                    log.info("[BIZ] lecture_evaluation.pending.marked studentId={} year={} semester={}",
                             studentId,
                             studentCourse.getOffering().getYear(),
                             studentCourse.getOffering().getSemester());

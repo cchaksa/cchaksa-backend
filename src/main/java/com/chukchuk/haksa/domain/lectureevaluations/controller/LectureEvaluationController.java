@@ -56,4 +56,19 @@ public class LectureEvaluationController implements LectureEvaluationControllerD
         }
         return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 저장 완료")));
     }
+
+    @PostMapping("/skip")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> skip(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody LectureEvaluationDto.SkipRequest request
+    ) {
+        long t0 = LogTime.start();
+        lectureEvaluationService.skip(userDetails.getId(), request);
+        long tookMs = LogTime.elapsedMs(t0);
+        if (tookMs >= SLOW_MS) {
+            log.info("[BIZ] lecture_evaluation.skip.done userId={} year={} semester={} took_ms={}",
+                    userDetails.getId(), request.year(), request.semester(), tookMs);
+        }
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 건너뛰기 완료")));
+    }
 }

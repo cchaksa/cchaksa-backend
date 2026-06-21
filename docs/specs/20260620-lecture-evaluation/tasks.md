@@ -13,13 +13,14 @@
 
 ## Implementation Tasks
 - [x] Add `V5__create_lecture_evaluation_tables.sql`
+- [x] Add `V6__replace_lecture_evaluation_flags_with_status.sql`
 - [x] Add lecture evaluation domain models and enum
 - [x] Add DTOs under `domain/lectureevaluations/dto`
 - [x] Add repositories under `domain/lectureevaluations/repository`
 - [x] Add `LectureEvaluationService`
 - [x] Add `LectureEvaluationController` and docs
 - [x] Add `LectureEvaluationProperties` and application config
-- [x] Extend `SemesterAcademicRecord` with required/completed state
+- [x] Extend `SemesterAcademicRecord` with evaluation status
 - [x] Reuse existing `StudentCourseRepository.findByStudentIdAndYearAndSemester` for evaluation target query
 - [x] Add sync detection in `SyncAcademicRecordService`
 - [x] Update `ErrorCode`
@@ -34,6 +35,9 @@
 | 3 | `./gradlew test --tests 'com.chukchuk.haksa.global.db.FlywayMigrationTest' --tests 'com.chukchuk.haksa.global.config.OpenApiResponseContractTest'` | PASS | 2026-06-20 |
 | 4 | `./gradlew test --tests 'com.chukchuk.haksa.domain.lectureevaluations.service.LectureEvaluationServiceUnitTests' --tests 'com.chukchuk.haksa.application.portal.SyncAcademicRecordServiceTest'` | PASS | 2026-06-20 |
 | 5 | `./gradlew test` | PASS | 2026-06-20 |
+| 6 | `./gradlew test --tests 'com.chukchuk.haksa.domain.lectureevaluations.service.LectureEvaluationServiceUnitTests' --tests 'com.chukchuk.haksa.application.portal.SyncAcademicRecordServiceTest.executeForRefreshPortalData_marksLectureEvaluationPendingWhenGradeChangesFromIpToCompleted'` | RED: missing status/skip API, then PASS after implementation | 2026-06-21 |
+| 7 | `./gradlew test --tests 'com.chukchuk.haksa.global.db.FlywayMigrationTest' --tests 'com.chukchuk.haksa.global.config.OpenApiResponseContractTest'` | RED: V6 migration missing, then PASS after migration/OpenAPI update | 2026-06-21 |
+| 8 | `./gradlew test` | PASS | 2026-06-21 |
 
 ## Notes
 - Observation:
@@ -42,3 +46,5 @@
   - Existing untracked files were present before this work and should not be modified unless directly required.
 - Observation:
   - `POST /api/lecture-evaluations` success response follows existing `MessageOnlyResponse` style.
+- Decision:
+  - `evaluationStatus=null` means no evaluation flow exists yet; FE should show the grade card only for `PENDING`.
