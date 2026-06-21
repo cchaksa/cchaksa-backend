@@ -6,6 +6,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,7 +43,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("새 요청은 job/outbox 저장 후 같은 요청에서 동기 publish 한다")
     void acceptLinkJob_dispatchesSynchronously() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules(), scrapingProperties("async"));
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", false, true);
 
@@ -70,7 +71,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("이미 RUNNING 이상인 동일 요청은 기존 job을 재사용하고 publish 하지 않는다")
     void acceptLinkJob_reusesExistingJobWithoutDispatch() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules(), scrapingProperties("async"));
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", true, false);
 
@@ -88,7 +89,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("동기 publish 후 SENT/RUNNING이 아니면 enqueue 실패로 처리한다")
     void acceptLinkJob_throwsWhenDispatchStateIsNotSent() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules(), scrapingProperties("async"));
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", false, true);
 
@@ -114,7 +115,7 @@ class PortalLinkJobServiceUnitTests {
     @DisplayName("동시성으로 최초 저장이 충돌하면 기존 job을 다시 조회해 같은 요청 흐름에서 publish 한다")
     void acceptLinkJob_resolvesConcurrentDuplicateAndDispatches() {
         UUID userId = UUID.randomUUID();
-        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules());
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules(), scrapingProperties("async"));
         PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "17019013", "pw");
         PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", true, true);
 
@@ -138,11 +139,47 @@ class PortalLinkJobServiceUnitTests {
         verify(scrapeJobOutboxDispatcher).dispatchOnce("outbox-1");
     }
 
+    @Test
+    @DisplayName("mock-inline 모드는 SQS publish 없이 job을 성공 처리한다")
+    void acceptLinkJob_mockInlineCompletesWithoutDispatch() {
+        UUID userId = UUID.randomUUID();
+        PortalLinkJobService service = new PortalLinkJobService(portalLinkJobTxService, scrapeJobOutboxDispatcher, userService, new ObjectMapper().findAndRegisterModules(), scrapingProperties("mock-inline"));
+        PortalLinkDto.LinkRequest request = new PortalLinkDto.LinkRequest("suwon", "LEVALPHA245002", "pw");
+        PortalLinkJobTxService.PreparedJob preparedJob = new PortalLinkJobTxService.PreparedJob("job-1", "outbox-1", false, true);
+
+        when(userService.getUserById(userId)).thenReturn(connectedUser(userId));
+        when(portalLinkJobTxService.createOrLoadJob(eq(userId), eq("idem-1"), eq("suwon"), eq(ScrapeJobOperationType.REFRESH), any(), any(), eq("LEVALPHA245002"), eq("pw"), any()))
+                .thenReturn(preparedJob);
+
+        PortalLinkDto.AcceptedResponse response = service.acceptJob(userId, "idem-1", request);
+
+        assertThat(response.job_id()).isEqualTo("job-1");
+        assertThat(response.status()).isEqualTo("accepted");
+        verify(portalLinkJobTxService).completeMockInlineJob("outbox-1");
+        verify(scrapeJobOutboxDispatcher, never()).dispatchOnce(any());
+    }
+
     private static User disconnectedUser(UUID userId) {
         return User.builder()
                 .id(userId)
                 .email("disconnected@example.com")
                 .profileNickname("tester")
                 .build();
+    }
+
+    private static User connectedUser(UUID userId) {
+        User user = User.builder()
+                .id(userId)
+                .email("connected@example.com")
+                .profileNickname("tester")
+                .build();
+        user.markPortalConnected(java.time.Instant.now());
+        return user;
+    }
+
+    private static ScrapingProperties scrapingProperties(String mode) {
+        ScrapingProperties properties = new ScrapingProperties();
+        properties.setMode(mode);
+        return properties;
     }
 }

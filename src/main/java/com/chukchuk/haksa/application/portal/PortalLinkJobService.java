@@ -4,6 +4,7 @@ import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOperationType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
+import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -28,6 +29,7 @@ public class PortalLinkJobService {
     private final ScrapeJobOutboxDispatcher scrapeJobOutboxDispatcher;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final ScrapingProperties scrapingProperties;
 
     public PortalLinkDto.AcceptedResponse acceptJob(UUID userId, String idempotencyKey, PortalLinkDto.LinkRequest request) {
         validateRequest(idempotencyKey, request);
@@ -113,7 +115,11 @@ public class PortalLinkJobService {
             String idempotencyKey
     ) {
         if (preparedJob.dispatchRequired()) {
-            dispatchSynchronously(preparedJob, request.portal_type(), idempotencyKey);
+            if (isMockInlineMode()) {
+                completeMockInline(preparedJob, request.portal_type(), idempotencyKey);
+            } else {
+                dispatchSynchronously(preparedJob, request.portal_type(), idempotencyKey);
+            }
         }
 
         if (preparedJob.reused()) {
@@ -157,5 +163,25 @@ public class PortalLinkJobService {
                     preparedJob.jobId(), preparedJob.outboxId(), portalType, idempotencyKey, exception);
             throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, exception);
         }
+    }
+
+    private void completeMockInline(
+            PortalLinkJobTxService.PreparedJob preparedJob,
+            String portalType,
+            String idempotencyKey
+    ) {
+        try {
+            portalLinkJobTxService.completeMockInlineJob(preparedJob.outboxId());
+            log.info("[BIZ] scrape.job.mock_inline.completed jobId={} outboxId={} portalType={} idempotencyKey={}",
+                    preparedJob.jobId(), preparedJob.outboxId(), portalType, idempotencyKey);
+        } catch (RuntimeException exception) {
+            log.warn("[BIZ] scrape.job.mock_inline.exception jobId={} outboxId={} portalType={} idempotencyKey={}",
+                    preparedJob.jobId(), preparedJob.outboxId(), portalType, idempotencyKey, exception);
+            throw new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED, exception);
+        }
+    }
+
+    private boolean isMockInlineMode() {
+        return "mock-inline".equalsIgnoreCase(scrapingProperties.getMode());
     }
 }

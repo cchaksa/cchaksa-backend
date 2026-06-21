@@ -76,6 +76,19 @@ public class PortalLinkJobTxService {
         );
     }
 
+    @Transactional
+    public void completeMockInlineJob(String outboxId) {
+        ScrapeJobOutbox outbox = scrapeJobOutboxRepository.findForUpdateByOutboxId(outboxId)
+                .orElseThrow(() -> new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED));
+        ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId())
+                .orElseThrow(() -> new CommonException(ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED));
+
+        Instant finishedAt = Instant.now();
+        outbox.markSent("mock-inline-" + outbox.getOutboxId(), finishedAt);
+        job.markRunning();
+        job.markSucceeded("{}", finishedAt, finishedAt);
+    }
+
     private PreparedJob createNewJob(
             UUID userId,
             String idempotencyKey,
