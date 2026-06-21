@@ -106,6 +106,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/lecture-evaluations/required:
+    get:
+      tags:
+        - LectureEvaluations
+      summary: 강의평가 상태 조회
+      description: 설정된 대상 학기의 강의평가 상태와 성적 카드 목록을 조회합니다. PENDING일 때만 grades가 내려오며, null은 평가 플로우가 아직 생성되지 않은 상태입니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 강의평가 상태 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LectureEvaluationRequiredApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/lecture-evaluations:
+    post:
+      tags:
+        - LectureEvaluations
+      summary: 강의평가 제출
+      description: 설정된 대상 학기의 강의평가 데이터를 일괄 제출합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LectureEvaluationSubmitRequest'
+      responses:
+        '200':
+          description: 강의평가 저장 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 강의평가 대상 학기가 아니거나 제출 과목이 일치하지 않음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/lecture-evaluations/skip:
+    post:
+      tags:
+        - LectureEvaluations
+      summary: 강의평가 건너뛰기
+      description: 설정된 대상 학기의 강의평가 상태를 SKIPPED로 변경합니다. PENDING 상태인 학기만 건너뛰기할 수 있습니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LectureEvaluationSkipRequest'
+      responses:
+        '200':
+          description: 강의평가 건너뛰기 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 강의평가 대상 학기가 아니거나 PENDING 상태가 아님
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/users/analytics-id:
     get:
       summary: 사용자 분석 식별자 조회
@@ -673,6 +763,228 @@ components:
           $ref: '#/components/schemas/SemesterGrade'
         courses:
           $ref: '#/components/schemas/AcademicRecordCourses'
+
+    LectureEvaluationRequiredApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/LectureEvaluationRequiredResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    LectureEvaluationRequiredResponse:
+      type: object
+      required:
+        - evaluationStatus
+        - year
+        - semester
+        - grades
+      properties:
+        evaluationStatus:
+          type: string
+          nullable: true
+          description: "강의평가 상태. PENDING이면 성적 카드를 노출하고, SKIPPED/COMPLETED/null이면 노출하지 않습니다."
+          enum:
+            - PENDING
+            - SKIPPED
+            - COMPLETED
+          example: PENDING
+        year:
+          type: integer
+          format: int32
+          description: 강의평가 대상 연도
+          example: 2026
+        semester:
+          type: integer
+          format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
+        grades:
+          type: array
+          description: 성적 카드 목록
+          items:
+            $ref: '#/components/schemas/LectureEvaluationGradeCard'
+
+    LectureEvaluationGradeCard:
+      type: object
+      required:
+        - courseName
+        - courseCode
+        - courseId
+        - areaType
+        - credits
+        - professor
+        - professorId
+        - grade
+      properties:
+        courseName:
+          type: string
+          description: 과목명
+          example: 컴퓨터네트워크
+        courseCode:
+          type: string
+          description: 학수번호
+          example: "06547"
+        courseId:
+          type: integer
+          format: int64
+          description: 과목 ID
+          example: 1
+        areaType:
+          type: string
+          description: 영역 유형
+          example: 전선
+        credits:
+          type: integer
+          format: int32
+          description: 학점
+          example: 3
+        professor:
+          type: string
+          description: 교수명
+          example: 김민규
+        professorId:
+          type: integer
+          format: int64
+          description: 교수 ID
+          example: 10
+        grade:
+          type: string
+          description: 성적
+          example: A+
+        score:
+          type: integer
+          format: int32
+          nullable: true
+          description: 원점수. student_courses.original_score가 null이면 null입니다.
+          example: 80
+        liberalAreaCode:
+          type: integer
+          format: int32
+          nullable: true
+          description: 선교 영역 세부 코드
+          example: 7
+
+    LectureEvaluationSubmitRequest:
+      type: object
+      required:
+        - year
+        - semester
+        - evaluations
+      properties:
+        year:
+          type: integer
+          format: int32
+          example: 2026
+        semester:
+          type: integer
+          format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
+        evaluations:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LectureEvaluationSubmitItem'
+
+    LectureEvaluationSkipRequest:
+      type: object
+      required:
+        - year
+        - semester
+      properties:
+        year:
+          type: integer
+          format: int32
+          example: 2026
+        semester:
+          type: integer
+          format: int32
+          description: "학기 코드 (10: 1학기, 15: 여름학기, 20: 2학기, 25: 겨울학기)"
+          example: 10
+
+    LectureEvaluationSubmitItem:
+      type: object
+      required:
+        - courseId
+        - professorId
+        - selectedTags
+      properties:
+        courseId:
+          type: integer
+          format: int64
+          example: 1
+        professorId:
+          type: integer
+          format: int64
+          example: 10
+        selectedTags:
+          type: array
+          description: |
+            강의평가 선택 태그 목록입니다.
+            - 과제가 적어요: LOW_HOMEWORK
+            - 팀플이 적어요: LOW_TEAM_PROJECT
+            - 온라인 시험이에요: ONLINE_EXAM
+            - 시험이 대체과제에요: EXAM_REPLACED_BY_HOMEWORK
+            - 수업이 재밌어요: INTERESTING_LECTURE
+            - 강의가 유익해요: INFORMATIVE_LECTURE
+            - 절대평가에요: ABSOLUTE_EXAM
+            - 학점 따기 쉬워요: EASY_GRADE
+          example:
+            - LOW_HOMEWORK
+            - INTERESTING_LECTURE
+          items:
+            type: string
+            enum:
+              - LOW_HOMEWORK
+              - LOW_TEAM_PROJECT
+              - ONLINE_EXAM
+              - EXAM_REPLACED_BY_HOMEWORK
+              - INTERESTING_LECTURE
+              - INFORMATIVE_LECTURE
+              - ABSOLUTE_EXAM
+              - EASY_GRADE
+        review:
+          type: string
+          nullable: true
+          maxLength: 2000
+          example: 출석 중요, 팀플 2인 1조 등
+
+    MessageOnlyApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/MessageOnlyResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+
+    MessageOnlyResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: 강의평가 저장 완료
 
     SemesterGrade:
       type: object

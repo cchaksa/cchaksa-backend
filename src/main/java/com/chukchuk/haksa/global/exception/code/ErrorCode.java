@@ -63,6 +63,8 @@ public enum ErrorCode {
     SEMESTER_RECORD_EMPTY("A02", "학기 성적 데이터를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
     FRESHMAN_NO_SEMESTER("A03", "신입생은 학기 기록이 없습니다.", HttpStatus.BAD_REQUEST),
     INVALID_GRADE_TYPE("A06", "존재하지 않는 성적 등급입니다.", HttpStatus.BAD_REQUEST),
+    LECTURE_EVALUATION_NOT_REQUIRED("A07", "강의평가 대상 학기가 아닙니다.", HttpStatus.BAD_REQUEST),
+    LECTURE_EVALUATION_COURSE_MISMATCH("A08", "강의평가 제출 과목이 평가 대상과 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
 
     // 졸업 요건 관련
     GRADUATION_REQUIREMENTS_DATA_NOT_FOUND("G02", "사용자에게 맞는 졸업 요건 데이터가 존재하지 않습니다.", HttpStatus.NOT_FOUND),
