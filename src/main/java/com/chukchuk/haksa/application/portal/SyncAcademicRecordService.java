@@ -5,6 +5,7 @@ import com.chukchuk.haksa.application.academic.dto.SyncAcademicRecordResult;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.repository.AcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRow;
@@ -41,6 +42,7 @@ public class SyncAcademicRecordService {
 
     private final AcademicRecordRepository academicRecordRepository;
     private final StudentCourseRepository studentCourseRepository;
+    private final SemesterAcademicRecordRepository semesterAcademicRecordRepository;
     private final StudentService studentService;
     private final CourseOfferingService courseOfferingService;
     private final ProfessorService professorService;
@@ -118,16 +120,18 @@ public class SyncAcademicRecordService {
                                 (a, b) -> b
                         ));
 
+        markLectureEvaluationStatusFromSnapshot(studentId, newEnrollments, offerings);
+
         // 2-2) 기존 DB 레코드 갱신 (성적 / 점수 / 재수강 삭제 여부)
-        List<StudentCourse> toUpdate = existingEnrollments.stream()
-                .map(sc -> {
-                    CourseEnrollment pe = portalEnrollmentMap.get(sc.getOffering().getId());
-                    if (pe == null || !sc.isDifferentFrom(pe)) return null;
-                    sc.updateFromPortal(pe);
-                    return sc;
-                })
-                .filter(Objects::nonNull)
-                .toList();
+        List<StudentCourse> toUpdate = new ArrayList<>();
+        for (StudentCourse studentCourse : existingEnrollments) {
+            CourseEnrollment portalEnrollment = portalEnrollmentMap.get(studentCourse.getOffering().getId());
+            if (portalEnrollment == null || !studentCourse.isDifferentFrom(portalEnrollment)) {
+                continue;
+            }
+            studentCourse.updateFromPortal(portalEnrollment);
+            toUpdate.add(studentCourse);
+        }
 
         // 3) 신규 수강 기록 저장 (offeringId 기준 중복 방지)
         long offeringMappingStartNs = System.nanoTime();
@@ -489,7 +493,56 @@ public class SyncAcademicRecordService {
         return result;
     }
 
+    private void markLectureEvaluationStatusFromSnapshot(
+            UUID studentId,
+            List<CourseEnrollment> enrollments,
+            Map<Long, CourseOffering> offerings
+    ) {
+        Map<SemesterKey, Boolean> semesterHasCompletedGrade = new HashMap<>();
+        for (CourseEnrollment enrollment : enrollments) {
+            CourseOffering offering = offerings.get(enrollment.getOfferingId());
+            if (offering == null) {
+                continue;
+            }
+            SemesterKey semester = new SemesterKey(offering.getYear(), offering.getSemester());
+            boolean hasCompletedGrade = enrollment.getGrade() != null && enrollment.getGrade().isCompleted();
+            semesterHasCompletedGrade.merge(semester, hasCompletedGrade, Boolean::logicalOr);
+        }
+
+        semesterHasCompletedGrade.forEach((semester, hasCompletedGrade) -> {
+            if (hasCompletedGrade) {
+                markLectureEvaluationPending(studentId, semester.year(), semester.semester());
+            } else {
+                markLectureEvaluationNotReleased(studentId, semester.year(), semester.semester());
+            }
+        });
+    }
+
+    private void markLectureEvaluationPending(UUID studentId, int year, int semester) {
+        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
+                .ifPresent(record -> {
+                    record.markLectureEvaluationPending();
+                    log.info("[BIZ] lecture_evaluation.pending.marked studentId={} year={} semester={}",
+                            studentId,
+                            year,
+                            semester);
+                });
+    }
+
+    private void markLectureEvaluationNotReleased(UUID studentId, int year, int semester) {
+        semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, year, semester)
+                .ifPresent(record -> {
+                    record.markLectureEvaluationNotReleased();
+                    log.info("[BIZ] lecture_evaluation.not_released.marked studentId={} year={} semester={}",
+                            studentId,
+                            year,
+                            semester);
+                });
+    }
+
     private static class SyncStats { int inserted, updated, deleted; }
+
+    private record SemesterKey(int year, int semester) {}
 
     private record OfferingKey(
             String courseCode,

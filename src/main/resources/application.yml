@@ -45,6 +45,7 @@ security:
     secret: ${JWT_SECRET}
     access-expiration: ${JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${JWT_REFRESH_EXPIRATION}
+    refresh-renewal-threshold: ${JWT_REFRESH_RENEWAL_THRESHOLD:604800000}
   appKey: ${APP_KEY}
   nativeAppKey: ${APP_NATIVE_KEY:}
   apple:
@@ -153,6 +154,10 @@ cache:
 portal:
   credential:
     store: local   # local | redis
+
+lecture-evaluation:
+  target-year: ${LECTURE_EVALUATION_TARGET_YEAR:2026}
+  target-semester: ${LECTURE_EVALUATION_TARGET_SEMESTER:10}
 
 infra:
   redis:

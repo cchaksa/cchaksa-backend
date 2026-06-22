@@ -4,6 +4,8 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.UUID;
@@ -14,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class FlywayMigrationTest {
 
     @Test
-    void freshDatabaseMigratesFromV1ToV5() throws Exception {
+    void freshDatabaseMigratesFromV1ToV8() throws Exception {
         String dbName = "flyway-migration-" + UUID.randomUUID();
         String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
@@ -51,7 +53,10 @@ class FlywayMigrationTest {
                         MigrationVersion.fromVersion("2"),
                         MigrationVersion.fromVersion("3"),
                         MigrationVersion.fromVersion("4"),
-                        MigrationVersion.fromVersion("5")
+                        MigrationVersion.fromVersion("5"),
+                        MigrationVersion.fromVersion("6"),
+                        MigrationVersion.fromVersion("7"),
+                        MigrationVersion.fromVersion("8")
                 );
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
@@ -62,6 +67,11 @@ class FlywayMigrationTest {
             assertThat(hasTable(connection, "department_language_cert_policy_mappings")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_started_at")).isTrue();
             assertThat(hasColumn(connection, "scrape_jobs", "link_ended_at")).isTrue();
+            assertThat(hasColumn(connection, "semester_academic_records", "lecture_evaluation_required")).isFalse();
+            assertThat(hasColumn(connection, "semester_academic_records", "lecture_evaluation_completed")).isFalse();
+            assertThat(hasColumn(connection, "semester_academic_records", "lecture_evaluation_status")).isTrue();
+            assertThat(hasTable(connection, "course_evaluations")).isTrue();
+            assertThat(hasTable(connection, "course_evaluation_tags")).isTrue();
             assertThat(hasColumn(connection, "refresh_token", "session_id")).isTrue();
             assertThat(hasColumn(connection, "refresh_token", "token_hash")).isTrue();
             assertThat(isNullable(connection, "refresh_token", "token")).isTrue();
@@ -76,14 +86,14 @@ class FlywayMigrationTest {
                 + "DB_CLOSE_DELAY=-1;"
                 + "INIT=CREATE SCHEMA IF NOT EXISTS public";
 
-        Flyway flywayToV4 = Flyway.configure()
+        Flyway flywayToV7 = Flyway.configure()
                 .dataSource(url, "sa", "")
                 .schemas("public")
                 .locations("classpath:db/migration")
-                .target(MigrationVersion.fromVersion("4"))
+                .target(MigrationVersion.fromVersion("7"))
                 .load();
 
-        flywayToV4.migrate();
+        flywayToV7.migrate();
 
         try (var connection = DriverManager.getConnection(url, "sa", "");
              var statement = connection.createStatement()) {
@@ -107,6 +117,104 @@ class FlywayMigrationTest {
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
             assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
         }
+    }
+
+    @Test
+    void v7InitializesNullLectureEvaluationStatusFromSemesterCourses() throws Exception {
+        String dbName = "flyway-v7-status-" + UUID.randomUUID();
+        String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+                + "DB_CLOSE_DELAY=-1;"
+                + "INIT=CREATE SCHEMA IF NOT EXISTS public";
+
+        Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("6"))
+                .load()
+                .migrate();
+
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "");
+             var statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO public.users (id, email, is_deleted)
+                    VALUES ('%s', 'migration-test@example.com', FALSE)
+                    """.formatted(userId));
+            statement.executeUpdate("""
+                    INSERT INTO public.departments (id, department_code, established_department_name)
+                    VALUES (1001, 'MIGRATION-TEST', '마이그레이션 테스트학과')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO public.students (
+                        student_id, student_code, reconnection_required, admission_year, department_id, user_id
+                    )
+                    VALUES ('%s', 'MIGRATION-TEST-STUDENT', FALSE, 2020, 1001, '%s')
+                    """.formatted(studentId, userId));
+            statement.executeUpdate("""
+                    INSERT INTO public.semester_academic_records (id, semester, year, student_id)
+                    VALUES
+                        ('%s', 10, 2026, '%s'),
+                        ('%s', 20, 2026, '%s')
+                    """.formatted(UUID.randomUUID(), studentId, UUID.randomUUID(), studentId));
+            statement.executeUpdate("""
+                    INSERT INTO public.courses (id, course_code, course_name)
+                    VALUES
+                        (2001, 'MIG-IP', 'IP 과목'),
+                        (2002, 'MIG-A', '완료 과목')
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO public.course_offerings (id, year, semester, points, course_id)
+                    VALUES
+                        (3001, 2026, 10, 3, 2001),
+                        (3002, 2026, 20, 3, 2002)
+                    """);
+            statement.executeUpdate("""
+                    INSERT INTO public.student_courses (
+                        grade, points, is_retake, original_score, is_retake_deleted, offering_id, student_id
+                    )
+                    VALUES
+                        ('IP', 3, FALSE, NULL, FALSE, 3001, '%s'),
+                        ('A+', 3, FALSE, 95, FALSE, 3002, '%s')
+                    """.formatted(studentId, studentId));
+        }
+
+        Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .load()
+                .migrate();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "");
+             var statement = connection.createStatement()) {
+            try (var resultSet = statement.executeQuery("""
+                    SELECT semester, lecture_evaluation_status
+                    FROM public.semester_academic_records
+                    ORDER BY semester
+                    """)) {
+                assertThat(resultSet.next()).isTrue();
+                assertThat(resultSet.getInt("semester")).isEqualTo(10);
+                assertThat(resultSet.getString("lecture_evaluation_status")).isEqualTo("NOT_RELEASED");
+                assertThat(resultSet.next()).isTrue();
+                assertThat(resultSet.getInt("semester")).isEqualTo(20);
+                assertThat(resultSet.getString("lecture_evaluation_status")).isEqualTo("PENDING");
+            }
+        }
+    }
+
+    @Test
+    void v7SkipsLectureEvaluationStatusUpdateWhenSemesterHasNoCourses() throws Exception {
+        String migrationSql = Files.readString(Path.of(
+                "src/main/resources/db/migration/V7__add_not_released_lecture_evaluation_status.sql"
+        ));
+
+        assertThat(migrationSql)
+                .contains("WHERE sar.lecture_evaluation_status IS NULL\n  AND EXISTS");
+        assertThat(migrationSql)
+                .doesNotContain("ELSE NULL");
     }
 
     private boolean hasColumn(Connection connection, String columnName) throws Exception {
