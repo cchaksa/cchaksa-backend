@@ -13,6 +13,7 @@ import com.chukchuk.haksa.global.security.service.JwtProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,12 +31,27 @@ public class RefreshTokenService {
     private final JwtProvider jwtProvider;
     private final UserRepository userRepository;
 
+    @Value("${security.jwt.refresh-renewal-threshold:604800000}")
+    private long refreshTokenRenewalThresholdMs = 604800000L;
+
     /* Refresh Token 저장 */
     @Transactional
     public void save(String userId, String refreshToken, Date expiry) {
         RefreshToken token = new RefreshToken(userId, refreshToken, expiry);
 
         refreshTokenRepository.save(token);
+    }
+
+    @Transactional
+    public AuthDto.RefreshTokenWithExpiry issueForSignIn(String userId) {
+        return refreshTokenRepository.findById(userId)
+                .filter(saved -> !shouldRenewRefreshToken(saved.getExpiry()))
+                .map(saved -> new AuthDto.RefreshTokenWithExpiry(saved.getToken(), saved.getExpiry()))
+                .orElseGet(() -> {
+                    AuthDto.RefreshTokenWithExpiry refresh = jwtProvider.createRefreshToken(userId);
+                    save(userId, refresh.token(), refresh.expiry());
+                    return refresh;
+                });
     }
 
     /* 토큰 재발급 */
@@ -64,14 +80,26 @@ public class RefreshTokenService {
                 });
 
         String newAccessToken = jwtProvider.createAccessToken(userId, user.getEmail(), "USER");
-        AuthDto.RefreshTokenWithExpiry newRefresh = jwtProvider.createRefreshToken(userId);
-        save(userId, newRefresh.token(), newRefresh.expiry());
+        String responseRefreshToken = saved.getToken();
+        if (shouldRenewRefreshToken(saved.getExpiry())) {
+            AuthDto.RefreshTokenWithExpiry newRefresh = jwtProvider.createRefreshToken(userId);
+            save(userId, newRefresh.token(), newRefresh.expiry());
+            responseRefreshToken = newRefresh.token();
+        }
 
         long tookMs = LogTime.elapsedMs(t0);
         if (tookMs >= SLOW_MS) {
             log.info("[BIZ] auth.refresh.issued userId={} took_ms={}", userId, tookMs);
         }
-        return new AuthDto.RefreshResponse(newAccessToken, newRefresh.token());
+        return new AuthDto.RefreshResponse(newAccessToken, responseRefreshToken);
+    }
+
+    private boolean shouldRenewRefreshToken(Date expiry) {
+        if (expiry == null) {
+            return true;
+        }
+        long remainingMs = expiry.getTime() - System.currentTimeMillis();
+        return remainingMs <= refreshTokenRenewalThresholdMs;
     }
 
     public RefreshToken findByUserId(String userId) {

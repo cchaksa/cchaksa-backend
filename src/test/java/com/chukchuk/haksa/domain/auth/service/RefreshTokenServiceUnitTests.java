@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Duration;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -87,6 +89,103 @@ class RefreshTokenServiceUnitTests {
 
         assertThat(response.accessToken()).isEqualTo("new-access");
         assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("reissue는 refresh token 만료가 임계값보다 많이 남으면 기존 refresh token을 반환한다")
+    void reissue_refreshExpiryBeyondThreshold_returnsExistingRefreshToken() {
+        UUID userId = UUID.randomUUID();
+        String userIdText = userId.toString();
+        String oldRefresh = "old-refresh";
+        Date savedExpiry = new Date(System.currentTimeMillis() + Duration.ofDays(8).toMillis());
+
+        Claims claims = Jwts.claims();
+        claims.setSubject(userIdText);
+
+        User user = User.builder()
+                .id(userId)
+                .email("user@example.com")
+                .profileNickname("user")
+                .build();
+
+        when(jwtProvider.parseToken(oldRefresh)).thenReturn(claims);
+        when(refreshTokenRepository.findById(userIdText))
+                .thenReturn(Optional.of(new RefreshToken(userIdText, oldRefresh, savedExpiry)));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(jwtProvider.createAccessToken(userIdText, "user@example.com", "USER")).thenReturn("new-access");
+
+        AuthDto.RefreshResponse response = refreshTokenService.reissue(oldRefresh);
+
+        assertThat(response.accessToken()).isEqualTo("new-access");
+        assertThat(response.refreshToken()).isEqualTo(oldRefresh);
+        verify(jwtProvider, never()).createRefreshToken(userIdText);
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("reissue는 저장된 refresh token 만료시각이 없으면 새 refresh token을 저장한다")
+    void reissue_refreshExpiryNull_renewsRefreshToken() {
+        UUID userId = UUID.randomUUID();
+        String userIdText = userId.toString();
+        String oldRefresh = "old-refresh";
+        Date newExpiry = new Date(System.currentTimeMillis() + Duration.ofDays(14).toMillis());
+
+        Claims claims = Jwts.claims();
+        claims.setSubject(userIdText);
+
+        User user = User.builder()
+                .id(userId)
+                .email("user@example.com")
+                .profileNickname("user")
+                .build();
+
+        when(jwtProvider.parseToken(oldRefresh)).thenReturn(claims);
+        when(refreshTokenRepository.findById(userIdText))
+                .thenReturn(Optional.of(new RefreshToken(userIdText, oldRefresh, null)));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(jwtProvider.createAccessToken(userIdText, "user@example.com", "USER")).thenReturn("new-access");
+        when(jwtProvider.createRefreshToken(userIdText))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh", newExpiry));
+
+        AuthDto.RefreshResponse response = refreshTokenService.reissue(oldRefresh);
+
+        assertThat(response.accessToken()).isEqualTo("new-access");
+        assertThat(response.refreshToken()).isEqualTo("new-refresh");
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("로그인 토큰 발급은 refresh token 만료가 임계값보다 많이 남으면 기존 refresh token을 반환한다")
+    void issueForSignIn_refreshExpiryBeyondThreshold_returnsExistingRefreshToken() {
+        String userId = UUID.randomUUID().toString();
+        Date savedExpiry = new Date(System.currentTimeMillis() + Duration.ofDays(8).toMillis());
+        RefreshToken saved = new RefreshToken(userId, "saved-refresh", savedExpiry);
+
+        when(refreshTokenRepository.findById(userId)).thenReturn(Optional.of(saved));
+
+        AuthDto.RefreshTokenWithExpiry refresh = refreshTokenService.issueForSignIn(userId);
+
+        assertThat(refresh.token()).isEqualTo("saved-refresh");
+        assertThat(refresh.expiry()).isEqualTo(savedExpiry);
+        verify(jwtProvider, never()).createRefreshToken(userId);
+        verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
+    }
+
+    @Test
+    @DisplayName("로그인 토큰 발급은 refresh token이 없으면 새 refresh token을 저장한다")
+    void issueForSignIn_refreshNotFound_savesNewRefreshToken() {
+        String userId = UUID.randomUUID().toString();
+        Date newExpiry = new Date(System.currentTimeMillis() + Duration.ofDays(14).toMillis());
+
+        when(refreshTokenRepository.findById(userId)).thenReturn(Optional.empty());
+        when(jwtProvider.createRefreshToken(userId))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh", newExpiry));
+
+        AuthDto.RefreshTokenWithExpiry refresh = refreshTokenService.issueForSignIn(userId);
+
+        assertThat(refresh.token()).isEqualTo("new-refresh");
+        assertThat(refresh.expiry()).isEqualTo(newExpiry);
         verify(refreshTokenRepository).save(any(RefreshToken.class));
     }
 
