@@ -14,8 +14,15 @@ public class AuthDto {
             String token,
 
             @Schema(description = "만료 시각", required = true)
-            Date expiry
-    ) {}
+            Date expiry,
+
+            @Schema(description = "로그인 세션 식별자", required = true)
+            String sessionId
+    ) {
+        public RefreshTokenWithExpiry(String token, Date expiry) {
+            this(token, expiry, null);
+        }
+    }
 
     @Schema(description = "리프레시 토큰 요청 DTO")
     public record RefreshRequest(

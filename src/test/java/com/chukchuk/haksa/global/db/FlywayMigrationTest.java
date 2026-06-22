@@ -4,18 +4,19 @@ import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class FlywayMigrationTest {
 
     @Test
-    void freshDatabaseMigratesFromV1ToV7() throws Exception {
+    void freshDatabaseMigratesFromV1ToV8() throws Exception {
         String dbName = "flyway-migration-" + UUID.randomUUID();
         String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
@@ -54,7 +55,8 @@ class FlywayMigrationTest {
                         MigrationVersion.fromVersion("4"),
                         MigrationVersion.fromVersion("5"),
                         MigrationVersion.fromVersion("6"),
-                        MigrationVersion.fromVersion("7")
+                        MigrationVersion.fromVersion("7"),
+                        MigrationVersion.fromVersion("8")
                 );
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
@@ -70,6 +72,50 @@ class FlywayMigrationTest {
             assertThat(hasColumn(connection, "semester_academic_records", "lecture_evaluation_status")).isTrue();
             assertThat(hasTable(connection, "course_evaluations")).isTrue();
             assertThat(hasTable(connection, "course_evaluation_tags")).isTrue();
+            assertThat(hasColumn(connection, "refresh_token", "session_id")).isTrue();
+            assertThat(hasColumn(connection, "refresh_token", "token_hash")).isTrue();
+            assertThat(isNullable(connection, "refresh_token", "token")).isTrue();
+            assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
+        }
+    }
+
+    @Test
+    void refreshTokenMigrationHandlesDefaultPrimaryKeyConstraintName() throws Exception {
+        String dbName = "flyway-migration-" + UUID.randomUUID();
+        String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+                + "DB_CLOSE_DELAY=-1;"
+                + "INIT=CREATE SCHEMA IF NOT EXISTS public";
+
+        Flyway flywayToV7 = Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .target(MigrationVersion.fromVersion("7"))
+                .load();
+
+        flywayToV7.migrate();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "");
+             var statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE public.refresh_token DROP CONSTRAINT pk_refresh_token");
+            statement.execute("ALTER TABLE public.refresh_token ADD CONSTRAINT refresh_token_pkey PRIMARY KEY (user_id)");
+            statement.execute("""
+                    INSERT INTO public.refresh_token (user_id, token, expiry)
+                    VALUES ('user-a', 'refresh-token-a', CURRENT_TIMESTAMP)
+                    """);
+        }
+
+        Flyway flyway = Flyway.configure()
+                .dataSource(url, "sa", "")
+                .schemas("public")
+                .locations("classpath:db/migration")
+                .load();
+
+        assertThatCode(flyway::migrate)
+                .doesNotThrowAnyException();
+
+        try (var connection = DriverManager.getConnection(url, "sa", "")) {
+            assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
         }
     }
 
@@ -196,6 +242,20 @@ class FlywayMigrationTest {
     private boolean hasTable(Connection connection, String tableName) throws Exception {
         try (var tables = connection.getMetaData().getTables(null, "public", tableName, new String[]{"TABLE"})) {
             return tables.next();
+        }
+    }
+
+    private boolean isNullable(Connection connection, String tableName, String columnName) throws Exception {
+        try (var columns = connection.getMetaData().getColumns(null, "public", tableName, columnName)) {
+            assertThat(columns.next()).isTrue();
+            return columns.getInt("NULLABLE") == java.sql.DatabaseMetaData.columnNullable;
+        }
+    }
+
+    private String primaryKeyColumn(Connection connection, String tableName) throws Exception {
+        try (var primaryKeys = connection.getMetaData().getPrimaryKeys(null, "public", tableName)) {
+            assertThat(primaryKeys.next()).isTrue();
+            return primaryKeys.getString("COLUMN_NAME");
         }
     }
 }

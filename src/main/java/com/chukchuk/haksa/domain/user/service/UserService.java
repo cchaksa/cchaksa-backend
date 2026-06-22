@@ -171,7 +171,8 @@ public class UserService {
     private AuthDto.SignInTokenResponse generateSignInResponse(User user) {
         String userId = user.getId().toString();
         String accessToken = jwtProvider.createAccessToken(userId, user.getEmail(), "USER");
-        AuthDto.RefreshTokenWithExpiry refresh = refreshTokenService.issueForSignIn(userId);
+        AuthDto.RefreshTokenWithExpiry refresh = jwtProvider.createRefreshToken(userId);
+        refreshTokenService.save(refresh.sessionId(), userId, refresh.token(), refresh.expiry());
 
         return new AuthDto.SignInTokenResponse(accessToken, refresh.token(), user.getPortalConnected());
     }

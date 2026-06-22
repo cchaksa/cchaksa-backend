@@ -324,14 +324,14 @@ class UserServiceUnitTests {
                 .thenReturn(Optional.of(existingAccount));
         when(jwtProvider.createAccessToken(existingUser.getId().toString(), "existing@example.com", "USER"))
                 .thenReturn("access-token");
-        when(refreshTokenService.issueForSignIn(existingUser.getId().toString()))
-                .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh-token", new Date()));
+        when(jwtProvider.createRefreshToken(existingUser.getId().toString()))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh-token", new Date(), "existing-session"));
 
         AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest(OidcProvider.KAKAO, "id-token", "nonce"));
 
         assertThat(response.accessToken()).isEqualTo("access-token");
         assertThat(response.refreshToken()).isEqualTo("refresh-token");
-        verify(refreshTokenService).issueForSignIn(existingUser.getId().toString());
+        verify(refreshTokenService).save(eq("existing-session"), eq(existingUser.getId().toString()), eq("refresh-token"), any(Date.class));
         verify(userRepository, never()).save(any(User.class));
         verify(socialAccountRepository, never()).save(any(SocialAccount.class));
     }
@@ -357,8 +357,8 @@ class UserServiceUnitTests {
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(jwtProvider.createAccessToken(savedUser.getId().toString(), "new@example.com", "USER"))
                 .thenReturn("new-access-token");
-        when(refreshTokenService.issueForSignIn(savedUser.getId().toString()))
-                .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh-token", new Date()));
+        when(jwtProvider.createRefreshToken(savedUser.getId().toString()))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("new-refresh-token", new Date(), "new-session"));
 
         AuthDto.SignInTokenResponse response = userService.signIn(new UserDto.SignInRequest(OidcProvider.KAKAO, "id-token", "nonce"));
 
@@ -374,7 +374,7 @@ class UserServiceUnitTests {
         assertThat(response.accessToken()).isEqualTo("new-access-token");
         assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
         assertThat(response.isPortalLinked()).isFalse();
-        verify(refreshTokenService).issueForSignIn(savedUser.getId().toString());
+        verify(refreshTokenService).save(eq("new-session"), eq(savedUser.getId().toString()), eq("new-refresh-token"), any(Date.class));
     }
 
     @Test
