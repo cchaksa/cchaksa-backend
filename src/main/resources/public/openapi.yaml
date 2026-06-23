@@ -272,6 +272,179 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/admin/test-users:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 테스트 계정 생성
+      description: dev 환경에서 프론트 테스트용 계정을 생성하고 accessToken, refreshToken을 즉시 발급합니다. 테스트 계정의 email과 studentCode에는 test_ prefix가 붙습니다.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateTestUserRequest'
+      responses:
+        '200':
+          description: 테스트 계정 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTestUserApiResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/test-options:
+    get:
+      tags:
+        - Admin Test
+      summary: dev 테스트 조작 옵션 조회
+      description: 전공 상태 전환과 강의 데이터 수정에 사용할 학과 목록과 졸업요건 영역 목록을 조회합니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 테스트 조작 옵션 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTestOptionsApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/course-offerings:
+    get:
+      tags:
+        - Admin Test
+      summary: dev 강의 후보 조회
+      description: 현재 계정의 강의 데이터에 추가할 개설강의 후보를 검색합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 과목명 또는 학수번호 검색어
+          example: 자료
+        - name: area
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/FacultyDivision'
+          description: 졸업요건 영역
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          example: 2024
+        - name: semester
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+          example: 10
+        - name: departmentId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          example: 1
+      responses:
+        '200':
+          description: 강의 후보 조회 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCourseOfferingOptionsApiResponse'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/me/graduation-courses:
+    patch:
+      tags:
+        - Admin Test
+      summary: dev 현재 계정 강의 데이터 수정
+      description: Authorization 토큰의 계정에 연결된 학생 강의 데이터를 추가하거나 삭제합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateGraduationCoursesRequest'
+      responses:
+        '200':
+          description: 강의 데이터 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 잘못된 요청 또는 학생 미연결
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/me/major:
+    patch:
+      tags:
+        - Admin Test
+      summary: dev 현재 계정 전공 상태 수정
+      description: Authorization 토큰의 계정에 연결된 학생의 주전공과 복수전공 상태를 수정합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateMajorRequest'
+      responses:
+        '200':
+          description: 전공 상태 수정 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 잘못된 요청 또는 학생 미연결
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /portal/link/jobs/{jobId}/duration:
     get:
       tags:
@@ -961,6 +1134,279 @@ components:
           nullable: true
           maxLength: 2000
           example: 출석 중요, 팀플 2인 1조 등
+
+    FacultyDivision:
+      type: string
+      description: 졸업요건 영역
+      enum:
+        - 중핵
+        - 기교
+        - 선교
+        - 소교
+        - 전교
+        - 전취
+        - 전핵
+        - 전선
+        - 일선
+        - 복선
+        - 복핵
+        - 복교
+        - 기타
+      example: 전핵
+
+    AdminCreateTestUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 테스트 사용자 이름
+          example: 프론트테스트
+        departmentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 학과 ID. 비어 있으면 서버 기본 학과를 사용합니다.
+          example: 1
+        majorId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 주전공 학과 ID. 비어 있으면 departmentId와 같은 학과를 사용합니다.
+          example: 1
+        secondaryMajorDepartmentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 복수전공 학과 ID
+          example: 2
+        admissionYear:
+          type: integer
+          format: int32
+          nullable: true
+          description: 입학년도. 비어 있으면 현재 연도를 사용합니다.
+          example: 2024
+
+    AdminTestUserApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AdminTestUserResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminTestUserResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        studentId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 550e8400-e29b-41d4-a716-446655440001
+        email:
+          type: string
+          example: test_202606231430_1234abcd@cchaksa.dev
+        studentCode:
+          type: string
+          example: test_202606231430_1234abcd
+        accessToken:
+          type: string
+          example: access-token
+        refreshToken:
+          type: string
+          example: refresh-token
+
+    AdminTestOptionsApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AdminTestOptionsResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminTestOptionsResponse:
+      type: object
+      properties:
+        departments:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDepartmentOption'
+        graduationAreas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGraduationAreaOption'
+
+    AdminDepartmentOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          nullable: true
+          example: 1
+        code:
+          type: string
+          nullable: true
+          example: CSE
+        name:
+          type: string
+          example: 컴퓨터학과
+
+    AdminGraduationAreaOption:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 전핵
+        name:
+          type: string
+          example: 전핵
+
+    AdminCourseOfferingOptionsApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminCourseOfferingOption'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminCourseOfferingOption:
+      type: object
+      properties:
+        offeringId:
+          type: integer
+          format: int64
+          example: 10
+        courseCode:
+          type: string
+          example: CSE101
+        courseName:
+          type: string
+          example: 자료구조
+        year:
+          type: integer
+          format: int32
+          example: 2024
+        semester:
+          type: integer
+          format: int32
+          example: 10
+        credits:
+          type: integer
+          format: int32
+          nullable: true
+          example: 3
+        area:
+          $ref: '#/components/schemas/FacultyDivision'
+        rawArea:
+          type: string
+          nullable: true
+          example: 교직
+        departmentName:
+          type: string
+          nullable: true
+          example: 컴퓨터학과
+
+    AdminUpdateGraduationCoursesRequest:
+      type: object
+      properties:
+        area:
+          $ref: '#/components/schemas/FacultyDivision'
+        addOfferingIds:
+          type: array
+          description: 추가할 개설강의 ID 목록
+          items:
+            type: integer
+            format: int64
+          example:
+            - 10
+        removeStudentCourseIds:
+          type: array
+          description: 삭제할 현재 계정의 수강 row ID 목록
+          items:
+            type: integer
+            format: int64
+          example:
+            - 20
+        grade:
+          type: string
+          description: 성적. 비어 있으면 IP로 처리합니다.
+          example: A+
+        points:
+          type: integer
+          format: int32
+          nullable: true
+          description: 학점. 비어 있으면 개설강의 학점을 사용합니다.
+          example: 3
+        isRetake:
+          type: boolean
+          nullable: true
+          description: 재수강 여부
+          example: false
+        originalScore:
+          type: integer
+          format: int32
+          nullable: true
+          description: 원점수
+          example: 95
+
+    AdminUpdateMajorRequest:
+      type: object
+      properties:
+        majorDepartmentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 주전공 학과 ID
+          example: 1
+        dualMajorEnabled:
+          type: boolean
+          description: 복수전공 사용 여부
+          example: true
+        secondaryMajorDepartmentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 복수전공 학과 ID. dualMajorEnabled가 true이면 필요합니다.
+          example: 2
 
     MessageOnlyApiResponse:
       type: object
