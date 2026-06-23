@@ -42,7 +42,7 @@ class GraduationQueryRepositoryEtcTests {
     }
 
     @Test
-    @DisplayName("선교 completedElectiveCourses 는 null 을 제외한 세부 영역 고유 개수로 계산한다")
+    @DisplayName("선교 completedElectiveCourses 는 요건 공백을 무시하고 세부 영역 고유 개수로 계산한다")
     void getStudentAreaProgress_countsMissionDistinctLiberalAreas() {
         GraduationQueryRepository missionRepository = new TestMissionGraduationQueryRepository();
 
@@ -93,7 +93,7 @@ class GraduationQueryRepositoryEtcTests {
 
         @Override
         public List<AreaRequirementDto> getAreaRequirementsWithCache(Long deptId, Integer admissionYear) {
-            return List.of(new AreaRequirementDto("선교", 18, 6, 7));
+            return List.of(new AreaRequirementDto("선교 ", 18, 6, 7));
         }
 
         @Override

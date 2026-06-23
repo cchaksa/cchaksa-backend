@@ -9,6 +9,7 @@
 - `선교` 영역의 `completedElectiveCourses`만 `liberalAreaCode` 고유 개수 기준으로 계산한다.
 - `liberalAreaCode`가 `null`인 선교 과목은 카운트에서 제외하되, 과목 목록 응답에는 유지한다.
 - 선교가 아닌 영역은 기존 `offeringId` 고유 개수 계산을 유지한다.
+- 요건 `areaType`에 앞뒤 공백이 있어도 계산 기준이 달라지지 않게 한다.
 
 ## Verification
 
