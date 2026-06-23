@@ -6,5 +6,5 @@
 - [x] 선교 외 영역은 기존 offering 기준 카운트를 유지한다.
 - [x] focused test를 통과시킨다.
 - [x] 전체 `./gradlew test`를 통과시킨다.
-- [ ] 커밋 후 원격 hotfix 브랜치로 push한다.
-- [ ] dev 반영 경로를 확인한다.
+- [x] 커밋 후 원격 hotfix 브랜치로 push한다.
+- [x] dev 반영 경로를 확인한다.
