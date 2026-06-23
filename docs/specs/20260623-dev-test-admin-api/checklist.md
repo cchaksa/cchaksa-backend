@@ -1,0 +1,20 @@
+# dev 전용 프론트 테스트 어드민 API Checklist
+
+- [x] `feat/279` 격리 worktree를 생성한다.
+- [x] 기준선 `./gradlew test`를 실행한다.
+- [x] 관련 컨트롤러, 서비스, 모델, repository, OpenAPI 파일을 확인한다.
+- [x] spec-lite를 작성한다.
+- [x] 구현 계획을 작성한다.
+- [x] context notes를 작성한다.
+- [x] 어드민 컨트롤러 테스트를 RED 상태로 추가한다.
+- [x] 어드민 서비스 단위 테스트를 RED 상태로 추가한다.
+- [x] 테스트 계정 생성 서비스를 구현한다.
+- [x] 옵션 조회 서비스를 구현한다.
+- [x] 강의 후보 검색 repository query와 서비스를 구현한다.
+- [x] 현재 인증 계정 강의 데이터 수정 서비스를 구현한다.
+- [x] 현재 인증 계정 전공 상태 수정 서비스를 구현한다.
+- [x] dev profile 제한과 security public endpoint를 적용한다.
+- [x] `openapi.yaml`을 갱신한다.
+- [x] `./gradlew test --tests '*AdminTest*'`를 실행한다.
+- [x] `./gradlew test`를 실행한다.
+- [x] 변경 내용을 커밋한다.
