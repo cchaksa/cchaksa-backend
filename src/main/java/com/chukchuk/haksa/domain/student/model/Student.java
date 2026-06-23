@@ -160,6 +160,11 @@ public class Student extends BaseEntity {
         this.targetGpa = targetGpa;
     }
 
+    public void updateMajors(Department major, Department secondaryMajor) {
+        this.major = major;
+        this.secondaryMajor = secondaryMajor;
+    }
+
     // 학생 정보 업데이트 시 변경 사항 감지 메서드
     public boolean needsUpdate(StudentInitializationDataType newData) {
         if (!equalsNullable(this.name, newData.getName())) return true;
