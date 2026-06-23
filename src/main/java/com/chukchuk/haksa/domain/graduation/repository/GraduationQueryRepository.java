@@ -103,20 +103,18 @@ public class GraduationQueryRepository {
         List<AreaProgressDto> result = new ArrayList<>();
 
         for (AreaRequirementDto req : areaRequirements) {
-            List<CourseInternalDto> taken = coursesByArea.getOrDefault(req.areaType(), Collections.emptyList());
+            String areaType = normalizeAreaType(req.areaType());
+            List<CourseInternalDto> taken = coursesByArea.getOrDefault(areaType, Collections.emptyList());
 
             int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
-            int completedElectiveCourses = (int) taken.stream()
-                    .map(CourseInternalDto::getOfferingId)
-                    .distinct()
-                    .count();
+            int completedElectiveCourses = countCompletedElectiveCourses(areaType, taken);
 
             List<CourseDto> courseDtos = taken.stream()
                     .map(this::toCourseResponseDto)
                     .toList();
 
             AreaProgressDto dto = new AreaProgressDto(
-                    parseDivision(req.areaType()),
+                    parseDivision(areaType),
                     req.requiredCredits(),
                     earnedCredits,
                     req.requiredElectiveCourses(),
@@ -195,20 +193,18 @@ public class GraduationQueryRepository {
         // 이수 현황 계산
         List<AreaProgressDto> result = new ArrayList<>();
         for (AreaRequirementDto req : mergedRequirements) {
-            List<CourseInternalDto> taken = coursesByArea.getOrDefault(req.areaType(), Collections.emptyList());
+            String areaType = normalizeAreaType(req.areaType());
+            List<CourseInternalDto> taken = coursesByArea.getOrDefault(areaType, Collections.emptyList());
 
             int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
-            int completedElectiveCourses = (int) taken.stream()
-                    .map(CourseInternalDto::getOfferingId)
-                    .distinct()
-                    .count();
+            int completedElectiveCourses = countCompletedElectiveCourses(areaType, taken);
 
             List<CourseDto> courseDtos = taken.stream()
                     .map(this::toCourseResponseDto)
                     .toList();
 
             AreaProgressDto dto = new AreaProgressDto(
-                    parseDivision(req.areaType()),
+                    parseDivision(areaType),
                     req.requiredCredits(),
                     earnedCredits,
                     req.requiredElectiveCourses(),
@@ -330,6 +326,10 @@ public class GraduationQueryRepository {
         return FacultyDivision.valueOf(raw.trim());
     }
 
+    private String normalizeAreaType(String raw) {
+        return raw == null ? null : raw.trim();
+    }
+
     private void appendEtcAreaIfPresent(List<AreaProgressDto> target, Map<String, List<CourseInternalDto>> coursesByArea) {
         if (target.stream().anyMatch(dto -> dto.getAreaType() == FacultyDivision.기타)) {
             return;
@@ -377,6 +377,21 @@ public class GraduationQueryRepository {
                     }
                     return area.trim();
                 }));
+    }
+
+    private int countCompletedElectiveCourses(String areaType, List<CourseInternalDto> courses) {
+        String normalizedAreaType = normalizeAreaType(areaType);
+        if (FacultyDivision.선교.name().equals(normalizedAreaType)) {
+            return (int) courses.stream()
+                    .map(CourseInternalDto::getLiberalAreaCode)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .count();
+        }
+        return (int) courses.stream()
+                .map(CourseInternalDto::getOfferingId)
+                .distinct()
+                .count();
     }
 
     public CourseDto toCourseResponseDto(CourseInternalDto dto) {

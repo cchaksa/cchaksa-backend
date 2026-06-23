@@ -24,16 +24,39 @@ class GraduationQueryRepositoryEtcTests {
     void getStudentAreaProgress_addsEtcAreaWithMagicNumbers() {
         List<AreaProgressDto> progress = repository.getStudentAreaProgress(UUID.randomUUID(), 1L, 2024);
 
+        AreaProgressDto majorArea = progress.stream()
+                .filter(dto -> dto.getAreaType() == FacultyDivision.전핵)
+                .findFirst()
+                .orElseThrow();
         AreaProgressDto etcArea = progress.stream()
                 .filter(dto -> dto.getAreaType() == FacultyDivision.기타)
                 .findFirst()
                 .orElseThrow();
 
+        assertThat(majorArea.getCompletedElectiveCourses()).isEqualTo(1);
         assertThat(etcArea.getRequiredCredits()).isZero();
         assertThat(etcArea.getEarnedCredits()).isEqualTo(3);
         assertThat(etcArea.getCourses())
                 .map(CourseDto::getCourseName)
                 .containsExactlyInAnyOrder("특별활동", "미지정활동");
+    }
+
+    @Test
+    @DisplayName("선교 completedElectiveCourses 는 요건 공백을 무시하고 세부 영역 고유 개수로 계산한다")
+    void getStudentAreaProgress_countsMissionDistinctLiberalAreas() {
+        GraduationQueryRepository missionRepository = new TestMissionGraduationQueryRepository();
+
+        List<AreaProgressDto> progress = missionRepository.getStudentAreaProgress(UUID.randomUUID(), 1L, 2024);
+
+        AreaProgressDto missionArea = progress.stream()
+                .filter(dto -> dto.getAreaType() == FacultyDivision.선교)
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(missionArea.getCompletedElectiveCourses()).isEqualTo(2);
+        assertThat(missionArea.getCourses())
+                .map(CourseDto::getCourseName)
+                .containsExactlyInAnyOrder("세계차산업의이해", "일본사회의이해", "러시아문화", "영역미확인선교");
     }
 
     private static class TestGraduationQueryRepository extends GraduationQueryRepository {
@@ -59,6 +82,35 @@ class GraduationQueryRepositoryEtcTests {
                     3L, null, 2, "P", "미지정활동", 1, 2024, "UNK001", 0, null
             );
             return List.of(major, etc, undefined);
+        }
+    }
+
+    private static class TestMissionGraduationQueryRepository extends GraduationQueryRepository {
+
+        TestMissionGraduationQueryRepository() {
+            super(null, mock(AcademicCache.class));
+        }
+
+        @Override
+        public List<AreaRequirementDto> getAreaRequirementsWithCache(Long deptId, Integer admissionYear) {
+            return List.of(new AreaRequirementDto("선교 ", 18, 6, 7));
+        }
+
+        @Override
+        public List<CourseInternalDto> getLatestValidCourses(UUID studentId) {
+            CourseInternalDto area2First = new CourseInternalDto(
+                    1L, "선교", 3, "A0", "세계차산업의이해", 203, 2024, "CUL201", 90, 2
+            );
+            CourseInternalDto area2Second = new CourseInternalDto(
+                    2L, "선교", 3, "A+", "일본사회의이해", 10, 2024, "CUL202", 95, 2
+            );
+            CourseInternalDto area4 = new CourseInternalDto(
+                    3L, "선교", 3, "A0", "러시아문화", 10, 2026, "CUL401", 90, 4
+            );
+            CourseInternalDto unknownArea = new CourseInternalDto(
+                    4L, "선교", 3, "B+", "영역미확인선교", 20, 2025, "CUL999", 85, null
+            );
+            return List.of(area2First, area2Second, area4, unknownArea);
         }
     }
 }
