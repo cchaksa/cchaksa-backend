@@ -106,10 +106,7 @@ public class GraduationQueryRepository {
             List<CourseInternalDto> taken = coursesByArea.getOrDefault(req.areaType(), Collections.emptyList());
 
             int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
-            int completedElectiveCourses = (int) taken.stream()
-                    .map(CourseInternalDto::getOfferingId)
-                    .distinct()
-                    .count();
+            int completedElectiveCourses = countCompletedElectiveCourses(req.areaType(), taken);
 
             List<CourseDto> courseDtos = taken.stream()
                     .map(this::toCourseResponseDto)
@@ -198,10 +195,7 @@ public class GraduationQueryRepository {
             List<CourseInternalDto> taken = coursesByArea.getOrDefault(req.areaType(), Collections.emptyList());
 
             int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
-            int completedElectiveCourses = (int) taken.stream()
-                    .map(CourseInternalDto::getOfferingId)
-                    .distinct()
-                    .count();
+            int completedElectiveCourses = countCompletedElectiveCourses(req.areaType(), taken);
 
             List<CourseDto> courseDtos = taken.stream()
                     .map(this::toCourseResponseDto)
@@ -377,6 +371,20 @@ public class GraduationQueryRepository {
                     }
                     return area.trim();
                 }));
+    }
+
+    private int countCompletedElectiveCourses(String areaType, List<CourseInternalDto> courses) {
+        if (FacultyDivision.선교.name().equals(areaType)) {
+            return (int) courses.stream()
+                    .map(CourseInternalDto::getLiberalAreaCode)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .count();
+        }
+        return (int) courses.stream()
+                .map(CourseInternalDto::getOfferingId)
+                .distinct()
+                .count();
     }
 
     public CourseDto toCourseResponseDto(CourseInternalDto dto) {
