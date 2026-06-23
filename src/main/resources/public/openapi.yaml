@@ -272,6 +272,93 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /portal/login:
+    post:
+      tags:
+        - Portal Link
+      summary: 포털 로그인 검증
+      description: 포털 ID/PW를 검증하고 포털 연동 job 생성에 사용할 verification token을 반환합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 로그인 검증 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalLoginApiResponse'
+        '400':
+          description: 잘못된 입력
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패 또는 자격 증명 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '423':
+          description: 포털 계정 잠금
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /portal/link:
+    post:
+      tags:
+        - Portal Link
+      summary: 포털 연동 job 생성
+      description: 포털 로그인 verification token을 검증한 뒤 비동기 스크래핑 job을 생성하고 polling endpoint를 반환합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+          description: 동일 요청 deduplication 용 키
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkRequest'
+      responses:
+        '202':
+          description: 요청 수락
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalLinkAcceptedApiResponse'
+        '400':
+          description: 잘못된 입력 또는 verification token 오류
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '409':
+          description: 중복 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /portal/link/jobs/{jobId}/duration:
     get:
       tags:
@@ -425,6 +512,106 @@ components:
           type: boolean
           description: 포털 연동 여부
           example: true
+
+    PortalLoginApiResponse:
+      type: object
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/LoginResponse'
+        message:
+          type: string
+          example: 요청 성공
+
+    LoginRequest:
+      type: object
+      required:
+        - portal_type
+        - username
+        - password
+      properties:
+        portal_type:
+          type: string
+          description: 포털 타입
+          example: suwon
+        username:
+          type: string
+          description: 포털 아이디
+          example: "17019013"
+        password:
+          type: string
+          description: 포털 비밀번호
+          example: pw
+
+    LoginResponse:
+      type: object
+      required:
+        - portal_verification_token
+      properties:
+        portal_verification_token:
+          type: string
+          description: 포털 로그인 검증 token
+          example: portal-verification-token
+
+    PortalLinkAcceptedApiResponse:
+      type: object
+      required:
+        - success
+        - data
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AcceptedResponse'
+        message:
+          type: string
+          example: 요청 성공
+
+    LinkRequest:
+      type: object
+      required:
+        - portal_type
+        - username
+        - password
+        - portal_verification_token
+      properties:
+        portal_type:
+          type: string
+          description: 포털 타입
+          example: suwon
+        username:
+          type: string
+          description: 포털 아이디
+          example: "17019013"
+        password:
+          type: string
+          description: 포털 비밀번호
+          example: pw
+        portal_verification_token:
+          type: string
+          description: 포털 로그인 검증 token
+          example: portal-verification-token
+
+    AcceptedResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+          example: job-123
+        status:
+          type: string
+          example: accepted
+        polling_endpoint:
+          type: string
+          example: /portal/link/jobs/job-123
 
     PortalLinkJobDurationApiResponse:
       type: object

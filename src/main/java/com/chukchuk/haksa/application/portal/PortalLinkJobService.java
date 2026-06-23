@@ -28,9 +28,11 @@ public class PortalLinkJobService {
     private final ScrapeJobOutboxDispatcher scrapeJobOutboxDispatcher;
     private final UserService userService;
     private final ObjectMapper objectMapper;
+    private final PortalLoginVerificationTokenService tokenService;
 
     public PortalLinkDto.AcceptedResponse acceptJob(UUID userId, String idempotencyKey, PortalLinkDto.LinkRequest request) {
         validateRequest(idempotencyKey, request);
+        tokenService.verify(userId, request.portal_type(), request.username(), request.password(), request.portal_verification_token());
 
         User user = userService.getUserById(userId);
         ScrapeJobOperationType operationType = Boolean.TRUE.equals(user.getPortalConnected())
@@ -90,6 +92,9 @@ public class PortalLinkJobService {
             throw new CommonException(ErrorCode.INVALID_ARGUMENT);
         }
         if (request.username() == null || request.username().isBlank() || request.password() == null || request.password().isBlank()) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        }
+        if (request.portal_verification_token() == null || request.portal_verification_token().isBlank()) {
             throw new CommonException(ErrorCode.INVALID_ARGUMENT);
         }
         if (!"suwon".equals(normalize(request.portal_type()))) {

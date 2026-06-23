@@ -9,6 +9,27 @@ import java.time.Instant;
 
 public class PortalLinkDto {
 
+    @Schema(description = "포털 로그인 검증 요청")
+    public record LoginRequest(
+            @NotBlank
+            @JsonProperty("portal_type")
+            @Schema(description = "포털 타입", example = "suwon")
+            String portal_type,
+            @NotBlank
+            @Schema(description = "포털 아이디", example = "17019013")
+            String username,
+            @NotBlank
+            @Schema(description = "포털 비밀번호", example = "pw")
+            String password
+    ) {}
+
+    @Schema(description = "포털 로그인 검증 응답")
+    public record LoginResponse(
+            @JsonProperty("portal_verification_token")
+            @Schema(description = "포털 로그인 검증 token", example = "token")
+            String portal_verification_token
+    ) {}
+
     @Schema(description = "포털 연동 job 생성 요청")
     public record LinkRequest(
             @NotBlank
@@ -20,7 +41,11 @@ public class PortalLinkDto {
             String username,
             @NotBlank
             @Schema(description = "포털 비밀번호", example = "pw")
-            String password
+            String password,
+            @NotBlank
+            @JsonProperty("portal_verification_token")
+            @Schema(description = "포털 로그인 검증 token", example = "token")
+            String portal_verification_token
     ) {}
 
     @Schema(description = "스크래핑 job 수락 응답")
