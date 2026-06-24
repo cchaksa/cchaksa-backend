@@ -480,6 +480,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/admin/me/test-courses:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 현재 계정 테스트 강의 생성
+      description: 테스트 강의와 개설강의를 생성하고 Authorization 토큰의 계정에 연결된 학생 수강 데이터에 바로 추가합니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateTestCourseRequest'
+      responses:
+        '200':
+          description: 테스트 강의 생성 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminTestCourseApiResponse'
+        '400':
+          description: 잘못된 요청 또는 학생 미연결
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /portal/link/jobs/{jobId}/duration:
     get:
       tags:
@@ -1463,6 +1497,108 @@ components:
           nullable: true
           description: 복수전공 학과 ID. dualMajorEnabled가 true이면 필요합니다.
           example: 2
+
+    AdminCreateTestCourseRequest:
+      type: object
+      properties:
+        courseCode:
+          type: string
+          nullable: true
+          description: 테스트 학수번호. test_ prefix가 없으면 자동으로 붙습니다.
+          example: CSE101
+        courseName:
+          type: string
+          nullable: true
+          description: 테스트 과목명. 비어 있으면 기본 테스트 강의명으로 생성합니다.
+          example: 프론트 테스트 강의
+        area:
+          $ref: '#/components/schemas/FacultyDivision'
+        departmentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 학과 ID. 생략하면 hostDepartment만 저장할 수 있습니다.
+          example: 1
+        hostDepartment:
+          type: string
+          nullable: true
+          description: departmentId가 없을 때 사용할 개설 학과명
+          example: 선교
+        year:
+          type: integer
+          format: int32
+          nullable: true
+          description: 이수 연도. 비어 있으면 서버 현재 연도를 사용합니다.
+          example: 2026
+        semester:
+          type: integer
+          format: int32
+          nullable: true
+          description: 학기. 비어 있으면 10으로 처리합니다.
+          example: 10
+        credits:
+          type: integer
+          format: int32
+          nullable: true
+          description: 학점. 비어 있으면 3학점으로 처리합니다.
+          example: 3
+        grade:
+          type: string
+          nullable: true
+          description: 성적. 비어 있으면 IP로 처리합니다.
+          example: A+
+        isRetake:
+          type: boolean
+          nullable: true
+          description: 재수강 여부
+          example: false
+        originalScore:
+          type: integer
+          format: int32
+          nullable: true
+          description: 원점수
+          example: 95
+
+    AdminTestCourseApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AdminTestCourseResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminTestCourseResponse:
+      type: object
+      properties:
+        studentCourseId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 40
+        offeringId:
+          type: integer
+          format: int64
+          nullable: true
+          example: 30
+        courseCode:
+          type: string
+          example: test_CSE101
+        courseName:
+          type: string
+          example: 프론트 테스트 강의
+        area:
+          $ref: '#/components/schemas/FacultyDivision'
 
     MessageOnlyApiResponse:
       type: object
