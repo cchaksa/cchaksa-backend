@@ -32,6 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -51,6 +53,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         JwtAuthenticationFilter.class,
         CustomAuthenticationEntryPoint.class,
         CustomAccessDeniedHandler.class,
+        JwtAuthenticationFilterTests.AdminReadEndpointController.class,
         JwtAuthenticationFilterTests.TestCorsConfig.class
 })
 class JwtAuthenticationFilterTests {
@@ -144,6 +147,27 @@ class JwtAuthenticationFilterTests {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value(ErrorCode.TOKEN_INVALID.code()))
                 .andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"TOKEN_INVALID\""));
+    }
+
+    @Test
+    @DisplayName("dev 테스트 옵션 조회 API는 토큰 없이도 인증 오류를 반환하지 않는다")
+    void getAdminTestReadEndpoints_withoutToken_arePublic() throws Exception {
+        mockMvc.perform(get("/api/admin/test-options"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/departments"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/course-offerings"))
+                .andExpect(status().isOk());
+    }
+
+    @RestController
+    static class AdminReadEndpointController {
+        @GetMapping({"/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings"})
+        String ok() {
+            return "ok";
+        }
     }
 
     @TestConfiguration

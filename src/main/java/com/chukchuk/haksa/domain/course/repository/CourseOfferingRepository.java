@@ -35,4 +35,29 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
             Collection<Integer> years,
             Collection<Integer> semesters
     );
+
+    @Query("""
+        SELECT o FROM CourseOffering o
+        JOIN FETCH o.course c
+        LEFT JOIN FETCH o.department d
+        LEFT JOIN FETCH o.professor p
+        WHERE o.deletedAt IS NULL
+          AND (:keyword IS NULL
+               OR LOWER(c.courseName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+               OR LOWER(c.courseCode) LIKE LOWER(CONCAT('%', :keyword, '%')))
+          AND (:area IS NULL OR o.facultyDivisionName = :area)
+          AND (:year IS NULL OR o.year = :year)
+          AND (:semester IS NULL OR o.semester = :semester)
+          AND (:departmentName IS NULL
+               OR d.establishedDepartmentName = :departmentName
+               OR o.hostDepartment = :departmentName)
+        ORDER BY o.year DESC, o.semester DESC, c.courseName ASC
+    """)
+    List<CourseOffering> searchAdminCandidates(
+            String keyword,
+            FacultyDivision area,
+            Integer year,
+            Integer semester,
+            String departmentName
+    );
 }

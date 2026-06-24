@@ -132,6 +132,10 @@ public class Student extends BaseEntity {
             return false;
         }
 
+        if (this.studentCode.startsWith("test_")) {
+            return false;
+        }
+
         String codePrefix = this.studentCode.substring(0, 2); // 학번 앞 2자리
         String yearSuffix = String.valueOf(this.academicInfo.getAdmissionYear()).substring(2); // 입학년도 뒤 2자리
 
@@ -158,6 +162,11 @@ public class Student extends BaseEntity {
 
     public void setTargetGpa(Double targetGpa) {
         this.targetGpa = targetGpa;
+    }
+
+    public void updateMajors(Department major, Department secondaryMajor) {
+        this.major = major;
+        this.secondaryMajor = secondaryMajor;
     }
 
     // 학생 정보 업데이트 시 변경 사항 감지 메서드
