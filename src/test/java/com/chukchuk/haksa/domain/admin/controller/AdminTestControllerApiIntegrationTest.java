@@ -104,6 +104,21 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
     }
 
     @Test
+    @DisplayName("학과 공개 검색 성공 시 검색 결과를 반환한다")
+    void searchDepartments_success() throws Exception {
+        when(optionService.searchDepartments("컴퓨터"))
+                .thenReturn(List.of(new AdminTestDto.DepartmentOption(1L, "CSE", "컴퓨터학과")));
+
+        mockMvc.perform(get("/api/admin/departments")
+                        .param("keyword", "컴퓨터"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].code").value("CSE"))
+                .andExpect(jsonPath("$.data[0].name").value("컴퓨터학과"));
+    }
+
+    @Test
     @DisplayName("강의 후보 조회 성공 시 검색 결과를 반환한다")
     void searchCourseOfferings_success() throws Exception {
         AdminTestDto.CourseOfferingOption option = new AdminTestDto.CourseOfferingOption(

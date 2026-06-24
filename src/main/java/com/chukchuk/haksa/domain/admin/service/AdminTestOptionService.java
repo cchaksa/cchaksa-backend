@@ -34,6 +34,16 @@ public class AdminTestOptionService {
         return new AdminTestDto.TestOptionsResponse(departments, areas);
     }
 
+    public List<AdminTestDto.DepartmentOption> searchDepartments(String keyword) {
+        String normalizedKeyword = normalize(keyword);
+        List<Department> departments = normalizedKeyword == null
+                ? departmentRepository.findAll()
+                : departmentRepository.searchAdminDepartments(normalizedKeyword);
+        return departments.stream()
+                .map(this::toDepartmentOption)
+                .toList();
+    }
+
     public List<AdminTestDto.CourseOfferingOption> searchCourseOfferings(AdminTestDto.CourseOfferingSearchRequest request) {
         String departmentName = resolveDepartmentName(request.departmentId());
 

@@ -50,6 +50,14 @@ public class AdminTestController implements AdminTestControllerDocs {
     }
 
     @Override
+    @GetMapping("/departments")
+    public ResponseEntity<SuccessResponse<List<AdminTestDto.DepartmentOption>>> searchDepartments(
+            @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(SuccessResponse.of(optionService.searchDepartments(keyword)));
+    }
+
+    @Override
     @GetMapping("/course-offerings")
     public ResponseEntity<SuccessResponse<List<AdminTestDto.CourseOfferingOption>>> searchCourseOfferings(
             @RequestParam(required = false) String keyword,

@@ -155,13 +155,16 @@ class JwtAuthenticationFilterTests {
         mockMvc.perform(get("/api/admin/test-options"))
                 .andExpect(status().isOk());
 
+        mockMvc.perform(get("/api/admin/departments"))
+                .andExpect(status().isOk());
+
         mockMvc.perform(get("/api/admin/course-offerings"))
                 .andExpect(status().isOk());
     }
 
     @RestController
     static class AdminReadEndpointController {
-        @GetMapping({"/api/admin/test-options", "/api/admin/course-offerings"})
+        @GetMapping({"/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings"})
         String ok() {
             return "ok";
         }

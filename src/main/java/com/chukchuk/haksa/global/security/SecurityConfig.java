@@ -56,7 +56,7 @@ public class SecurityConfig {
             "/", "/health", "/error","/auth/kakao", "/sentry-test",
             "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh",
             "/api/admin/test-users",
-            "/api/admin/test-options", "/api/admin/course-offerings",
+            "/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings",
             "/internal/scrape-results",
             "/actuator/prometheus", "/actuator/health", "/actuator/info"
     };

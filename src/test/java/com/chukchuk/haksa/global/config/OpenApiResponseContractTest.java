@@ -34,6 +34,7 @@ class OpenApiResponseContractTest {
             new OperationRef("/api/users/signin", "post"),
             new OperationRef("/api/auth/refresh", "post"),
             new OperationRef("/api/admin/test-options", "get"),
+            new OperationRef("/api/admin/departments", "get"),
             new OperationRef("/api/admin/course-offerings", "get"),
             new OperationRef("/internal/scrape-results", "post")
     );

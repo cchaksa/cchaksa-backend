@@ -21,6 +21,9 @@ public interface AdminTestControllerDocs {
     @Operation(summary = "테스트 조작 옵션 조회", description = "dev 환경에서 토큰 없이 학과와 졸업요건 영역 선택지를 조회합니다.")
     ResponseEntity<SuccessResponse<AdminTestDto.TestOptionsResponse>> getTestOptions();
 
+    @Operation(summary = "학과 검색", description = "dev 환경에서 토큰 없이 학과 코드와 학과명으로 학과 선택지를 검색합니다.")
+    ResponseEntity<SuccessResponse<List<AdminTestDto.DepartmentOption>>> searchDepartments(String keyword);
+
     @Operation(summary = "강의 후보 조회", description = "dev 환경에서 토큰 없이 테스트 데이터에 추가할 개설강의 후보를 검색합니다.")
     ResponseEntity<SuccessResponse<List<AdminTestDto.CourseOfferingOption>>> searchCourseOfferings(
             String keyword,

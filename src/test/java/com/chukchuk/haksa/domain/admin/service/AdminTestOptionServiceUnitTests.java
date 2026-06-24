@@ -51,6 +51,32 @@ class AdminTestOptionServiceUnitTests {
     }
 
     @Test
+    @DisplayName("학과 검색 시 keyword가 있으면 학과 코드와 학과명으로 검색한다")
+    void searchDepartments_withKeyword_returnsMatchedDepartments() {
+        Department department = new Department("CSE", "컴퓨터학과");
+        when(departmentRepository.searchAdminDepartments("컴퓨터")).thenReturn(List.of(department));
+
+        List<AdminTestDto.DepartmentOption> response = optionService.searchDepartments(" 컴퓨터 ");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).code()).isEqualTo("CSE");
+        assertThat(response.get(0).name()).isEqualTo("컴퓨터학과");
+    }
+
+    @Test
+    @DisplayName("학과 검색 시 keyword가 없으면 전체 학과를 반환한다")
+    void searchDepartments_withoutKeyword_returnsAllDepartments() {
+        Department department = new Department("BUS", "경영학과");
+        when(departmentRepository.findAll()).thenReturn(List.of(department));
+
+        List<AdminTestDto.DepartmentOption> response = optionService.searchDepartments(" ");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).code()).isEqualTo("BUS");
+        assertThat(response.get(0).name()).isEqualTo("경영학과");
+    }
+
+    @Test
     @DisplayName("강의 후보 검색 시 개설강의 정보를 프론트 선택지로 변환한다")
     void searchCourseOfferings_returnsCourseOptions() {
         CourseOffering offering = mock(CourseOffering.class);

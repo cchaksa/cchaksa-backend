@@ -312,6 +312,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminTestOptionsApiResponse'
 
+  /api/admin/departments:
+    get:
+      tags:
+        - Admin Test
+      summary: dev 학과 검색
+      description: dev 환경에서 토큰 없이 학과 코드와 학과명으로 학과 선택지를 검색합니다. keyword를 생략하면 전체 학과를 반환합니다.
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 학과 코드 또는 학과명 검색어
+          example: 컴퓨터
+      responses:
+        '200':
+          description: 학과 검색 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDepartmentOptionsApiResponse'
+
   /api/admin/course-offerings:
     get:
       tags:
@@ -1261,6 +1283,27 @@ components:
         name:
           type: string
           example: 컴퓨터학과
+
+    AdminDepartmentOptionsApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDepartmentOption'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
 
     AdminGraduationAreaOption:
       type: object
