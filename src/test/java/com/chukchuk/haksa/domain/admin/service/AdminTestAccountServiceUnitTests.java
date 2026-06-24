@@ -18,8 +18,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,5 +84,32 @@ class AdminTestAccountServiceUnitTests {
         assertThat(userCaptor.getValue().getEmail()).startsWith("test_");
         assertThat(studentCaptor.getValue().getStudentCode()).startsWith("test_");
         assertThat(studentCaptor.getValue().isTransferStudent()).isFalse();
+    }
+
+    @Test
+    @DisplayName("학과 ID가 없으면 기본 학과 조회를 1건으로 제한한다")
+    void createTestUser_withoutDepartmentId_limitsDefaultDepartmentLookup() {
+        Department department = new Department("CSE", "컴퓨터학과");
+        AdminTestDto.CreateTestUserRequest request = new AdminTestDto.CreateTestUserRequest(
+                "프론트테스트",
+                null,
+                null,
+                null,
+                2024
+        );
+        when(departmentRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(department)));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(jwtProvider.createAccessToken(any(), any(), any())).thenReturn("access-token");
+        Date refreshTokenExpiresAt = new Date();
+        when(jwtProvider.createRefreshToken(any()))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh-token", refreshTokenExpiresAt, "session-1"));
+
+        accountService.createTestUser(request);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(departmentRepository).findAll(pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(1);
     }
 }

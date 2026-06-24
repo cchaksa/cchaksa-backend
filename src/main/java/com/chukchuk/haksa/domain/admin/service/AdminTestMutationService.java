@@ -27,13 +27,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Year;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AdminTestMutationService {
+
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
@@ -83,6 +87,9 @@ public class AdminTestMutationService {
                 throw new CommonException(ErrorCode.INVALID_ARGUMENT);
             }
             secondaryMajor = getDepartment(request.secondaryMajorDepartmentId());
+            if (isSameDepartment(major, secondaryMajor)) {
+                throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+            }
         }
 
         student.updateMajors(major, secondaryMajor);
@@ -107,7 +114,7 @@ public class AdminTestMutationService {
         Department department = request.departmentId() != null ? getDepartment(request.departmentId()) : null;
         String courseCode = resolveTestCourseCode(request.courseCode());
         String courseName = normalizeOrDefault(request.courseName(), "테스트 강의");
-        Integer year = request.year() != null ? request.year() : Year.now().getValue();
+        Integer year = request.year() != null ? request.year() : Year.now(SEOUL).getValue();
         Integer semester = request.semester() != null ? request.semester() : 10;
         Integer credits = request.credits() != null ? request.credits() : 3;
         String hostDepartment = department != null
@@ -180,6 +187,20 @@ public class AdminTestMutationService {
         return values != null ? values : List.of();
     }
 
+    private boolean isSameDepartment(Department left, Department right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null) {
+            return false;
+        }
+        if (left.getId() != null && right.getId() != null) {
+            return Objects.equals(left.getId(), right.getId());
+        }
+        return left.getDepartmentCode() != null
+                && Objects.equals(left.getDepartmentCode(), right.getDepartmentCode());
+    }
+
     private String resolveTestCourseCode(String courseCode) {
         String normalized = normalize(courseCode);
         if (normalized == null) {
@@ -207,6 +228,8 @@ public class AdminTestMutationService {
         int semesterOrder = switch (semester) {
             case 20 -> 2;
             case 10 -> 1;
+            case 15 -> 3;
+            case 25 -> 4;
             default -> semester;
         };
         return year * 10 + semesterOrder;

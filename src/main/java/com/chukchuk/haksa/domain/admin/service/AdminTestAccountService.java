@@ -15,6 +15,7 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -97,7 +98,7 @@ public class AdminTestAccountService {
                     .orElseThrow(() -> new CommonException(ErrorCode.INVALID_ARGUMENT));
         }
 
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAll(PageRequest.of(0, 1)).stream()
                 .findFirst()
                 .orElseGet(() -> departmentRepository.save(new Department("test_department", "테스트학과")));
     }

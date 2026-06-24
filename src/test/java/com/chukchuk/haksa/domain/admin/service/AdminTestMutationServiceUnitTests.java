@@ -13,6 +13,7 @@ import com.chukchuk.haksa.domain.course.repository.CourseRepository;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
+import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
@@ -32,7 +33,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -95,6 +98,33 @@ class AdminTestMutationServiceUnitTests {
     }
 
     @Test
+    @DisplayName("강의 데이터 추가 시 성적이 비어 있으면 IP로 저장한다")
+    void updateGraduationCourses_withBlankGrade_savesInProgressGrade() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        CourseOffering offering = offering();
+        AdminTestDto.UpdateGraduationCoursesRequest request = new AdminTestDto.UpdateGraduationCoursesRequest(
+                FacultyDivision.전핵,
+                List.of(10L),
+                List.of(),
+                " ",
+                3,
+                false,
+                null
+        );
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(courseOfferingRepository.findAllById(List.of(10L))).thenReturn(List.of(offering));
+
+        mutationService.updateGraduationCourses(userId, request);
+
+        ArgumentCaptor<StudentCourse> captor = ArgumentCaptor.forClass(StudentCourse.class);
+        verify(studentCourseRepository).save(captor.capture());
+        assertThat(captor.getValue().getGrade().getValue()).isEqualTo(GradeType.IP);
+    }
+
+    @Test
     @DisplayName("현재 인증 계정의 주전공과 복수전공을 변경한다")
     void updateMajor_changesMajorAndSecondaryMajor() {
         UUID userId = UUID.randomUUID();
@@ -114,6 +144,24 @@ class AdminTestMutationServiceUnitTests {
         assertThat(student.getSecondaryMajor()).isSameAs(secondaryMajor);
         verify(studentRepository).save(student);
         verify(academicCache).deleteAllByStudentId(student.getId());
+    }
+
+    @Test
+    @DisplayName("복수전공을 켤 때 주전공과 같은 학과는 거부한다")
+    void updateMajor_rejectsSameMajorAndSecondaryMajor() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        Department department = new Department("CSE", "컴퓨터학과");
+        AdminTestDto.UpdateMajorRequest request = new AdminTestDto.UpdateMajorRequest(1L, true, 1L);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+
+        assertThatThrownBy(() -> mutationService.updateMajor(userId, request))
+                .hasMessage("잘못된 요청입니다.");
+        verify(studentRepository, never()).save(any());
+        verify(academicCache, never()).deleteAllByStudentId(any());
     }
 
     @Test
@@ -193,6 +241,70 @@ class AdminTestMutationServiceUnitTests {
         assertThat(response.courseCode()).isEqualTo("test_CSE101");
         assertThat(response.courseName()).isEqualTo("프론트 테스트 강의");
         assertThat(response.area()).isEqualTo(FacultyDivision.전선);
+    }
+
+    @Test
+    @DisplayName("테스트 강의 생성 시 계절학기를 개설학기 한 자리 값으로 변환한다")
+    void createTestCourse_withSeasonalSemester_mapsSubjectEstablishmentSemester() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        AdminTestDto.CreateTestCourseRequest request = new AdminTestDto.CreateTestCourseRequest(
+                "CSE101",
+                "프론트 테스트 강의",
+                FacultyDivision.전선,
+                null,
+                "선교",
+                2026,
+                15,
+                3,
+                "A+",
+                false,
+                95
+        );
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(studentCourseRepository.save(any(StudentCourse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mutationService.createTestCourse(userId, request);
+
+        ArgumentCaptor<CourseOffering> offeringCaptor = ArgumentCaptor.forClass(CourseOffering.class);
+        verify(courseOfferingRepository).save(offeringCaptor.capture());
+        assertThat(offeringCaptor.getValue().getSubjectEstablishmentSemester()).isEqualTo(20263);
+    }
+
+    @Test
+    @DisplayName("테스트 강의 생성 시 성적이 null이면 IP로 저장한다")
+    void createTestCourse_withNullGrade_savesInProgressGrade() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        AdminTestDto.CreateTestCourseRequest request = new AdminTestDto.CreateTestCourseRequest(
+                "CSE101",
+                "프론트 테스트 강의",
+                FacultyDivision.전선,
+                null,
+                "선교",
+                2026,
+                10,
+                3,
+                null,
+                false,
+                95
+        );
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(studentCourseRepository.save(any(StudentCourse.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        mutationService.createTestCourse(userId, request);
+
+        ArgumentCaptor<StudentCourse> studentCourseCaptor = ArgumentCaptor.forClass(StudentCourse.class);
+        verify(studentCourseRepository).save(studentCourseCaptor.capture());
+        assertThat(studentCourseCaptor.getValue().getGrade().getValue()).isEqualTo(GradeType.IP);
     }
 
     private static Student student(User user) {
