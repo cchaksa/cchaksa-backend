@@ -46,4 +46,8 @@ public interface AdminTestControllerDocs {
             CustomUserDetails userDetails,
             AdminTestDto.UpdateMajorRequest request
     );
+
+    @Operation(summary = "현재 계정 테스트 데이터 초기화", description = "현재 인증 계정의 수강 데이터와 전공 상태를 프론트 테스트 기준 상태로 초기화합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetCurrentAccount(CustomUserDetails userDetails);
 }

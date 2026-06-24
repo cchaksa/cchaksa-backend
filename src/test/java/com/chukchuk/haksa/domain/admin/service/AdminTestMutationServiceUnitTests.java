@@ -112,6 +112,27 @@ class AdminTestMutationServiceUnitTests {
         verify(academicCache).deleteAllByStudentId(student.getId());
     }
 
+    @Test
+    @DisplayName("현재 인증 계정의 테스트 데이터를 초기화한다")
+    void resetCurrentAccount_deletesCoursesAndResetsMajors() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        Department otherMajor = new Department("BUS", "경영학과");
+        Department secondaryMajor = new Department("ART", "예술학과");
+        student.updateMajors(otherMajor, secondaryMajor);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        mutationService.resetCurrentAccount(userId);
+
+        verify(studentCourseRepository).deleteByStudentId(student.getId());
+        assertThat(student.getMajor()).isSameAs(student.getDepartment());
+        assertThat(student.getSecondaryMajor()).isNull();
+        verify(studentRepository).save(student);
+        verify(academicCache).deleteAllByStudentId(student.getId());
+    }
+
     private static Student student(User user) {
         UUID studentId = UUID.randomUUID();
         Department department = new Department("CSE", "컴퓨터학과");

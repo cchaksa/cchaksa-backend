@@ -84,6 +84,15 @@ public class AdminTestMutationService {
         academicCache.deleteAllByStudentId(student.getId());
     }
 
+    public void resetCurrentAccount(UUID userId) {
+        Student student = getRequiredStudent(userId);
+
+        studentCourseRepository.deleteByStudentId(student.getId());
+        student.updateMajors(student.getDepartment(), null);
+        studentRepository.save(student);
+        academicCache.deleteAllByStudentId(student.getId());
+    }
+
     private Student getRequiredStudent(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));

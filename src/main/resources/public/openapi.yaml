@@ -452,6 +452,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/admin/me/reset:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 현재 계정 테스트 데이터 초기화
+      description: Authorization 토큰의 계정에 연결된 학생의 수강 데이터를 삭제하고 주전공을 소속 학과로, 복수전공을 없음으로 초기화합니다.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 테스트 데이터 초기화 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 학생 미연결 또는 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /portal/link/jobs/{jobId}/duration:
     get:
       tags:

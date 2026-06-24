@@ -95,4 +95,13 @@ public class AdminTestController implements AdminTestControllerDocs {
         mutationService.updateMajor(userDetails.getId(), request);
         return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("전공 상태가 수정되었습니다.")));
     }
+
+    @Override
+    @PostMapping("/me/reset")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetCurrentAccount(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        mutationService.resetCurrentAccount(userDetails.getId());
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("테스트 데이터가 초기화되었습니다.")));
+    }
 }

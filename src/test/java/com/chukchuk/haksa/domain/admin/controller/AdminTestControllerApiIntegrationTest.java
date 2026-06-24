@@ -191,4 +191,17 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.message").value("전공 상태가 수정되었습니다."));
     }
+
+    @Test
+    @DisplayName("현재 인증 계정 초기화 성공 시 성공 메시지를 반환한다")
+    void resetCurrentAccount_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        doNothing().when(mutationService).resetCurrentAccount(userId);
+
+        mockMvc.perform(post("/api/admin/me/reset"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("테스트 데이터가 초기화되었습니다."));
+    }
 }
