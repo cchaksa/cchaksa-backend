@@ -28,3 +28,6 @@
 - 데이터 변경 API인 `/api/admin/me/graduation-courses`, `/api/admin/me/major`는 계속 인증 계정 기준으로 동작하므로 Bearer token을 요구한다.
 - 포털 동기화 경로의 `CreateOfferingCommand.departmentId`는 `null`이고 `hostDepartment` 문자열이 남을 수 있으므로, 강의 후보 학과 필터는 학과 ID를 학과명으로 해석한 뒤 `CourseOffering.department.establishedDepartmentName`과 `CourseOffering.hostDepartment`를 함께 비교한다.
 - 선교처럼 학과 필터가 애매한 영역은 `departmentId`를 생략해 검색한다.
+- 학과 검색은 프론트 검색형 선택 컴포넌트 테스트 편의를 위해 `GET /api/admin/departments?keyword=` 공개 조회 API로 추가한다.
+- 테스트 계정 초기화는 별도 스냅샷 복원이 아니라 현재 학생의 수강 row 전체 삭제, 주전공 소속 학과 복귀, 복수전공 해제까지로 제한한다.
+- 임의 테스트 강의 생성은 전역 강의 마스터 편집 API가 아니라 현재 인증 계정에 생성 즉시 붙이는 API로 제한한다.

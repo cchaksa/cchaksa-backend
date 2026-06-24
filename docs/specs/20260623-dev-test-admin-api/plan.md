@@ -2,7 +2,7 @@
 
 ## 성공 기준
 
-1. `feat/279` 브랜치에서 dev 전용 API 5개를 구현한다.
+1. `feat/279` 브랜치에서 dev 전용 API 8개를 구현한다.
 2. 테스트 계정 생성 API는 access token과 refresh token을 함께 발급한다.
 3. 수정 API는 현재 토큰 계정의 학생 데이터만 바꾼다.
 4. 변경 후 `./gradlew test`가 통과한다.
@@ -86,9 +86,49 @@
 - 다른 `/api/admin/me/**` API는 기존 bearer 인증을 사용한다.
 - `@ActiveProfiles("dev")` 기반 컨트롤러 테스트로 dev profile에서 로드되는지 검증한다.
 
-### 7. OpenAPI 갱신
+### 7. 학과 공개 검색 추가
 
-- `src/main/resources/public/openapi.yaml`에 5개 경로와 요청/응답 스키마를 추가한다.
+컨트롤러 테스트를 먼저 추가한다.
+
+- `GET /api/admin/departments?keyword=컴퓨터`가 학과 선택지 목록을 반환하는지 검증한다.
+- 토큰 없이 호출 가능한 공개 조회 API로 둔다.
+
+서비스 단위 테스트를 추가한다.
+
+- `AdminTestOptionService`는 keyword가 비어 있으면 전체 학과를 반환한다.
+- keyword가 있으면 학과 코드와 학과명에 대해 부분 검색한다.
+- `DepartmentRepository`에는 검색용 JPQL을 추가한다.
+
+### 8. 현재 인증 계정 초기화
+
+컨트롤러 테스트를 먼저 추가한다.
+
+- `POST /api/admin/me/reset`이 principal userId를 서비스에 전달하고 성공 메시지를 반환하는지 검증한다.
+
+서비스 단위 테스트를 추가한다.
+
+- 현재 인증 계정의 학생을 찾는다.
+- 해당 학생의 `StudentCourse`를 모두 삭제한다.
+- 주전공은 소속 학과로 되돌리고 복수전공은 null로 만든다.
+- 수정 후 `AcademicCache.deleteAllByStudentId`를 호출한다.
+
+### 9. 현재 인증 계정 테스트 강의 생성
+
+컨트롤러 테스트를 먼저 추가한다.
+
+- `POST /api/admin/me/test-courses`가 테스트 강의 생성 요청과 principal userId를 서비스에 전달하는지 검증한다.
+- 응답에는 생성된 `courseCode`, `courseName`, `offeringId`, `studentCourseId`를 포함한다.
+
+서비스 단위 테스트를 추가한다.
+
+- `Course`, `Professor`, `CourseOffering`, `StudentCourse`를 생성하고 현재 학생에게 붙인다.
+- `courseCode`가 비어 있으면 `test_` prefix 코드를 생성한다.
+- `departmentId`가 있으면 학과를 조회하고, 없으면 `hostDepartment`만 사용한다.
+- 수정 후 `AcademicCache.deleteAllByStudentId`를 호출한다.
+
+### 10. OpenAPI 갱신
+
+- `src/main/resources/public/openapi.yaml`에 추가 경로와 요청/응답 스키마를 반영한다.
 - API 설명에는 dev 전용 테스트 API임을 명시한다.
 
 ## 검증 명령
