@@ -24,3 +24,7 @@
 - `Student.isTransferStudent()`는 학번 앞 2자리와 입학년도 뒤 2자리를 비교해 편입생 여부를 계산한다.
 - 테스트 계정 학번은 `test_` prefix를 사용하므로 기존 비교식에서는 `te`와 입학년도 suffix가 달라 편입생으로 오판된다.
 - 테스트 계정은 프론트 개발용 데이터이며 편입생 미지원 졸업요건 흐름을 막으면 안 되므로 `test_` 학번은 편입생 판정에서 제외한다.
+- 테스트 옵션 조회와 강의 후보 조회는 프론트가 토큰 발급 전 선택지를 구성하는 데 필요하므로 dev 공개 조회 API로 둔다.
+- 데이터 변경 API인 `/api/admin/me/graduation-courses`, `/api/admin/me/major`는 계속 인증 계정 기준으로 동작하므로 Bearer token을 요구한다.
+- 포털 동기화 경로의 `CreateOfferingCommand.departmentId`는 `null`이고 `hostDepartment` 문자열이 남을 수 있으므로, 강의 후보 학과 필터는 학과 ID를 학과명으로 해석한 뒤 `CourseOffering.department.establishedDepartmentName`과 `CourseOffering.hostDepartment`를 함께 비교한다.
+- 선교처럼 학과 필터가 애매한 영역은 `departmentId`를 생략해 검색한다.

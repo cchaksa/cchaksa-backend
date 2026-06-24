@@ -303,9 +303,7 @@ paths:
       tags:
         - Admin Test
       summary: dev 테스트 조작 옵션 조회
-      description: 전공 상태 전환과 강의 데이터 수정에 사용할 학과 목록과 졸업요건 영역 목록을 조회합니다.
-      security:
-        - bearerAuth: []
+      description: dev 환경에서 토큰 없이 전공 상태 전환과 강의 데이터 수정에 사용할 학과 목록과 졸업요건 영역 목록을 조회합니다.
       responses:
         '200':
           description: 테스트 조작 옵션 조회 성공
@@ -313,21 +311,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminTestOptionsApiResponse'
-        '401':
-          description: 인증 실패
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorDetail'
 
   /api/admin/course-offerings:
     get:
       tags:
         - Admin Test
       summary: dev 강의 후보 조회
-      description: 현재 계정의 강의 데이터에 추가할 개설강의 후보를 검색합니다.
-      security:
-        - bearerAuth: []
+      description: dev 환경에서 토큰 없이 현재 계정의 강의 데이터에 추가할 개설강의 후보를 검색합니다.
       parameters:
         - name: keyword
           in: query
@@ -363,6 +353,7 @@ paths:
             type: integer
             format: int64
           example: 1
+          description: 학과 ID. 선교처럼 학과 필터가 필요 없는 영역은 생략합니다.
       responses:
         '200':
           description: 강의 후보 조회 성공
@@ -370,12 +361,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AdminCourseOfferingOptionsApiResponse'
-        '401':
-          description: 인증 실패
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorDetail'
 
   /api/admin/me/graduation-courses:
     patch:

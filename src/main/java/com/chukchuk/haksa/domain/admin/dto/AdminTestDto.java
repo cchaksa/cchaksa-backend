@@ -58,7 +58,7 @@ public class AdminTestDto {
             @Schema(description = "졸업요건 영역") FacultyDivision area,
             @Schema(description = "연도") Integer year,
             @Schema(description = "학기") Integer semester,
-            @Schema(description = "학과 ID") Long departmentId
+            @Schema(description = "학과 ID. 선교처럼 학과 필터가 필요 없는 영역은 생략합니다.") Long departmentId
     ) {
     }
 

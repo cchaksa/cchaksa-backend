@@ -48,7 +48,9 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
           AND (:area IS NULL OR o.facultyDivisionName = :area)
           AND (:year IS NULL OR o.year = :year)
           AND (:semester IS NULL OR o.semester = :semester)
-          AND (:departmentId IS NULL OR d.id = :departmentId)
+          AND (:departmentName IS NULL
+               OR d.establishedDepartmentName = :departmentName
+               OR o.hostDepartment = :departmentName)
         ORDER BY o.year DESC, o.semester DESC, c.courseName ASC
     """)
     List<CourseOffering> searchAdminCandidates(
@@ -56,6 +58,6 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
             FacultyDivision area,
             Integer year,
             Integer semester,
-            Long departmentId
+            String departmentName
     );
 }

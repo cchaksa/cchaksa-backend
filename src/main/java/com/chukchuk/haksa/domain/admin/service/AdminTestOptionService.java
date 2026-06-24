@@ -7,6 +7,8 @@ import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +35,14 @@ public class AdminTestOptionService {
     }
 
     public List<AdminTestDto.CourseOfferingOption> searchCourseOfferings(AdminTestDto.CourseOfferingSearchRequest request) {
+        String departmentName = resolveDepartmentName(request.departmentId());
+
         return courseOfferingRepository.searchAdminCandidates(
                         normalize(request.keyword()),
                         request.area(),
                         request.year(),
                         request.semester(),
-                        request.departmentId()
+                        departmentName
                 ).stream()
                 .map(this::toCourseOfferingOption)
                 .toList();
@@ -71,6 +75,15 @@ public class AdminTestOptionService {
             return offering.getDepartment().getEstablishedDepartmentName();
         }
         return offering.getHostDepartment();
+    }
+
+    private String resolveDepartmentName(Long departmentId) {
+        if (departmentId == null) {
+            return null;
+        }
+        return departmentRepository.findById(departmentId)
+                .map(Department::getEstablishedDepartmentName)
+                .orElseThrow(() -> new CommonException(ErrorCode.INVALID_ARGUMENT));
     }
 
     private String normalize(String keyword) {

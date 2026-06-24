@@ -16,9 +16,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +64,8 @@ class AdminTestOptionServiceUnitTests {
         when(offering.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
         when(offering.getRawFacultyDivisionName()).thenReturn(null);
         when(offering.getDepartment()).thenReturn(department);
-        when(courseOfferingRepository.searchAdminCandidates("자료", FacultyDivision.전핵, 2024, 10, 1L))
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(courseOfferingRepository.searchAdminCandidates("자료", FacultyDivision.전핵, 2024, 10, "컴퓨터학과"))
                 .thenReturn(List.of(offering));
 
         List<AdminTestDto.CourseOfferingOption> response = optionService.searchCourseOfferings(
@@ -74,5 +78,29 @@ class AdminTestOptionServiceUnitTests {
         assertThat(response.get(0).courseName()).isEqualTo("자료구조");
         assertThat(response.get(0).area()).isEqualTo(FacultyDivision.전핵);
         assertThat(response.get(0).departmentName()).isEqualTo("컴퓨터학과");
+        verify(courseOfferingRepository).searchAdminCandidates("자료", FacultyDivision.전핵, 2024, 10, "컴퓨터학과");
+    }
+
+    @Test
+    @DisplayName("강의 후보 검색 시 학과 ID가 없으면 학과 필터 없이 검색한다")
+    void searchCourseOfferings_withoutDepartmentId_usesNoDepartmentFilter() {
+        when(courseOfferingRepository.searchAdminCandidates(null, FacultyDivision.선교, null, null, null))
+                .thenReturn(List.of());
+
+        optionService.searchCourseOfferings(
+                new AdminTestDto.CourseOfferingSearchRequest(" ", FacultyDivision.선교, null, null, null)
+        );
+
+        verify(courseOfferingRepository).searchAdminCandidates(null, FacultyDivision.선교, null, null, null);
+    }
+
+    @Test
+    @DisplayName("강의 후보 검색 시 존재하지 않는 학과 ID는 잘못된 요청으로 처리한다")
+    void searchCourseOfferings_withUnknownDepartmentId_throwsInvalidArgument() {
+        when(departmentRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> optionService.searchCourseOfferings(
+                new AdminTestDto.CourseOfferingSearchRequest(null, null, null, null, 999L)
+        )).hasMessage("잘못된 요청입니다.");
     }
 }

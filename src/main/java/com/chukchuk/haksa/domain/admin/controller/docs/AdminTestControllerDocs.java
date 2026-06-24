@@ -18,12 +18,10 @@ public interface AdminTestControllerDocs {
     @Operation(summary = "테스트 계정 생성", description = "dev 환경에서 테스트 계정을 생성하고 JWT 토큰을 발급합니다.")
     ResponseEntity<SuccessResponse<AdminTestDto.TestUserResponse>> createTestUser(AdminTestDto.CreateTestUserRequest request);
 
-    @Operation(summary = "테스트 조작 옵션 조회", description = "학과와 졸업요건 영역 선택지를 조회합니다.")
-    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "테스트 조작 옵션 조회", description = "dev 환경에서 토큰 없이 학과와 졸업요건 영역 선택지를 조회합니다.")
     ResponseEntity<SuccessResponse<AdminTestDto.TestOptionsResponse>> getTestOptions();
 
-    @Operation(summary = "강의 후보 조회", description = "테스트 데이터에 추가할 개설강의 후보를 검색합니다.")
-    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "강의 후보 조회", description = "dev 환경에서 토큰 없이 테스트 데이터에 추가할 개설강의 후보를 검색합니다.")
     ResponseEntity<SuccessResponse<List<AdminTestDto.CourseOfferingOption>>> searchCourseOfferings(
             String keyword,
             com.chukchuk.haksa.domain.course.model.FacultyDivision area,
