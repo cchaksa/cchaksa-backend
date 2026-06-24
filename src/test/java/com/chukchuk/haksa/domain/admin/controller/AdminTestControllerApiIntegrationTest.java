@@ -204,4 +204,41 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.message").value("테스트 데이터가 초기화되었습니다."));
     }
+
+    @Test
+    @DisplayName("현재 인증 계정 테스트 강의 생성 성공 시 생성 결과를 반환한다")
+    void createTestCourse_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        AdminTestDto.TestCourseResponse response = new AdminTestDto.TestCourseResponse(
+                40L,
+                30L,
+                "test_CSE101",
+                "프론트 테스트 강의",
+                FacultyDivision.전선
+        );
+        when(mutationService.createTestCourse(eq(userId), any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/admin/me/test-courses")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "courseCode": "CSE101",
+                                  "courseName": "프론트 테스트 강의",
+                                  "area": "전선",
+                                  "departmentId": 1,
+                                  "year": 2026,
+                                  "semester": 10,
+                                  "credits": 3,
+                                  "grade": "A+"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.studentCourseId").value(40))
+                .andExpect(jsonPath("$.data.offeringId").value(30))
+                .andExpect(jsonPath("$.data.courseCode").value("test_CSE101"))
+                .andExpect(jsonPath("$.data.courseName").value("프론트 테스트 강의"))
+                .andExpect(jsonPath("$.data.area").value("전선"));
+    }
 }

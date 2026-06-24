@@ -50,4 +50,11 @@ public interface AdminTestControllerDocs {
     @Operation(summary = "현재 계정 테스트 데이터 초기화", description = "현재 인증 계정의 수강 데이터와 전공 상태를 프론트 테스트 기준 상태로 초기화합니다.")
     @SecurityRequirement(name = "bearerAuth")
     ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetCurrentAccount(CustomUserDetails userDetails);
+
+    @Operation(summary = "현재 계정 테스트 강의 생성", description = "테스트 강의와 개설강의를 만들고 현재 인증 계정의 수강 데이터에 바로 추가합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<AdminTestDto.TestCourseResponse>> createTestCourse(
+            CustomUserDetails userDetails,
+            AdminTestDto.CreateTestCourseRequest request
+    );
 }

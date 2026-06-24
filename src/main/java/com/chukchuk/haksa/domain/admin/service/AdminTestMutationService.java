@@ -5,7 +5,11 @@ import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.course.model.Course;
+import com.chukchuk.haksa.domain.course.model.EvaluationType;
+import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
+import com.chukchuk.haksa.domain.course.repository.CourseRepository;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
@@ -22,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Year;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,6 +38,7 @@ public class AdminTestMutationService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final DepartmentRepository departmentRepository;
+    private final CourseRepository courseRepository;
     private final CourseOfferingRepository courseOfferingRepository;
     private final StudentCourseRepository studentCourseRepository;
     private final AcademicCache academicCache;
@@ -93,6 +99,59 @@ public class AdminTestMutationService {
         academicCache.deleteAllByStudentId(student.getId());
     }
 
+    public AdminTestDto.TestCourseResponse createTestCourse(UUID userId, AdminTestDto.CreateTestCourseRequest request) {
+        if (request == null || request.area() == null) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        }
+        Student student = getRequiredStudent(userId);
+        Department department = request.departmentId() != null ? getDepartment(request.departmentId()) : null;
+        String courseCode = resolveTestCourseCode(request.courseCode());
+        String courseName = normalizeOrDefault(request.courseName(), "테스트 강의");
+        Integer year = request.year() != null ? request.year() : Year.now().getValue();
+        Integer semester = request.semester() != null ? request.semester() : 10;
+        Integer credits = request.credits() != null ? request.credits() : 3;
+        String hostDepartment = department != null
+                ? department.getEstablishedDepartmentName()
+                : normalize(request.hostDepartment());
+
+        Course course = courseRepository.save(new Course(courseCode, courseName));
+        CourseOffering offering = courseOfferingRepository.save(new CourseOffering(
+                subjectEstablishmentSemester(year, semester),
+                false,
+                year,
+                semester,
+                hostDepartment,
+                "test",
+                null,
+                null,
+                credits,
+                EvaluationType.UNKNOWN,
+                request.area(),
+                course,
+                null,
+                department,
+                null
+        ));
+        StudentCourse studentCourse = studentCourseRepository.save(new StudentCourse(
+                student,
+                offering,
+                new Grade(GradeType.from(request.grade())),
+                credits,
+                Boolean.TRUE.equals(request.isRetake()),
+                request.originalScore(),
+                false
+        ));
+
+        academicCache.deleteAllByStudentId(student.getId());
+        return new AdminTestDto.TestCourseResponse(
+                studentCourse.getId(),
+                offering.getId(),
+                course.getCourseCode(),
+                course.getCourseName(),
+                offering.getFacultyDivisionName()
+        );
+    }
+
     private Student getRequiredStudent(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException(ErrorCode.USER_NOT_FOUND));
@@ -119,5 +178,37 @@ public class AdminTestMutationService {
 
     private List<Long> nonNullList(List<Long> values) {
         return values != null ? values : List.of();
+    }
+
+    private String resolveTestCourseCode(String courseCode) {
+        String normalized = normalize(courseCode);
+        if (normalized == null) {
+            return "test_" + UUID.randomUUID().toString().substring(0, 8);
+        }
+        if (normalized.startsWith("test_")) {
+            return normalized;
+        }
+        return "test_" + normalized;
+    }
+
+    private String normalizeOrDefault(String value, String defaultValue) {
+        String normalized = normalize(value);
+        return normalized != null ? normalized : defaultValue;
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private Integer subjectEstablishmentSemester(Integer year, Integer semester) {
+        int semesterOrder = switch (semester) {
+            case 20 -> 2;
+            case 10 -> 1;
+            default -> semester;
+        };
+        return year * 10 + semesterOrder;
     }
 }

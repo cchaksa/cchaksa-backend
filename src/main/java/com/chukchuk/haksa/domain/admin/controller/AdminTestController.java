@@ -104,4 +104,13 @@ public class AdminTestController implements AdminTestControllerDocs {
         mutationService.resetCurrentAccount(userDetails.getId());
         return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("테스트 데이터가 초기화되었습니다.")));
     }
+
+    @Override
+    @PostMapping("/me/test-courses")
+    public ResponseEntity<SuccessResponse<AdminTestDto.TestCourseResponse>> createTestCourse(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody AdminTestDto.CreateTestCourseRequest request
+    ) {
+        return ResponseEntity.ok(SuccessResponse.of(mutationService.createTestCourse(userDetails.getId(), request)));
+    }
 }

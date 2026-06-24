@@ -95,4 +95,30 @@ public class AdminTestDto {
             @Schema(description = "복수전공 학과 ID") Long secondaryMajorDepartmentId
     ) {
     }
+
+    @Schema(description = "현재 인증 계정 테스트 강의 생성 요청")
+    public record CreateTestCourseRequest(
+            @Schema(description = "테스트 학수번호. test_ prefix가 없으면 자동으로 붙습니다.") String courseCode,
+            @Schema(description = "테스트 과목명") String courseName,
+            @Schema(description = "졸업요건 영역") FacultyDivision area,
+            @Schema(description = "학과 ID") Long departmentId,
+            @Schema(description = "개설 학과명. departmentId가 없을 때 사용할 수 있습니다.") String hostDepartment,
+            @Schema(description = "이수 연도") Integer year,
+            @Schema(description = "학기") Integer semester,
+            @Schema(description = "학점") Integer credits,
+            @Schema(description = "성적") String grade,
+            @Schema(description = "재수강 여부") Boolean isRetake,
+            @Schema(description = "원점수") Integer originalScore
+    ) {
+    }
+
+    @Schema(description = "현재 인증 계정 테스트 강의 생성 응답")
+    public record TestCourseResponse(
+            @Schema(description = "생성된 학생 수강 row ID") Long studentCourseId,
+            @Schema(description = "생성된 개설강의 ID") Long offeringId,
+            @Schema(description = "생성된 학수번호") String courseCode,
+            @Schema(description = "생성된 과목명") String courseName,
+            @Schema(description = "졸업요건 영역") FacultyDivision area
+    ) {
+    }
 }

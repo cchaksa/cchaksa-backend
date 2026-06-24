@@ -9,6 +9,7 @@ import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.course.model.EvaluationType;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
+import com.chukchuk.haksa.domain.course.repository.CourseRepository;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
@@ -46,6 +47,9 @@ class AdminTestMutationServiceUnitTests {
 
     @Mock
     private DepartmentRepository departmentRepository;
+
+    @Mock
+    private CourseRepository courseRepository;
 
     @Mock
     private CourseOfferingRepository courseOfferingRepository;
@@ -131,6 +135,64 @@ class AdminTestMutationServiceUnitTests {
         assertThat(student.getSecondaryMajor()).isNull();
         verify(studentRepository).save(student);
         verify(academicCache).deleteAllByStudentId(student.getId());
+    }
+
+    @Test
+    @DisplayName("현재 인증 계정에 테스트 강의를 생성해 추가한다")
+    void createTestCourse_createsCourseOfferingAndStudentCourse() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
+        Student student = student(user);
+        user.setStudent(student);
+        Department department = new Department("CSE", "컴퓨터학과");
+        AdminTestDto.CreateTestCourseRequest request = new AdminTestDto.CreateTestCourseRequest(
+                "CSE101",
+                "프론트 테스트 강의",
+                FacultyDivision.전선,
+                1L,
+                null,
+                2026,
+                10,
+                3,
+                "A+",
+                false,
+                95
+        );
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(courseRepository.save(any(Course.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courseOfferingRepository.save(any(CourseOffering.class))).thenAnswer(invocation -> {
+            CourseOffering offering = invocation.getArgument(0);
+            ReflectionTestUtils.setField(offering, "id", 30L);
+            return offering;
+        });
+        when(studentCourseRepository.save(any(StudentCourse.class))).thenAnswer(invocation -> {
+            StudentCourse studentCourse = invocation.getArgument(0);
+            ReflectionTestUtils.setField(studentCourse, "id", 40L);
+            return studentCourse;
+        });
+
+        AdminTestDto.TestCourseResponse response = mutationService.createTestCourse(userId, request);
+
+        ArgumentCaptor<Course> courseCaptor = ArgumentCaptor.forClass(Course.class);
+        ArgumentCaptor<CourseOffering> offeringCaptor = ArgumentCaptor.forClass(CourseOffering.class);
+        ArgumentCaptor<StudentCourse> studentCourseCaptor = ArgumentCaptor.forClass(StudentCourse.class);
+        verify(courseRepository).save(courseCaptor.capture());
+        verify(courseOfferingRepository).save(offeringCaptor.capture());
+        verify(studentCourseRepository).save(studentCourseCaptor.capture());
+        verify(academicCache).deleteAllByStudentId(student.getId());
+        assertThat(courseCaptor.getValue().getCourseCode()).isEqualTo("test_CSE101");
+        assertThat(courseCaptor.getValue().getCourseName()).isEqualTo("프론트 테스트 강의");
+        assertThat(offeringCaptor.getValue().getDepartment()).isSameAs(department);
+        assertThat(offeringCaptor.getValue().getHostDepartment()).isEqualTo("컴퓨터학과");
+        assertThat(offeringCaptor.getValue().getFacultyDivisionName()).isEqualTo(FacultyDivision.전선);
+        assertThat(studentCourseCaptor.getValue().getStudent()).isSameAs(student);
+        assertThat(studentCourseCaptor.getValue().getOffering()).isSameAs(offeringCaptor.getValue());
+        assertThat(response.studentCourseId()).isEqualTo(40L);
+        assertThat(response.offeringId()).isEqualTo(30L);
+        assertThat(response.courseCode()).isEqualTo("test_CSE101");
+        assertThat(response.courseName()).isEqualTo("프론트 테스트 강의");
+        assertThat(response.area()).isEqualTo(FacultyDivision.전선);
     }
 
     private static Student student(User user) {
