@@ -80,5 +80,6 @@ class AdminTestAccountServiceUnitTests {
         verify(refreshTokenService).save("session-1", userCaptor.getValue().getId().toString(), "refresh-token", refreshTokenExpiresAt);
         assertThat(userCaptor.getValue().getEmail()).startsWith("test_");
         assertThat(studentCaptor.getValue().getStudentCode()).startsWith("test_");
+        assertThat(studentCaptor.getValue().isTransferStudent()).isFalse();
     }
 }

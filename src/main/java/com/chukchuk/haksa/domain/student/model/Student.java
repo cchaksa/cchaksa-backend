@@ -132,6 +132,10 @@ public class Student extends BaseEntity {
             return false;
         }
 
+        if (this.studentCode.startsWith("test_")) {
+            return false;
+        }
+
         String codePrefix = this.studentCode.substring(0, 2); // 학번 앞 2자리
         String yearSuffix = String.valueOf(this.academicInfo.getAdmissionYear()).substring(2); // 입학년도 뒤 2자리
 

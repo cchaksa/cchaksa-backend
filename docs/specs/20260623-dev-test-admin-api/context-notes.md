@@ -18,3 +18,9 @@
 - `/api/admin/me/**` API는 기존 bearer 인증 principal의 userId로 현재 계정 학생을 찾는다.
 - 강의 추가는 `CourseOffering`의 영역과 요청 영역이 다르면 `INVALID_ARGUMENT`로 막는다.
 - `./gradlew test --tests '*AdminTest*'`와 `./gradlew test`는 모두 통과했다.
+
+## 2026-06-24
+
+- `Student.isTransferStudent()`는 학번 앞 2자리와 입학년도 뒤 2자리를 비교해 편입생 여부를 계산한다.
+- 테스트 계정 학번은 `test_` prefix를 사용하므로 기존 비교식에서는 `te`와 입학년도 suffix가 달라 편입생으로 오판된다.
+- 테스트 계정은 프론트 개발용 데이터이며 편입생 미지원 졸업요건 흐름을 막으면 안 되므로 `test_` 학번은 편입생 판정에서 제외한다.
