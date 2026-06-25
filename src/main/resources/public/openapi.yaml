@@ -277,7 +277,7 @@ paths:
       tags:
         - Admin Test
       summary: dev 테스트 계정 생성
-      description: dev 환경에서 프론트 테스트용 계정을 생성하고 accessToken, refreshToken을 즉시 발급합니다. 테스트 계정의 email과 studentCode에는 test_ prefix가 붙습니다.
+      description: dev 환경에서 프론트 테스트용 계정을 생성하고 accessToken, refreshToken을 즉시 발급합니다. 테스트 계정의 email과 studentCode에는 test_ prefix가 붙습니다. isPortalLinked를 false로 보내면 포털 미연동 상태 계정을 만들 수 있습니다.
       requestBody:
         required: true
         content:
@@ -1254,6 +1254,11 @@ components:
           nullable: true
           description: 입학년도. 비어 있으면 현재 연도를 사용합니다.
           example: 2024
+        isPortalLinked:
+          type: boolean
+          nullable: true
+          description: 포털 연동 여부. 비어 있으면 true로 처리합니다.
+          example: true
 
     AdminTestUserApiResponse:
       type: object

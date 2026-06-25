@@ -82,6 +82,9 @@ class AdminTestAccountServiceUnitTests {
         verify(studentRepository).save(studentCaptor.capture());
         verify(refreshTokenService).save("session-1", userCaptor.getValue().getId().toString(), "refresh-token", refreshTokenExpiresAt);
         assertThat(userCaptor.getValue().getEmail()).startsWith("test_");
+        assertThat(userCaptor.getValue().getPortalConnected()).isTrue();
+        assertThat(userCaptor.getValue().getConnectedAt()).isNotNull();
+        assertThat(userCaptor.getValue().getLastSyncedAt()).isNotNull();
         assertThat(studentCaptor.getValue().getStudentCode()).startsWith("test_");
         assertThat(studentCaptor.getValue().isTransferStudent()).isFalse();
     }
@@ -95,7 +98,8 @@ class AdminTestAccountServiceUnitTests {
                 null,
                 null,
                 null,
-                2024
+                2024,
+                null
         );
         when(departmentRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(department)));
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -111,5 +115,34 @@ class AdminTestAccountServiceUnitTests {
         verify(departmentRepository).findAll(pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("포털 미연동 옵션이면 테스트 계정을 포털 미연동 상태로 만든다")
+    void createTestUser_withPortalLinkedFalse_keepsUserUnlinked() {
+        Department department = new Department("CSE", "컴퓨터학과");
+        AdminTestDto.CreateTestUserRequest request = new AdminTestDto.CreateTestUserRequest(
+                "프론트테스트",
+                1L,
+                1L,
+                null,
+                2024,
+                false
+        );
+        when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(jwtProvider.createAccessToken(any(), any(), any())).thenReturn("access-token");
+        Date refreshTokenExpiresAt = new Date();
+        when(jwtProvider.createRefreshToken(any()))
+                .thenReturn(new AuthDto.RefreshTokenWithExpiry("refresh-token", refreshTokenExpiresAt, "session-1"));
+
+        accountService.createTestUser(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPortalConnected()).isFalse();
+        assertThat(userCaptor.getValue().getConnectedAt()).isNull();
+        assertThat(userCaptor.getValue().getLastSyncedAt()).isNull();
     }
 }

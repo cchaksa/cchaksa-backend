@@ -55,7 +55,9 @@ public class AdminTestAccountService {
                 .email(email)
                 .profileNickname(name)
                 .build();
-        user.markPortalConnected(Instant.now());
+        if (!Boolean.FALSE.equals(request.isPortalLinked())) {
+            user.markPortalConnected(Instant.now());
+        }
         User savedUser = userRepository.save(user);
 
         Student student = Student.builder()

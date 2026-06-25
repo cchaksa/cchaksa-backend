@@ -15,8 +15,18 @@ public class AdminTestDto {
             @Schema(description = "학과 ID", example = "1") Long departmentId,
             @Schema(description = "주전공 학과 ID", example = "1") Long majorId,
             @Schema(description = "복수전공 학과 ID", example = "2") Long secondaryMajorDepartmentId,
-            @Schema(description = "입학년도", example = "2024") Integer admissionYear
+            @Schema(description = "입학년도", example = "2024") Integer admissionYear,
+            @Schema(description = "포털 연동 여부. 비어 있으면 true로 처리합니다.", example = "true") Boolean isPortalLinked
     ) {
+        public CreateTestUserRequest(
+                String name,
+                Long departmentId,
+                Long majorId,
+                Long secondaryMajorDepartmentId,
+                Integer admissionYear
+        ) {
+            this(name, departmentId, majorId, secondaryMajorDepartmentId, admissionYear, null);
+        }
     }
 
     @Schema(description = "테스트 계정 생성 응답")

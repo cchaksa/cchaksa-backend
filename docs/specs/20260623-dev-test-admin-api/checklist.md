@@ -38,3 +38,7 @@
 - [x] PR 리뷰의 동일 주전공/복수전공 방어를 반영한다.
 - [x] PR 리뷰의 기본 연도 Asia/Seoul 기준을 반영한다.
 - [x] null/blank grade의 IP 처리 회귀 테스트를 추가한다.
+- [x] 테스트 계정 생성 요청에 `isPortalLinked` 옵션 테스트를 RED 상태로 추가한다.
+- [x] `isPortalLinked=false`이면 테스트 계정을 포털 미연동 상태로 생성한다.
+- [x] `isPortalLinked`를 생략하면 기존처럼 포털 연동 상태로 생성한다.
+- [x] `openapi.yaml`에 `isPortalLinked` 요청 필드를 반영한다.

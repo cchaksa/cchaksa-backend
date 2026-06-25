@@ -36,3 +36,9 @@
 - 테스트 API라도 주전공과 복수전공이 같은 학과가 되는 데이터는 막는다.
 - 기본 테스트 계정 학과 조회는 전체 학과를 로드하지 않고 1건만 조회한다.
 - `GradeType.from()`은 null/blank를 이미 `IP`로 처리하므로, 리뷰의 grade null 지적은 코드 변경 대신 회귀 테스트로 명시했다.
+
+## 2026-06-26
+
+- 프론트가 포털 미연동 계정 상태를 테스트할 수 있도록 `POST /api/admin/test-users` 요청에 `isPortalLinked` 옵션을 추가한다.
+- 기존 호출과의 호환성을 위해 `isPortalLinked`가 null이면 기존 동작과 동일하게 포털 연동 상태로 생성한다.
+- `isPortalLinked=false`이면 학생과 토큰은 그대로 생성하되 `User.portalConnected`, `connectedAt`, `lastSyncedAt`은 기본 미연동 상태로 남긴다.
