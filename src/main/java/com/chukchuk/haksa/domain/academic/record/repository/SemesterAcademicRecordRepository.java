@@ -33,7 +33,7 @@ public interface SemesterAcademicRecordRepository extends JpaRepository<Semester
 
     void deleteByStudentId(UUID studentId);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("""
         DELETE FROM SemesterAcademicRecord sar
         WHERE sar.student.id = :studentId

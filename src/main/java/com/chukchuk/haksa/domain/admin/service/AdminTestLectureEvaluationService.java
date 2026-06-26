@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -116,7 +117,7 @@ public class AdminTestLectureEvaluationService {
     ) {
         int attemptedCredits = offerings.stream()
                 .map(CourseOffering::getPoints)
-                .filter(points -> points != null)
+                .filter(Objects::nonNull)
                 .mapToInt(Integer::intValue)
                 .sum();
         SemesterAcademicRecord record = new SemesterAcademicRecord(

@@ -12,7 +12,7 @@ import java.util.UUID;
 @Repository
 public interface CourseEvaluationTagRepository extends JpaRepository<CourseEvaluationTag, Long> {
 
-    @Modifying(clearAutomatically = true)
+    @Modifying
     @Query("""
         DELETE FROM CourseEvaluationTag tag
         WHERE tag.courseEvaluation.id IN (

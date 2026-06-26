@@ -70,8 +70,6 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
         WHERE o.deletedAt IS NULL
           AND o.year = :year
           AND o.semester = :semester
-          AND o.course IS NOT NULL
-          AND o.professor IS NOT NULL
         ORDER BY c.courseName ASC, p.professorName ASC, o.id ASC
     """)
     List<CourseOffering> findReusableLectureEvaluationTestOfferings(Integer year, Integer semester);
