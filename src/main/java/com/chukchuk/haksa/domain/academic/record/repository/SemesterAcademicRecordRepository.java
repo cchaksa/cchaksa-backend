@@ -2,6 +2,7 @@ package com.chukchuk.haksa.domain.academic.record.repository;
 
 import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -31,4 +32,17 @@ public interface SemesterAcademicRecordRepository extends JpaRepository<Semester
     List<SemesterAcademicRecord> findByStudentIdOrderByYearDescSemesterDesc(UUID studentId);
 
     void deleteByStudentId(UUID studentId);
+
+    @Modifying
+    @Query("""
+        DELETE FROM SemesterAcademicRecord sar
+        WHERE sar.student.id = :studentId
+          AND sar.year = :year
+          AND sar.semester = :semester
+    """)
+    void deleteByStudentIdAndYearAndSemester(
+            @Param("studentId") UUID studentId,
+            @Param("year") Integer year,
+            @Param("semester") Integer semester
+    );
 }

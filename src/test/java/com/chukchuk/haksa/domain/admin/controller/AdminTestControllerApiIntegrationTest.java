@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
+import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
@@ -24,6 +25,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -50,6 +52,9 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     @MockBean
     private AdminTestMutationService mutationService;
+
+    @MockBean
+    private AdminTestLectureEvaluationService lectureEvaluationService;
 
     @Test
     @DisplayName("테스트 계정 생성 성공 시 토큰과 테스트 식별자를 반환한다")
@@ -240,5 +245,60 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.data.courseCode").value("test_CSE101"))
                 .andExpect(jsonPath("$.data.courseName").value("프론트 테스트 강의"))
                 .andExpect(jsonPath("$.data.area").value("전선"));
+    }
+
+    @Test
+    @DisplayName("강의평가 empty-semester 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
+    void setLectureEvaluationEmptySemester_success() throws Exception {
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/empty-semester"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 empty-semester로 변경되었습니다."));
+
+        verify(lectureEvaluationService).setEmptySemester();
+    }
+
+    @Test
+    @DisplayName("강의평가 NOT_RELEASED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
+    void setLectureEvaluationNotReleased_success() throws Exception {
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/not-released"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 NOT_RELEASED로 변경되었습니다."));
+
+        verify(lectureEvaluationService).setNotReleased();
+    }
+
+    @Test
+    @DisplayName("강의평가 PENDING 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
+    void setLectureEvaluationPending_success() throws Exception {
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/pending"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 PENDING으로 변경되었습니다."));
+
+        verify(lectureEvaluationService).setPending();
+    }
+
+    @Test
+    @DisplayName("강의평가 SKIPPED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
+    void setLectureEvaluationSkipped_success() throws Exception {
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/skipped"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 SKIPPED로 변경되었습니다."));
+
+        verify(lectureEvaluationService).setSkipped();
+    }
+
+    @Test
+    @DisplayName("강의평가 COMPLETED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
+    void setLectureEvaluationCompleted_success() throws Exception {
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/completed"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 COMPLETED로 변경되었습니다."));
+
+        verify(lectureEvaluationService).setCompleted();
     }
 }

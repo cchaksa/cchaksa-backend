@@ -36,4 +36,17 @@ public interface StudentCourseRepository extends JpaRepository<StudentCourse, Lo
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM StudentCourse sc WHERE sc.student.id = :studentId AND sc.id IN :ids")
     void deleteOwnedByStudentIdAndIdIn(@Param("studentId") UUID studentId, @Param("ids") List<Long> ids);
+
+    @Modifying
+    @Query("""
+        DELETE FROM StudentCourse sc
+        WHERE sc.student.id = :studentId
+          AND sc.offering.year = :year
+          AND sc.offering.semester = :semester
+    """)
+    void deleteByStudentIdAndYearAndSemester(
+            @Param("studentId") UUID studentId,
+            @Param("year") Integer year,
+            @Param("semester") Integer semester
+    );
 }

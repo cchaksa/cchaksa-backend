@@ -4,6 +4,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 import com.chukchuk.haksa.domain.admin.controller.docs.AdminTestControllerDocs;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
+import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
@@ -34,6 +35,7 @@ public class AdminTestController implements AdminTestControllerDocs {
     private final AdminTestAccountService accountService;
     private final AdminTestOptionService optionService;
     private final AdminTestMutationService mutationService;
+    private final AdminTestLectureEvaluationService lectureEvaluationService;
 
     @Override
     @PostMapping("/test-users")
@@ -112,5 +114,40 @@ public class AdminTestController implements AdminTestControllerDocs {
             @Valid @RequestBody AdminTestDto.CreateTestCourseRequest request
     ) {
         return ResponseEntity.ok(SuccessResponse.of(mutationService.createTestCourse(userDetails.getId(), request)));
+    }
+
+    @Override
+    @PostMapping("/test-lecture-evaluations/empty-semester")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationEmptySemester() {
+        lectureEvaluationService.setEmptySemester();
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 테스트 상태가 empty-semester로 변경되었습니다.")));
+    }
+
+    @Override
+    @PostMapping("/test-lecture-evaluations/not-released")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationNotReleased() {
+        lectureEvaluationService.setNotReleased();
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 테스트 상태가 NOT_RELEASED로 변경되었습니다.")));
+    }
+
+    @Override
+    @PostMapping("/test-lecture-evaluations/pending")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationPending() {
+        lectureEvaluationService.setPending();
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 테스트 상태가 PENDING으로 변경되었습니다.")));
+    }
+
+    @Override
+    @PostMapping("/test-lecture-evaluations/skipped")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationSkipped() {
+        lectureEvaluationService.setSkipped();
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 테스트 상태가 SKIPPED로 변경되었습니다.")));
+    }
+
+    @Override
+    @PostMapping("/test-lecture-evaluations/completed")
+    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationCompleted() {
+        lectureEvaluationService.setCompleted();
+        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 테스트 상태가 COMPLETED로 변경되었습니다.")));
     }
 }

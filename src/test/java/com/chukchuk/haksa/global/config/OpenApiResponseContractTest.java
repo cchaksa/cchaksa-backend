@@ -36,6 +36,11 @@ class OpenApiResponseContractTest {
             new OperationRef("/api/admin/test-options", "get"),
             new OperationRef("/api/admin/departments", "get"),
             new OperationRef("/api/admin/course-offerings", "get"),
+            new OperationRef("/api/admin/test-lecture-evaluations/empty-semester", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/not-released", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/pending", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/skipped", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/completed", "post"),
             new OperationRef("/internal/scrape-results", "post")
     );
 

@@ -150,6 +150,10 @@ public class SemesterAcademicRecord extends BaseEntity {
         this.lectureEvaluationStatus = LectureEvaluationStatus.COMPLETED;
     }
 
+    public void setLectureEvaluationStatusForTest(LectureEvaluationStatus status) {
+        this.lectureEvaluationStatus = status;
+    }
+
     public boolean isLectureEvaluationPending() {
         return this.lectureEvaluationStatus == LectureEvaluationStatus.PENDING;
     }

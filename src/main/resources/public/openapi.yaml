@@ -514,6 +514,106 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/admin/test-lecture-evaluations/empty-semester:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 강의평가 empty-semester 상태 세팅
+      description: 고정 프론트 테스트 계정의 2026년 1학기(10) 평가 데이터, 수강 데이터, 학기 row를 삭제해 강의평가 조회 시 evaluationStatus=null, grades=[] 상태를 재현합니다.
+      responses:
+        '200':
+          description: 강의평가 테스트 상태 세팅 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 잘못된 요청 또는 대상 계정 상태 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/test-lecture-evaluations/not-released:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 강의평가 NOT_RELEASED 상태 세팅
+      description: 고정 프론트 테스트 계정의 2026년 1학기(10)를 실제 교수 연결 강의와 IP 성적 수강 데이터가 있는 NOT_RELEASED 상태로 재구성합니다.
+      responses:
+        '200':
+          description: 강의평가 테스트 상태 세팅 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 재사용 가능한 실제 강의 후보 없음 또는 대상 계정 상태 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/test-lecture-evaluations/pending:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 강의평가 PENDING 상태 세팅
+      description: 고정 프론트 테스트 계정의 2026년 1학기(10)를 실제 교수 연결 강의와 완료 성적 수강 데이터가 있고 평가 데이터는 없는 PENDING 상태로 재구성합니다.
+      responses:
+        '200':
+          description: 강의평가 테스트 상태 세팅 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 재사용 가능한 실제 강의 후보 없음 또는 대상 계정 상태 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/test-lecture-evaluations/skipped:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 강의평가 SKIPPED 상태 세팅
+      description: 고정 프론트 테스트 계정의 2026년 1학기(10)를 실제 교수 연결 강의와 완료 성적 수강 데이터가 있고 평가 데이터는 없는 SKIPPED 상태로 재구성합니다.
+      responses:
+        '200':
+          description: 강의평가 테스트 상태 세팅 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 재사용 가능한 실제 강의 후보 없음 또는 대상 계정 상태 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
+  /api/admin/test-lecture-evaluations/completed:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 강의평가 COMPLETED 상태 세팅
+      description: 고정 프론트 테스트 계정의 2026년 1학기(10)를 실제 교수 연결 강의, 완료 성적 수강 데이터, 과목별 평가와 태그가 있는 COMPLETED 상태로 재구성합니다.
+      responses:
+        '200':
+          description: 강의평가 테스트 상태 세팅 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageOnlyApiResponse'
+        '400':
+          description: 재사용 가능한 실제 강의 후보 없음 또는 대상 계정 상태 불일치
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /portal/link/jobs/{jobId}/duration:
     get:
       tags:
