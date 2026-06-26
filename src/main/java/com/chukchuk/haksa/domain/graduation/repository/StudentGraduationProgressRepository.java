@@ -9,4 +9,6 @@ import java.util.UUID;
 
 public interface StudentGraduationProgressRepository extends JpaRepository<StudentGraduationProgress, UUID> {
     Optional<StudentGraduationProgress> findByStudentId(UUID studentId);
+
+    void deleteByStudentId(UUID studentId);
 }

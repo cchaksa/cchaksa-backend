@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.student.service;
 import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
+import com.chukchuk.haksa.domain.graduation.repository.StudentGraduationProgressRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class StudentDeletionService {
     private final StudentAcademicRecordRepository studentAcademicRecordRepository;
     private final SemesterAcademicRecordRepository semesterAcademicRecordRepository;
     private final StudentCourseRepository studentCourseRepository;
+    private final StudentGraduationProgressRepository studentGraduationProgressRepository;
     private final StudentRepository studentRepository;
 
     @Transactional
@@ -34,6 +36,7 @@ public class StudentDeletionService {
             studentCourseRepository.deleteByStudentId(studentId);
             semesterAcademicRecordRepository.deleteByStudentId(studentId);
             studentAcademicRecordRepository.deleteByStudentId(studentId);
+            studentGraduationProgressRepository.deleteByStudentId(studentId);
         }
         studentRepository.delete(student);
     }

@@ -14,6 +14,8 @@ import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.course.repository.CourseRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
+import com.chukchuk.haksa.domain.graduation.model.StudentGraduationProgress;
+import com.chukchuk.haksa.domain.graduation.repository.StudentGraduationProgressRepository;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -65,6 +67,8 @@ class UserServiceIntegrationTest {
     private CourseRepository courseRepository;
     @Autowired
     private CourseOfferingRepository courseOfferingRepository;
+    @SpyBean
+    private StudentGraduationProgressRepository studentGraduationProgressRepository;
 
     @MockBean
     private AcademicCache academicCache;
@@ -99,6 +103,7 @@ class UserServiceIntegrationTest {
         assertThat(studentAcademicRecordRepository.findByStudentId(studentId)).isEmpty();
         assertThat(semesterAcademicRecordRepository.findByStudentId(studentId)).isEmpty();
         assertThat(studentCourseRepository.findAll()).isEmpty();
+        assertThat(studentGraduationProgressRepository.findByStudentId(studentId)).isEmpty();
 
         verify(academicCache).deleteAllByStudentId(studentId);
         verify(authTokenCache).evictByUserId(user.getId().toString());
@@ -125,6 +130,7 @@ class UserServiceIntegrationTest {
         verify(authTokenCache).evictByUserId(user.getId().toString());
         verify(studentRepository, never()).delete(any());
         verify(studentAcademicRecordRepository, never()).deleteByStudentId(any());
+        verify(studentGraduationProgressRepository, never()).deleteByStudentId(any());
     }
 
     private Student createStudent(User user) {
@@ -202,5 +208,9 @@ class UserServiceIntegrationTest {
         );
         student.addStudentCourse(studentCourse);
         studentCourseRepository.save(studentCourse);
+
+        studentGraduationProgressRepository.save(
+                StudentGraduationProgress.createForLanguageCert(student, true)
+        );
     }
 }
