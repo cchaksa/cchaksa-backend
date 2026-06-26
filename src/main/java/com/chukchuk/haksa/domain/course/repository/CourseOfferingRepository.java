@@ -60,4 +60,19 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
             Integer semester,
             String departmentName
     );
+
+    @Query("""
+        SELECT o FROM CourseOffering o
+        JOIN FETCH o.course c
+        JOIN FETCH o.professor p
+        LEFT JOIN FETCH o.department d
+        LEFT JOIN FETCH o.liberalArtsAreaCode lac
+        WHERE o.deletedAt IS NULL
+          AND o.year = :year
+          AND o.semester = :semester
+          AND o.course IS NOT NULL
+          AND o.professor IS NOT NULL
+        ORDER BY c.courseName ASC, p.professorName ASC, o.id ASC
+    """)
+    List<CourseOffering> findReusableLectureEvaluationTestOfferings(Integer year, Integer semester);
 }

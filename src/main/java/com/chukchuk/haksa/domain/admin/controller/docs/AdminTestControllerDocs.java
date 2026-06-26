@@ -57,4 +57,19 @@ public interface AdminTestControllerDocs {
             CustomUserDetails userDetails,
             AdminTestDto.CreateTestCourseRequest request
     );
+
+    @Operation(summary = "dev 강의평가 empty-semester 상태 세팅", description = "고정 프론트 테스트 계정의 target 학기 평가/수강/학기 row를 삭제합니다.")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationEmptySemester();
+
+    @Operation(summary = "dev 강의평가 NOT_RELEASED 상태 세팅", description = "고정 프론트 테스트 계정의 target 학기를 성적 미공개 상태로 재구성합니다.")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationNotReleased();
+
+    @Operation(summary = "dev 강의평가 PENDING 상태 세팅", description = "고정 프론트 테스트 계정의 target 학기를 강의평가 대기 상태로 재구성합니다.")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationPending();
+
+    @Operation(summary = "dev 강의평가 SKIPPED 상태 세팅", description = "고정 프론트 테스트 계정의 target 학기를 강의평가 건너뛰기 상태로 재구성합니다.")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationSkipped();
+
+    @Operation(summary = "dev 강의평가 COMPLETED 상태 세팅", description = "고정 프론트 테스트 계정의 target 학기를 강의평가 완료 상태로 재구성합니다.")
+    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationCompleted();
 }

@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -160,12 +161,20 @@ class JwtAuthenticationFilterTests {
 
         mockMvc.perform(get("/api/admin/course-offerings"))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/admin/test-lecture-evaluations/pending"))
+                .andExpect(status().isOk());
     }
 
     @RestController
     static class AdminReadEndpointController {
         @GetMapping({"/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings"})
         String ok() {
+            return "ok";
+        }
+
+        @org.springframework.web.bind.annotation.PostMapping("/api/admin/test-lecture-evaluations/pending")
+        String postOk() {
             return "ok";
         }
     }

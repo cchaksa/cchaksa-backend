@@ -57,6 +57,7 @@ public class SecurityConfig {
             "/api/users/signin", "/api/users/signin/**", "/api/auth/refresh",
             "/api/admin/test-users",
             "/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings",
+            "/api/admin/test-lecture-evaluations/**",
             "/internal/scrape-results",
             "/actuator/prometheus", "/actuator/health", "/actuator/info"
     };
