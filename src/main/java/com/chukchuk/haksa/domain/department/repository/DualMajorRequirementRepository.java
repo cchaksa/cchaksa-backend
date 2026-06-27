@@ -5,6 +5,7 @@ import com.chukchuk.haksa.domain.department.model.DualMajorRequirement;
 import com.chukchuk.haksa.domain.department.model.MajorRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface DualMajorRequirementRepository extends JpaRepository<DualMajorRequirement, UUID> {
@@ -13,5 +14,11 @@ public interface DualMajorRequirementRepository extends JpaRepository<DualMajorR
             Integer admissionYear,
             MajorRole majorRole,
             String areaType
+    );
+
+    List<DualMajorRequirement> findAllByDepartmentIdAndAdmissionYearAndMajorRole(
+            Long departmentId,
+            Integer admissionYear,
+            MajorRole majorRole
     );
 }

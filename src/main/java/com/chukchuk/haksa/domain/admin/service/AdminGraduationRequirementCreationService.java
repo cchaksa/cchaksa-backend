@@ -68,7 +68,7 @@ public class AdminGraduationRequirementCreationService {
         if (!dryRun) {
             saveSingleTargets(primary, admissionYear, singleTargets);
             saveDualTargets(primary, secondary, admissionYear, dualTargets);
-            refreshCache(student, primary, secondary, admissionYear, primaryTemplate, secondaryTemplate);
+            refreshCache(student, primary, secondary, admissionYear);
         }
         List<AdminTestDto.GraduationRequirementCreationTarget> responseSingleTargets =
                 dryRun ? singleTargets : markCreated(singleTargets);
@@ -217,20 +217,32 @@ public class AdminGraduationRequirementCreationService {
             Student student,
             Department primary,
             Department secondary,
-            Integer admissionYear,
-            AdminGraduationRequirementTemplate primaryTemplate,
-            AdminGraduationRequirementTemplate secondaryTemplate
+            Integer admissionYear
     ) {
         academicCache.deleteAllByStudentId(student.getId());
         academicCache.setGraduationRequirements(
                 primary.getId(),
                 admissionYear,
-                toAreaDtos(primaryTemplate.singleMajorRequirements())
+                toAreaDtosFromAreaRequirements(
+                        areaRequirementRepository.findAllByDepartmentIdAndAdmissionYear(primary.getId(), admissionYear)
+                )
         );
         if (secondary != null) {
             List<AreaRequirementDto> dualRequirements = java.util.stream.Stream.concat(
-                    toAreaDtos(primaryTemplate.dualMajorRequirements(), MajorRole.PRIMARY).stream(),
-                    toAreaDtos(secondaryTemplate.dualMajorRequirements(), MajorRole.SECONDARY).stream()
+                    toAreaDtosFromDualRequirements(
+                            dualMajorRequirementRepository.findAllByDepartmentIdAndAdmissionYearAndMajorRole(
+                                    primary.getId(),
+                                    admissionYear,
+                                    MajorRole.PRIMARY
+                            )
+                    ).stream(),
+                    toAreaDtosFromDualRequirements(
+                            dualMajorRequirementRepository.findAllByDepartmentIdAndAdmissionYearAndMajorRole(
+                                    secondary.getId(),
+                                    admissionYear,
+                                    MajorRole.SECONDARY
+                            )
+                    ).stream()
             ).toList();
             academicCache.setDualMajorRequirements(primary.getId(), secondary.getId(), admissionYear, dualRequirements);
         }
@@ -266,21 +278,25 @@ public class AdminGraduationRequirementCreationService {
         );
     }
 
-    private List<AreaRequirementDto> toAreaDtos(
-            List<AdminGraduationRequirementTemplate.AreaRequirement> requirements
-    ) {
+    private List<AreaRequirementDto> toAreaDtosFromAreaRequirements(List<DepartmentAreaRequirement> requirements) {
         return requirements.stream()
-                .map(requirement -> new AreaRequirementDto(requirement.areaType(), requirement.requiredCredits(), null, null))
+                .map(requirement -> new AreaRequirementDto(
+                        requirement.getAreaType(),
+                        requirement.getRequiredCredits(),
+                        null,
+                        null
+                ))
                 .toList();
     }
 
-    private List<AreaRequirementDto> toAreaDtos(
-            List<AdminGraduationRequirementTemplate.DualMajorRequirement> requirements,
-            MajorRole role
-    ) {
+    private List<AreaRequirementDto> toAreaDtosFromDualRequirements(List<DualMajorRequirement> requirements) {
         return requirements.stream()
-                .filter(requirement -> requirement.majorRole() == role)
-                .map(requirement -> new AreaRequirementDto(requirement.areaType(), requirement.requiredCredits(), null, null))
+                .map(requirement -> new AreaRequirementDto(
+                        requirement.getAreaType(),
+                        requirement.getRequiredCredits(),
+                        null,
+                        null
+                ))
                 .toList();
     }
 

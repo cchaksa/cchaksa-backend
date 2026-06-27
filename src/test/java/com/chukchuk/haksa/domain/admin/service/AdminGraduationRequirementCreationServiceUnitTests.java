@@ -10,6 +10,7 @@ import com.chukchuk.haksa.domain.department.model.DualMajorRequirement;
 import com.chukchuk.haksa.domain.department.model.MajorRole;
 import com.chukchuk.haksa.domain.department.repository.DepartmentAreaRequirementRepository;
 import com.chukchuk.haksa.domain.department.repository.DualMajorRequirementRepository;
+import com.chukchuk.haksa.domain.graduation.dto.AreaRequirementDto;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -106,6 +108,12 @@ class AdminGraduationRequirementCreationServiceUnitTests {
                 .thenReturn(Optional.of(template("컴퓨터공학")));
         when(templateService.findByAdmissionYearAndDepartmentName(2026, "경영학"))
                 .thenReturn(Optional.of(template("경영학")));
+        when(areaRequirementRepository.findAllByDepartmentIdAndAdmissionYear(1L, 2026))
+                .thenReturn(List.of(DepartmentAreaRequirement.create(primary, 2026, "DB전핵", 99)));
+        when(dualMajorRequirementRepository.findAllByDepartmentIdAndAdmissionYearAndMajorRole(1L, 2026, MajorRole.PRIMARY))
+                .thenReturn(List.of(DualMajorRequirement.create(primary, 2026, MajorRole.PRIMARY, "DB복선", 6)));
+        when(dualMajorRequirementRepository.findAllByDepartmentIdAndAdmissionYearAndMajorRole(2L, 2026, MajorRole.SECONDARY))
+                .thenReturn(List.of(DualMajorRequirement.create(secondary, 2026, MajorRole.SECONDARY, "DB복핵", 27)));
 
         AdminTestDto.CreateMissingGraduationRequirementsResponse response = service.createMissing(
                 new AdminTestDto.CreateMissingGraduationRequirementsRequest("20260001", false)
@@ -113,11 +121,20 @@ class AdminGraduationRequirementCreationServiceUnitTests {
 
         ArgumentCaptor<List<DepartmentAreaRequirement>> areaCaptor = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<List<DualMajorRequirement>> dualCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<AreaRequirementDto>> areaCacheCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<AreaRequirementDto>> dualCacheCaptor = ArgumentCaptor.forClass(List.class);
         verify(areaRequirementRepository).saveAll(areaCaptor.capture());
         verify(dualMajorRequirementRepository).saveAll(dualCaptor.capture());
         verify(academicCache).deleteAllByStudentId(student.getId());
+        verify(academicCache).setGraduationRequirements(eq(1L), eq(2026), areaCacheCaptor.capture());
+        verify(academicCache).setDualMajorRequirements(eq(1L), eq(2L), eq(2026), dualCacheCaptor.capture());
         assertThat(areaCaptor.getValue()).hasSize(2);
         assertThat(dualCaptor.getValue()).hasSize(2);
+        assertThat(areaCacheCaptor.getValue()).containsExactly(new AreaRequirementDto("DB전핵", 99, null, null));
+        assertThat(dualCacheCaptor.getValue()).containsExactly(
+                new AreaRequirementDto("DB복선", 6, null, null),
+                new AreaRequirementDto("DB복핵", 27, null, null)
+        );
         assertThat(response.createdSingleMajorCount()).isEqualTo(2);
         assertThat(response.createdDualMajorCount()).isEqualTo(2);
         assertThat(response.singleMajorRequirements())
