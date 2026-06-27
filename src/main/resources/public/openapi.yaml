@@ -1721,6 +1721,8 @@ components:
 
     AdminCreateMissingGraduationRequirementsRequest:
       type: object
+      required:
+        - studentCode
       properties:
         studentCode:
           type: string

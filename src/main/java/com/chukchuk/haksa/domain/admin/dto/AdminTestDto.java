@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.admin.dto;
 
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 
 import java.util.List;
 import java.util.UUID;
@@ -112,6 +113,7 @@ public class AdminTestDto {
 
     @Schema(description = "누락 졸업요건 생성 요청")
     public record CreateMissingGraduationRequirementsRequest(
+            @NotBlank
             @Schema(description = "학번") String studentCode,
             @Schema(description = "실제 저장 없이 생성 대상만 확인할지 여부. 비어 있으면 true입니다.") Boolean dryRun
     ) {

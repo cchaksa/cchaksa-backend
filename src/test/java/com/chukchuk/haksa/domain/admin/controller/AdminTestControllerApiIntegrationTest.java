@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -205,6 +206,24 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.data.studentCode").value("20260001"))
                 .andExpect(jsonPath("$.data.dryRun").value(true))
                 .andExpect(jsonPath("$.data.missingSingleMajorCount").value(1));
+    }
+
+    @Test
+    @DisplayName("누락 졸업요건 생성 요청의 학번이 비어 있으면 실패한다")
+    void createMissingGraduationRequirements_blankStudentCode_returnsBadRequest() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+
+        mockMvc.perform(post("/api/admin/graduation-requirements/missing")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "studentCode": " ",
+                                  "dryRun": true
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(creationService);
     }
 
     @Test
