@@ -38,4 +38,18 @@ public class DepartmentAreaRequirement extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    public static DepartmentAreaRequirement create(
+            Department department,
+            Integer admissionYear,
+            String areaType,
+            Integer requiredCredits
+    ) {
+        DepartmentAreaRequirement requirement = new DepartmentAreaRequirement();
+        requirement.department = department;
+        requirement.admissionYear = admissionYear;
+        requirement.areaType = areaType;
+        requirement.requiredCredits = requiredCredits;
+        return requirement;
+    }
 }

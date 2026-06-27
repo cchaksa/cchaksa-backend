@@ -32,4 +32,20 @@ public class DualMajorRequirement {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    public static DualMajorRequirement create(
+            Department department,
+            Integer admissionYear,
+            MajorRole majorRole,
+            String areaType,
+            Integer requiredCredits
+    ) {
+        DualMajorRequirement requirement = new DualMajorRequirement();
+        requirement.department = department;
+        requirement.admissionYear = admissionYear;
+        requirement.majorRole = majorRole;
+        requirement.areaType = areaType;
+        requirement.requiredCredits = requiredCredits;
+        return requirement;
+    }
 }
