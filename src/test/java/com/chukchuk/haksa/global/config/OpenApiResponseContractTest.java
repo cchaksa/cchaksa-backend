@@ -58,6 +58,8 @@ class OpenApiResponseContractTest {
             new OperationRef("/api/semester", "get"),
             new OperationRef("/api/semester/grades", "get"),
             new OperationRef("/api/graduation/progress", "get"),
+            new OperationRef("/api/admin/graduation-requirements/diagnostics", "get"),
+            new OperationRef("/api/admin/graduation-requirements/missing", "post"),
             new OperationRef("/api/academic/summary", "get"),
             new OperationRef("/api/academic/record", "get"),
             new OperationRef("/api/lecture-evaluations/required", "get"),

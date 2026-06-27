@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 
 import com.chukchuk.haksa.domain.admin.controller.docs.AdminTestControllerDocs;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
+import com.chukchuk.haksa.domain.admin.service.AdminGraduationRequirementCreationService;
 import com.chukchuk.haksa.domain.admin.service.AdminGraduationRequirementDiagnosticService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
@@ -38,6 +39,7 @@ public class AdminTestController implements AdminTestControllerDocs {
     private final AdminTestMutationService mutationService;
     private final AdminTestLectureEvaluationService lectureEvaluationService;
     private final AdminGraduationRequirementDiagnosticService diagnosticService;
+    private final AdminGraduationRequirementCreationService creationService;
 
     @Override
     @PostMapping("/test-users")
@@ -86,6 +88,14 @@ public class AdminTestController implements AdminTestControllerDocs {
             @RequestParam String studentCode
     ) {
         return ResponseEntity.ok(SuccessResponse.of(diagnosticService.diagnose(studentCode)));
+    }
+
+    @Override
+    @PostMapping("/graduation-requirements/missing")
+    public ResponseEntity<SuccessResponse<AdminTestDto.CreateMissingGraduationRequirementsResponse>> createMissingGraduationRequirements(
+            @Valid @RequestBody AdminTestDto.CreateMissingGraduationRequirementsRequest request
+    ) {
+        return ResponseEntity.ok(SuccessResponse.of(creationService.createMissing(request)));
     }
 
     @Override

@@ -4,6 +4,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
 import com.chukchuk.haksa.domain.admin.service.AdminGraduationRequirementDiagnosticService;
+import com.chukchuk.haksa.domain.admin.service.AdminGraduationRequirementCreationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
@@ -53,6 +54,9 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     @MockBean
     private AdminGraduationRequirementDiagnosticService diagnosticService;
+
+    @MockBean
+    private AdminGraduationRequirementCreationService creationService;
 
     @MockBean
     private AdminTestMutationService mutationService;
@@ -175,6 +179,32 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.data.studentCode").value("20240001"))
                 .andExpect(jsonPath("$.data.majorType").value("DUAL"))
                 .andExpect(jsonPath("$.data.progressResolvable").value(true));
+    }
+
+    @Test
+    @DisplayName("누락 졸업요건 생성 성공 시 dry-run 결과를 반환한다")
+    void createMissingGraduationRequirements_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        AdminTestDto.CreateMissingGraduationRequirementsResponse response =
+                new AdminTestDto.CreateMissingGraduationRequirementsResponse(
+                        "20260001", 2026, true, false, null, null,
+                        1, 0, 0, 0, List.of(), List.of()
+                );
+        when(creationService.createMissing(any())).thenReturn(response);
+
+        mockMvc.perform(post("/api/admin/graduation-requirements/missing")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "studentCode": "20260001",
+                                  "dryRun": true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.studentCode").value("20260001"))
+                .andExpect(jsonPath("$.data.dryRun").value(true))
+                .andExpect(jsonPath("$.data.missingSingleMajorCount").value(1));
     }
 
     @Test

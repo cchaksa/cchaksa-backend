@@ -39,6 +39,12 @@ public interface AdminTestControllerDocs {
             String studentCode
     );
 
+    @Operation(summary = "누락 졸업요건 생성", description = "dev 환경에서 PDF 추출 리소스를 기준으로 학생의 누락 졸업요건을 dry-run 또는 실제 생성합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<AdminTestDto.CreateMissingGraduationRequirementsResponse>> createMissingGraduationRequirements(
+            AdminTestDto.CreateMissingGraduationRequirementsRequest request
+    );
+
     @Operation(summary = "현재 계정 강의 데이터 수정", description = "현재 인증 계정의 졸업요건 강의 데이터를 추가하거나 삭제합니다.")
     @SecurityRequirement(name = "bearerAuth")
     ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateGraduationCourses(

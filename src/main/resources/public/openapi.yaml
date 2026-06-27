@@ -426,6 +426,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorDetail'
 
+  /api/admin/graduation-requirements/missing:
+    post:
+      tags:
+        - Admin Test
+      summary: dev 누락 졸업요건 생성
+      description: Authorization 토큰으로 인증한 뒤 PDF 추출 리소스를 기준으로 학생의 누락 졸업요건을 dry-run 또는 실제 생성합니다. dryRun을 생략하면 true로 처리해 DB에 저장하지 않습니다.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminCreateMissingGraduationRequirementsRequest'
+      responses:
+        '200':
+          description: 누락 졸업요건 생성 결과
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminCreateMissingGraduationRequirementsApiResponse'
+        '400':
+          description: 잘못된 요청 또는 PDF 템플릿 매칭 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: 학생 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/admin/me/graduation-courses:
     patch:
       tags:
@@ -1678,6 +1718,134 @@ components:
           type: integer
           format: int32
           example: 3
+
+    AdminCreateMissingGraduationRequirementsRequest:
+      type: object
+      properties:
+        studentCode:
+          type: string
+          description: 졸업요건을 생성할 학생 학번
+          example: '20260001'
+        dryRun:
+          type: boolean
+          nullable: true
+          description: 실제 저장 없이 생성 대상만 확인할지 여부. 비어 있으면 true입니다.
+          example: true
+
+    AdminCreateMissingGraduationRequirementsApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AdminCreateMissingGraduationRequirementsResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminCreateMissingGraduationRequirementsResponse:
+      type: object
+      properties:
+        studentCode:
+          type: string
+          example: '20260001'
+        admissionYear:
+          type: integer
+          format: int32
+          example: 2026
+        dryRun:
+          type: boolean
+          example: true
+        applied:
+          type: boolean
+          example: false
+        primaryTemplate:
+          $ref: '#/components/schemas/AdminGraduationRequirementTemplateMatch'
+        secondaryTemplate:
+          $ref: '#/components/schemas/AdminGraduationRequirementTemplateMatch'
+          nullable: true
+        missingSingleMajorCount:
+          type: integer
+          format: int32
+          example: 9
+        createdSingleMajorCount:
+          type: integer
+          format: int32
+          example: 0
+        missingDualMajorCount:
+          type: integer
+          format: int32
+          example: 4
+        createdDualMajorCount:
+          type: integer
+          format: int32
+          example: 0
+        singleMajorRequirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGraduationRequirementCreationTarget'
+        dualMajorRequirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGraduationRequirementCreationTarget'
+
+    AdminGraduationRequirementTemplateMatch:
+      type: object
+      properties:
+        sourcePdf:
+          type: string
+          example: 2026_credits.pdf
+        sourcePage:
+          type: integer
+          format: int32
+          example: 1
+        departmentName:
+          type: string
+          nullable: true
+          example: 컴퓨터공학부
+        majorName:
+          type: string
+          nullable: true
+          example: 컴퓨터공학
+
+    AdminGraduationRequirementCreationTarget:
+      type: object
+      properties:
+        targetTable:
+          type: string
+          example: department_area_requirements
+        departmentId:
+          type: integer
+          format: int64
+          example: 1
+        departmentName:
+          type: string
+          example: 컴퓨터공학
+        majorRole:
+          type: string
+          nullable: true
+          enum:
+            - PRIMARY
+            - SECONDARY
+          example: PRIMARY
+        areaType:
+          type: string
+          example: 전핵
+        requiredCredits:
+          type: integer
+          format: int32
+          example: 24
+        alreadyExists:
+          type: boolean
+          example: false
 
     AdminUpdateGraduationCoursesRequest:
       type: object

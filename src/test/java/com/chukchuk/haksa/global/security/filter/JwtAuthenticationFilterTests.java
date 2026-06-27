@@ -174,6 +174,13 @@ class JwtAuthenticationFilterTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    @DisplayName("누락 졸업요건 생성 API는 토큰 없이 호출할 수 없다")
+    void postMissingGraduationRequirements_withoutToken_requiresAuthentication() throws Exception {
+        mockMvc.perform(post("/api/admin/graduation-requirements/missing"))
+                .andExpect(status().isUnauthorized());
+    }
+
     @RestController
     static class AdminReadEndpointController {
         @GetMapping({
@@ -188,6 +195,11 @@ class JwtAuthenticationFilterTests {
 
         @org.springframework.web.bind.annotation.PostMapping("/api/admin/test-lecture-evaluations/pending")
         String postOk() {
+            return "ok";
+        }
+
+        @org.springframework.web.bind.annotation.PostMapping("/api/admin/graduation-requirements/missing")
+        String protectedPostOk() {
             return "ok";
         }
     }
