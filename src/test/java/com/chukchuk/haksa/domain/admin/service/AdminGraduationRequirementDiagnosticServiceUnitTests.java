@@ -22,6 +22,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -95,14 +96,51 @@ class AdminGraduationRequirementDiagnosticServiceUnitTests {
                         .isEqualTo(ErrorCode.STUDENT_NOT_FOUND.code()));
     }
 
+    @Test
+    @DisplayName("입학년도가 없으면 잘못된 요청으로 실패한다")
+    void diagnose_withoutAdmissionYear_failsWithInvalidArgument() {
+        Department department = department(1L, "CSE", "컴퓨터학과");
+        Student student = student("20240001", department, null, null, null);
+        when(studentRepository.findByStudentCode("20240001")).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.diagnose("20240001"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode())
+                        .isEqualTo(ErrorCode.INVALID_ARGUMENT.code()));
+        verifyNoInteractions(departmentRepository, graduationQueryRepository);
+    }
+
+    @Test
+    @DisplayName("주전공과 소속 학과가 모두 없으면 잘못된 요청으로 실패한다")
+    void diagnose_withoutPrimaryDepartment_failsWithInvalidArgument() {
+        Student student = student("20240001", null, null, null);
+        when(studentRepository.findByStudentCode("20240001")).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.diagnose("20240001"))
+                .isInstanceOf(CommonException.class)
+                .satisfies(ex -> assertThat(((CommonException) ex).getCode())
+                        .isEqualTo(ErrorCode.INVALID_ARGUMENT.code()));
+        verifyNoInteractions(departmentRepository, graduationQueryRepository);
+    }
+
     private Student student(String studentCode, Department department, Department major, Department secondaryMajor) {
+        return student(studentCode, department, major, secondaryMajor, 2024);
+    }
+
+    private Student student(
+            String studentCode,
+            Department department,
+            Department major,
+            Department secondaryMajor,
+            Integer admissionYear
+    ) {
         return Student.builder()
                 .studentCode(studentCode)
                 .name("테스트")
                 .department(department)
                 .major(major)
                 .secondaryMajor(secondaryMajor)
-                .admissionYear(2024)
+                .admissionYear(admissionYear)
                 .isTransferStudent(false)
                 .build();
     }

@@ -33,7 +33,13 @@ public class AdminGraduationRequirementDiagnosticService {
         Integer admissionYear = student.getAcademicInfo() != null
                 ? student.getAcademicInfo().getAdmissionYear()
                 : null;
+        if (admissionYear == null) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        }
         Department primaryDepartment = student.getMajor() != null ? student.getMajor() : student.getDepartment();
+        if (primaryDepartment == null) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        }
         Department secondaryDepartment = student.getSecondaryMajor();
         List<AdminTestDto.GraduationRequirementCandidate> primaryCandidates =
                 buildRequirementCandidates(resolveCandidateDepartments(primaryDepartment), admissionYear);
