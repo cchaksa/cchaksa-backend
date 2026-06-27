@@ -16,11 +16,13 @@ import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -239,7 +241,15 @@ public class AdminGraduationRequirementCreationService {
                         admissionYear,
                         department.getEstablishedDepartmentName()
                 )
-                .orElseThrow(() -> new CommonException(ErrorCode.INVALID_ARGUMENT));
+                .orElseThrow(() -> {
+                    log.warn(
+                            "Graduation requirement template not found. admissionYear={}, departmentId={}, departmentName={}",
+                            admissionYear,
+                            department.getId(),
+                            department.getEstablishedDepartmentName()
+                    );
+                    return new CommonException(ErrorCode.INVALID_ARGUMENT);
+                });
     }
 
     private AdminTestDto.GraduationRequirementTemplateMatch toTemplateMatch(

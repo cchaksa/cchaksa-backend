@@ -68,6 +68,7 @@ public enum ErrorCode {
 
     // 졸업 요건 관련
     GRADUATION_REQUIREMENTS_DATA_NOT_FOUND("G02", "사용자에게 맞는 졸업 요건 데이터가 존재하지 않습니다.", HttpStatus.NOT_FOUND),
+    GRADUATION_REQUIREMENTS_TEMPLATE_INVALID("G03", "졸업 요건 템플릿 데이터가 올바르지 않습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
 
     // 포털 관련
     PORTAL_LOGIN_FAILED("P01", "아이디나 비밀번호가 일치하지 않습니다.\n학교 홈페이지에서 확인해주세요.", HttpStatus.UNAUTHORIZED),
