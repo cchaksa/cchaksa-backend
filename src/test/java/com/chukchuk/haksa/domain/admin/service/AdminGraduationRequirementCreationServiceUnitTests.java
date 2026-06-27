@@ -12,6 +12,8 @@ import com.chukchuk.haksa.domain.department.repository.DepartmentAreaRequirement
 import com.chukchuk.haksa.domain.department.repository.DualMajorRequirementRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.global.exception.code.ErrorCode;
+import com.chukchuk.haksa.global.exception.type.CommonException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,8 +28,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,6 +54,21 @@ class AdminGraduationRequirementCreationServiceUnitTests {
 
     @InjectMocks
     private AdminGraduationRequirementCreationService service;
+
+    @Test
+    @DisplayName("학생의 주전공과 소속 학과가 모두 없으면 잘못된 요청으로 실패한다")
+    void createMissing_withoutPrimaryDepartment_failsWithInvalidArgument() {
+        Student student = student("20260001", null, null, null);
+        when(studentRepository.findByStudentCode("20260001")).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> service.createMissing(
+                new AdminTestDto.CreateMissingGraduationRequirementsRequest("20260001", true)
+        ))
+                .isInstanceOf(CommonException.class)
+                .extracting(ex -> ((CommonException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_ARGUMENT);
+        verifyNoInteractions(templateService);
+    }
 
     @Test
     @DisplayName("dry-run이면 누락 졸업요건을 저장하지 않고 생성 대상을 반환한다")

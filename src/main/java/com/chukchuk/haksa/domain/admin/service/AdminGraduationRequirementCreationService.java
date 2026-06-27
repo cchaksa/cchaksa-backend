@@ -49,6 +49,9 @@ public class AdminGraduationRequirementCreationService {
             throw new CommonException(ErrorCode.INVALID_ARGUMENT);
         }
         Department primary = student.getMajor() != null ? student.getMajor() : student.getDepartment();
+        if (primary == null) {
+            throw new CommonException(ErrorCode.INVALID_ARGUMENT);
+        }
         Department secondary = student.getSecondaryMajor();
         AdminGraduationRequirementTemplate primaryTemplate = getTemplate(admissionYear, primary);
         AdminGraduationRequirementTemplate secondaryTemplate = secondary != null
