@@ -140,13 +140,14 @@ public class AdminTestDto {
 
     @Schema(description = "졸업요건 생성 대상")
     public record GraduationRequirementCreationTarget(
-            String targetTable,
-            Long departmentId,
-            String departmentName,
-            String majorRole,
-            String areaType,
-            Integer requiredCredits,
-            boolean alreadyExists
+            @Schema(description = "저장 대상 테이블") String targetTable,
+            @Schema(description = "학과 ID") Long departmentId,
+            @Schema(description = "학과명") String departmentName,
+            @Schema(description = "복수전공 역할. 단일전공 요건이면 null입니다.") String majorRole,
+            @Schema(description = "졸업요건 영역") String areaType,
+            @Schema(description = "요구 학점") Integer requiredCredits,
+            @Schema(description = "요청 처리 전 이미 존재하던 row인지 여부") boolean alreadyExists,
+            @Schema(description = "dryRun=false 요청에서 이번 요청으로 생성된 row인지 여부") boolean created
     ) {
     }
 

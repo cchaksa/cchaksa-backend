@@ -1845,6 +1845,11 @@ components:
           example: 24
         alreadyExists:
           type: boolean
+          description: 요청 처리 전 이미 존재하던 row인지 여부
+          example: false
+        created:
+          type: boolean
+          description: dryRun=false 요청에서 이번 요청으로 생성된 row인지 여부
           example: false
 
     AdminUpdateGraduationCoursesRequest:

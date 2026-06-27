@@ -68,6 +68,10 @@ public class AdminGraduationRequirementCreationService {
             saveDualTargets(primary, secondary, admissionYear, dualTargets);
             refreshCache(student, primary, secondary, admissionYear, primaryTemplate, secondaryTemplate);
         }
+        List<AdminTestDto.GraduationRequirementCreationTarget> responseSingleTargets =
+                dryRun ? singleTargets : markCreated(singleTargets);
+        List<AdminTestDto.GraduationRequirementCreationTarget> responseDualTargets =
+                dryRun ? dualTargets : markCreated(dualTargets);
         return new AdminTestDto.CreateMissingGraduationRequirementsResponse(
                 studentCode,
                 admissionYear,
@@ -79,8 +83,8 @@ public class AdminGraduationRequirementCreationService {
                 dryRun ? 0 : missingSingle,
                 missingDual,
                 dryRun ? 0 : missingDual,
-                singleTargets,
-                dualTargets
+                responseSingleTargets,
+                responseDualTargets
         );
     }
 
@@ -101,7 +105,8 @@ public class AdminGraduationRequirementCreationService {
                                 department.getId(),
                                 admissionYear,
                                 requirement.areaType()
-                        )
+                        ),
+                        false
                 ))
                 .toList();
     }
@@ -143,7 +148,25 @@ public class AdminGraduationRequirementCreationService {
                                 admissionYear,
                                 role,
                                 requirement.areaType()
-                        )
+                        ),
+                        false
+                ))
+                .toList();
+    }
+
+    private List<AdminTestDto.GraduationRequirementCreationTarget> markCreated(
+            List<AdminTestDto.GraduationRequirementCreationTarget> targets
+    ) {
+        return targets.stream()
+                .map(target -> new AdminTestDto.GraduationRequirementCreationTarget(
+                        target.targetTable(),
+                        target.departmentId(),
+                        target.departmentName(),
+                        target.majorRole(),
+                        target.areaType(),
+                        target.requiredCredits(),
+                        target.alreadyExists(),
+                        !target.alreadyExists()
                 ))
                 .toList();
     }

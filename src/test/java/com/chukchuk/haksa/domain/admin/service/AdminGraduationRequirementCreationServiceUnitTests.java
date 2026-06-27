@@ -120,6 +120,12 @@ class AdminGraduationRequirementCreationServiceUnitTests {
         assertThat(dualCaptor.getValue()).hasSize(2);
         assertThat(response.createdSingleMajorCount()).isEqualTo(2);
         assertThat(response.createdDualMajorCount()).isEqualTo(2);
+        assertThat(response.singleMajorRequirements())
+                .extracting(AdminTestDto.GraduationRequirementCreationTarget::created)
+                .containsOnly(true);
+        assertThat(response.dualMajorRequirements())
+                .extracting(AdminTestDto.GraduationRequirementCreationTarget::created)
+                .containsOnly(true);
     }
 
     private Student student(String studentCode, Department department, Department major, Department secondaryMajor) {

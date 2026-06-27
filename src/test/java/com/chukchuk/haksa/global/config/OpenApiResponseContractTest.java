@@ -200,6 +200,23 @@ class OpenApiResponseContractTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void staticOpenApiDocumentsGraduationRequirementCreationTargetCreatedFlag() throws Exception {
+        Map<String, Object> staticOpenApi;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
+            staticOpenApi = new Yaml().load(inputStream);
+        }
+
+        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> target = (Map<String, Object>) schemas.get("AdminGraduationRequirementCreationTarget");
+        Map<String, Object> properties = (Map<String, Object>) target.get("properties");
+        Map<String, Object> created = (Map<String, Object>) properties.get("created");
+
+        assertThat(created.get("type")).isEqualTo("boolean");
+    }
+
+    @Test
     void jsonResponsesDoNotUseWildcardMediaType() throws Exception {
         JsonNode apiDocs = apiDocs();
 
