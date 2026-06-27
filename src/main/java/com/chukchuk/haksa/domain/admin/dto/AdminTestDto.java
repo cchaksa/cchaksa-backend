@@ -110,6 +110,46 @@ public class AdminTestDto {
     public record DualMajorRequirementCandidate(Long primaryDepartmentId, Long secondaryDepartmentId, int dualRequirementCount) {
     }
 
+    @Schema(description = "누락 졸업요건 생성 요청")
+    public record CreateMissingGraduationRequirementsRequest(
+            @Schema(description = "학번") String studentCode,
+            @Schema(description = "실제 저장 없이 생성 대상만 확인할지 여부. 비어 있으면 true입니다.") Boolean dryRun
+    ) {
+    }
+
+    @Schema(description = "누락 졸업요건 생성 응답")
+    public record CreateMissingGraduationRequirementsResponse(
+            String studentCode,
+            Integer admissionYear,
+            boolean dryRun,
+            boolean applied,
+            GraduationRequirementTemplateMatch primaryTemplate,
+            GraduationRequirementTemplateMatch secondaryTemplate,
+            int missingSingleMajorCount,
+            int createdSingleMajorCount,
+            int missingDualMajorCount,
+            int createdDualMajorCount,
+            List<GraduationRequirementCreationTarget> singleMajorRequirements,
+            List<GraduationRequirementCreationTarget> dualMajorRequirements
+    ) {
+    }
+
+    @Schema(description = "PDF 졸업요건 템플릿 매칭 정보")
+    public record GraduationRequirementTemplateMatch(String sourcePdf, Integer sourcePage, String departmentName, String majorName) {
+    }
+
+    @Schema(description = "졸업요건 생성 대상")
+    public record GraduationRequirementCreationTarget(
+            String targetTable,
+            Long departmentId,
+            String departmentName,
+            String majorRole,
+            String areaType,
+            Integer requiredCredits,
+            boolean alreadyExists
+    ) {
+    }
+
     @Schema(description = "현재 인증 계정 강의 데이터 수정 요청")
     public record UpdateGraduationCoursesRequest(
             @Schema(description = "수정 대상 졸업요건 영역") FacultyDivision area,
