@@ -86,6 +86,30 @@ public class AdminTestDto {
     ) {
     }
 
+    @Schema(description = "졸업요건 누락 진단 응답")
+    public record GraduationRequirementDiagnosticResponse(
+            @Schema(description = "학번") String studentCode,
+            @Schema(description = "입학년도") Integer admissionYear,
+            @Schema(description = "편입생 여부") boolean transferStudent,
+            @Schema(description = "전공 유형") String majorType,
+            @Schema(description = "졸업 진행도 계산 가능 여부") boolean progressResolvable,
+            @Schema(description = "소속 학과") DepartmentOption department,
+            @Schema(description = "주전공") DepartmentOption major,
+            @Schema(description = "복수전공") DepartmentOption secondaryMajor,
+            @Schema(description = "주전공 후보별 단일 졸업요건 상태") List<GraduationRequirementCandidate> primaryCandidates,
+            @Schema(description = "복수전공 후보별 단일 졸업요건 상태") List<GraduationRequirementCandidate> secondaryCandidates,
+            @Schema(description = "복수전공 후보 조합별 요건 상태") List<DualMajorRequirementCandidate> dualMajorCandidates
+    ) {
+    }
+
+    @Schema(description = "후보 학과별 단일 졸업요건 상태")
+    public record GraduationRequirementCandidate(Long departmentId, String departmentCode, String departmentName, int areaRequirementCount) {
+    }
+
+    @Schema(description = "복수전공 후보 조합별 요건 상태")
+    public record DualMajorRequirementCandidate(Long primaryDepartmentId, Long secondaryDepartmentId, int dualRequirementCount) {
+    }
+
     @Schema(description = "현재 인증 계정 강의 데이터 수정 요청")
     public record UpdateGraduationCoursesRequest(
             @Schema(description = "수정 대상 졸업요건 영역") FacultyDivision area,
