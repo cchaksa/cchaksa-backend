@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
+import com.chukchuk.haksa.domain.admin.service.AdminGraduationRequirementDiagnosticService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
@@ -49,6 +50,9 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     @MockBean
     private AdminTestOptionService optionService;
+
+    @MockBean
+    private AdminGraduationRequirementDiagnosticService diagnosticService;
 
     @MockBean
     private AdminTestMutationService mutationService;
@@ -151,6 +155,26 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
                 .andExpect(jsonPath("$.data[0].courseCode").value("CSE101"))
                 .andExpect(jsonPath("$.data[0].courseName").value("자료구조"))
                 .andExpect(jsonPath("$.data[0].area").value("전핵"));
+    }
+
+    @Test
+    @DisplayName("졸업요건 진단 조회 성공 시 학생과 후보 요건 상태를 반환한다")
+    void diagnoseGraduationRequirements_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        AdminTestDto.GraduationRequirementDiagnosticResponse response =
+                new AdminTestDto.GraduationRequirementDiagnosticResponse(
+                        "20240001", 2024, false, "DUAL", true,
+                        null, null, null, List.of(), List.of(), List.of()
+                );
+        when(diagnosticService.diagnose("20240001")).thenReturn(response);
+
+        mockMvc.perform(get("/api/admin/graduation-requirements/diagnostics")
+                        .param("studentCode", "20240001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.studentCode").value("20240001"))
+                .andExpect(jsonPath("$.data.majorType").value("DUAL"))
+                .andExpect(jsonPath("$.data.progressResolvable").value(true));
     }
 
     @Test

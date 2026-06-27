@@ -33,6 +33,12 @@ public interface AdminTestControllerDocs {
             Long departmentId
     );
 
+    @Operation(summary = "졸업요건 누락 진단", description = "dev 환경에서 학번 기준 졸업요건 데이터 존재 여부를 진단합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    ResponseEntity<SuccessResponse<AdminTestDto.GraduationRequirementDiagnosticResponse>> diagnoseGraduationRequirements(
+            String studentCode
+    );
+
     @Operation(summary = "현재 계정 강의 데이터 수정", description = "현재 인증 계정의 졸업요건 강의 데이터를 추가하거나 삭제합니다.")
     @SecurityRequirement(name = "bearerAuth")
     ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateGraduationCourses(

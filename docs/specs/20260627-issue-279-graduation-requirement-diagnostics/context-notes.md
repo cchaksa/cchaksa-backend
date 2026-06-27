@@ -7,3 +7,4 @@
 - 복수전공 요구 학점은 `dual_major_requirements`에 `복교`, `복핵`, `복선`으로 저장하는 정책이다.
 - 학과/전공명은 `departments.established_department_name` 같은 name 계열 필드와 매칭한다.
 - 학생별 진단 API는 학생 정보를 조회하므로 공개 조회가 아니라 bearer token 필요 endpoint로 둔다.
+- 복수전공 진행 가능 여부는 주전공 단일요건과 복수전공 조합요건이 모두 있을 때 true로 계산한다.

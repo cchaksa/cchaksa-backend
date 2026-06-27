@@ -166,9 +166,22 @@ class JwtAuthenticationFilterTests {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    @DisplayName("학생별 졸업요건 진단 API는 토큰 없이 호출할 수 없다")
+    void getGraduationRequirementDiagnostics_withoutToken_requiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/admin/graduation-requirements/diagnostics")
+                        .param("studentCode", "20240001"))
+                .andExpect(status().isUnauthorized());
+    }
+
     @RestController
     static class AdminReadEndpointController {
-        @GetMapping({"/api/admin/test-options", "/api/admin/departments", "/api/admin/course-offerings"})
+        @GetMapping({
+                "/api/admin/test-options",
+                "/api/admin/departments",
+                "/api/admin/course-offerings",
+                "/api/admin/graduation-requirements/diagnostics"
+        })
         String ok() {
             return "ok";
         }

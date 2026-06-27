@@ -384,6 +384,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminCourseOfferingOptionsApiResponse'
 
+  /api/admin/graduation-requirements/diagnostics:
+    get:
+      tags:
+        - Admin Test
+      summary: dev 졸업요건 누락 진단
+      description: Authorization 토큰으로 인증한 뒤 학번 기준 학생의 학과, 입학년도, 후보 학과별 졸업요건 데이터 존재 여부를 진단합니다.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: studentCode
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 진단할 학생의 학번
+          example: '20240001'
+      responses:
+        '200':
+          description: 졸업요건 진단 성공
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminGraduationRequirementDiagnosticApiResponse'
+        '400':
+          description: 잘못된 요청
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '401':
+          description: 인증 실패
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          description: 학생 없음
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+
   /api/admin/me/graduation-courses:
     patch:
       tags:
@@ -1539,6 +1581,103 @@ components:
           type: string
           nullable: true
           example: 컴퓨터학과
+
+    AdminGraduationRequirementDiagnosticApiResponse:
+      type: object
+      required:
+        - success
+        - data
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/AdminGraduationRequirementDiagnosticResponse'
+        message:
+          type: string
+          nullable: true
+          example: 요청 성공
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+          nullable: true
+
+    AdminGraduationRequirementDiagnosticResponse:
+      type: object
+      properties:
+        studentCode:
+          type: string
+          example: '20240001'
+        admissionYear:
+          type: integer
+          format: int32
+          nullable: true
+          example: 2024
+        transferStudent:
+          type: boolean
+          example: false
+        majorType:
+          type: string
+          enum:
+            - SINGLE
+            - DUAL
+          example: DUAL
+        progressResolvable:
+          type: boolean
+          description: 현재 졸업 진행도 계산에 필요한 졸업요건 데이터가 모두 존재하는지 여부
+          example: true
+        department:
+          $ref: '#/components/schemas/AdminDepartmentOption'
+        major:
+          $ref: '#/components/schemas/AdminDepartmentOption'
+        secondaryMajor:
+          $ref: '#/components/schemas/AdminDepartmentOption'
+          nullable: true
+        primaryCandidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGraduationRequirementCandidate'
+        secondaryCandidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminGraduationRequirementCandidate'
+        dualMajorCandidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDualMajorRequirementCandidate'
+
+    AdminGraduationRequirementCandidate:
+      type: object
+      properties:
+        departmentId:
+          type: integer
+          format: int64
+          example: 1
+        departmentCode:
+          type: string
+          example: CSE
+        departmentName:
+          type: string
+          example: 컴퓨터학과
+        areaRequirementCount:
+          type: integer
+          format: int32
+          example: 7
+
+    AdminDualMajorRequirementCandidate:
+      type: object
+      properties:
+        primaryDepartmentId:
+          type: integer
+          format: int64
+          example: 1
+        secondaryDepartmentId:
+          type: integer
+          format: int64
+          example: 2
+        dualRequirementCount:
+          type: integer
+          format: int32
+          example: 3
 
     AdminUpdateGraduationCoursesRequest:
       type: object
