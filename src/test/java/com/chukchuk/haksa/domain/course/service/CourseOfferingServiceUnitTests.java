@@ -178,42 +178,6 @@ class CourseOfferingServiceUnitTests {
     }
 
     @Test
-    @DisplayName("정의되지 않은 평가 방식은 UNKNOWN으로 저장한다")
-    void getOrCreateOffering_whenEvaluationTypeUnknown_usesUnknown() {
-        CreateOfferingCommand cmd = new CreateOfferingCommand(
-                18L,
-                2024,
-                1,
-                "01",
-                28L,
-                null,
-                "목 1-2",
-                "GRADE",
-                false,
-                20241,
-                "전핵",
-                null,
-                null,
-                3,
-                "컴퓨터학과"
-        );
-
-        Course course = new Course("CSE303", "알고리즘");
-        Professor professor = new Professor("최교수");
-
-        when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
-                Set.of(18L), Set.of(2024), Set.of(1)
-        )).thenReturn(List.of());
-        when(courseRepository.getReferenceById(18L)).thenReturn(course);
-        when(professorRepository.getReferenceById(28L)).thenReturn(professor);
-        when(courseOfferingRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
-
-        CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
-
-        assertThat(result.getEvaluationTypeCode()).isEqualTo(EvaluationType.UNKNOWN);
-    }
-
-    @Test
     @DisplayName("기존 강의의 nullable 키 필드가 비어 있어도 동일 강의로 재사용한다")
     void getOrCreateOffering_whenExistingKeyFieldsAreNull_reusesExistingOffering() {
         CreateOfferingCommand cmd = new CreateOfferingCommand(

@@ -50,7 +50,7 @@ public class CourseOffering extends BaseEntity {
     @Column(name = "deleted_at")
     private Instant deletedAt; // Soft delete 적용
 
-    @Convert(converter = EvaluationTypeConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "evaluation_type_code")
     private EvaluationType evaluationTypeCode;
 

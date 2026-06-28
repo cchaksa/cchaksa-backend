@@ -190,6 +190,11 @@ class AdminTestLectureEvaluationServiceUnitTests {
                 .isInstanceOf(CommonException.class)
                 .hasMessage(ErrorCode.INVALID_ARGUMENT.message());
 
+        InOrder offeringOrder = inOrder(courseOfferingRepository);
+        offeringOrder.verify(courseOfferingRepository)
+                .normalizeUnsupportedEvaluationTypes(TARGET_YEAR, TARGET_SEMESTER);
+        offeringOrder.verify(courseOfferingRepository)
+                .findReusableLectureEvaluationTestOfferings(TARGET_YEAR, TARGET_SEMESTER);
         verify(studentCourseRepository, never()).saveAll(any());
         verify(semesterAcademicRecordRepository, never()).save(any());
         verify(courseEvaluationRepository, never()).saveAll(any());
@@ -210,6 +215,12 @@ class AdminTestLectureEvaluationServiceUnitTests {
                 .deleteByStudentIdAndYearAndSemester(TARGET_STUDENT_ID, TARGET_YEAR, TARGET_SEMESTER);
         inOrder.verify(semesterAcademicRecordRepository)
                 .deleteByStudentIdAndYearAndSemester(TARGET_STUDENT_ID, TARGET_YEAR, TARGET_SEMESTER);
+
+        InOrder offeringOrder = inOrder(courseOfferingRepository);
+        offeringOrder.verify(courseOfferingRepository)
+                .normalizeUnsupportedEvaluationTypes(TARGET_YEAR, TARGET_SEMESTER);
+        offeringOrder.verify(courseOfferingRepository)
+                .findReusableLectureEvaluationTestOfferings(TARGET_YEAR, TARGET_SEMESTER);
 
         ArgumentCaptor<SemesterAcademicRecord> recordCaptor = ArgumentCaptor.forClass(SemesterAcademicRecord.class);
         verify(semesterAcademicRecordRepository).save(recordCaptor.capture());
