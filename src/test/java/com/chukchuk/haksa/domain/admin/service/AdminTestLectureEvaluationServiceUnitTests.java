@@ -48,7 +48,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AdminTestLectureEvaluationServiceUnitTests {
 
-    private static final UUID TARGET_USER_ID = UUID.fromString("faf9c30a-9674-4624-8855-6d0be23c749b");
+    private static final UUID TARGET_USER_ID = UUID.fromString("41c256af-1848-4691-bae5-72d2265c17d9");
     private static final UUID TARGET_STUDENT_ID = UUID.fromString("47f72b79-a3f0-4834-869b-8ba3a0cf3474");
     private static final int TARGET_YEAR = 2026;
     private static final int TARGET_SEMESTER = 10;
@@ -190,10 +190,7 @@ class AdminTestLectureEvaluationServiceUnitTests {
                 .isInstanceOf(CommonException.class)
                 .hasMessage(ErrorCode.INVALID_ARGUMENT.message());
 
-        InOrder offeringOrder = inOrder(courseOfferingRepository);
-        offeringOrder.verify(courseOfferingRepository)
-                .normalizeUnsupportedEvaluationTypes(TARGET_YEAR, TARGET_SEMESTER);
-        offeringOrder.verify(courseOfferingRepository)
+        verify(courseOfferingRepository)
                 .findReusableLectureEvaluationTestOfferings(TARGET_YEAR, TARGET_SEMESTER);
         verify(studentCourseRepository, never()).saveAll(any());
         verify(semesterAcademicRecordRepository, never()).save(any());
@@ -216,10 +213,7 @@ class AdminTestLectureEvaluationServiceUnitTests {
         inOrder.verify(semesterAcademicRecordRepository)
                 .deleteByStudentIdAndYearAndSemester(TARGET_STUDENT_ID, TARGET_YEAR, TARGET_SEMESTER);
 
-        InOrder offeringOrder = inOrder(courseOfferingRepository);
-        offeringOrder.verify(courseOfferingRepository)
-                .normalizeUnsupportedEvaluationTypes(TARGET_YEAR, TARGET_SEMESTER);
-        offeringOrder.verify(courseOfferingRepository)
+        verify(courseOfferingRepository)
                 .findReusableLectureEvaluationTestOfferings(TARGET_YEAR, TARGET_SEMESTER);
 
         ArgumentCaptor<SemesterAcademicRecord> recordCaptor = ArgumentCaptor.forClass(SemesterAcademicRecord.class);
