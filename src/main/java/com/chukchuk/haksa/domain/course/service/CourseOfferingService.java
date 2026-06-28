@@ -24,6 +24,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CourseOfferingService {
 
+    private static final EvaluationTypeConverter EVALUATION_TYPE_CONVERTER = new EvaluationTypeConverter();
+
     private final CourseOfferingRepository courseOfferingRepository;
     private final CourseRepository courseRepository;
     private final LiberalArtsAreaCodeRepository liberalArtsAreaCodeRepository;
@@ -120,10 +122,7 @@ public class CourseOfferingService {
     }
 
     private EvaluationType resolveEvaluationType(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return EvaluationType.UNKNOWN;
-        }
-        return EvaluationType.valueOf(rawValue);
+        return EVALUATION_TYPE_CONVERTER.convertToEntityAttribute(rawValue);
     }
 
     /**
