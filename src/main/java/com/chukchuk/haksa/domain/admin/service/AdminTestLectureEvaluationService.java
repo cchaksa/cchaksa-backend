@@ -34,7 +34,7 @@ import java.util.UUID;
 @Transactional
 public class AdminTestLectureEvaluationService {
 
-    private static final UUID TARGET_USER_ID = UUID.fromString("faf9c30a-9674-4624-8855-6d0be23c749b");
+    private static final UUID TARGET_USER_ID = UUID.fromString("41c256af-1848-4691-bae5-72d2265c17d9");
     private static final UUID TARGET_STUDENT_ID = UUID.fromString("47f72b79-a3f0-4834-869b-8ba3a0cf3474");
     private static final int TARGET_YEAR = 2026;
     private static final int TARGET_SEMESTER = 10;
