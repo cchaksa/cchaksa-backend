@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.course.repository;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.Collection;
@@ -73,4 +74,18 @@ public interface CourseOfferingRepository extends JpaRepository<CourseOffering, 
         ORDER BY c.courseName ASC, p.professorName ASC, o.id ASC
     """)
     List<CourseOffering> findReusableLectureEvaluationTestOfferings(Integer year, Integer semester);
+
+    @Modifying
+    @Query(value = """
+        UPDATE course_offerings
+        SET evaluation_type_code = 'UNKNOWN'
+        WHERE deleted_at IS NULL
+          AND year = :year
+          AND semester = :semester
+          AND (
+              evaluation_type_code IS NULL
+              OR evaluation_type_code NOT IN ('ABSOLUTE', 'RELATIVE', 'UNKNOWN')
+          )
+    """, nativeQuery = true)
+    int normalizeUnsupportedEvaluationTypes(Integer year, Integer semester);
 }

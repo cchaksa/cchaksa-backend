@@ -100,6 +100,7 @@ public class AdminTestLectureEvaluationService {
     }
 
     private List<CourseOffering> findReusableOfferings() {
+        courseOfferingRepository.normalizeUnsupportedEvaluationTypes(TARGET_YEAR, TARGET_SEMESTER);
         List<CourseOffering> offerings = courseOfferingRepository.findReusableLectureEvaluationTestOfferings(
                 TARGET_YEAR,
                 TARGET_SEMESTER
