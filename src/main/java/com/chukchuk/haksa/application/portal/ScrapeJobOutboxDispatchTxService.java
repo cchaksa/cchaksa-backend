@@ -109,6 +109,7 @@ public class ScrapeJobOutboxDispatchTxService {
                         ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED.name(),
                         ErrorCode.SCRAPE_JOB_OUTBOX_DEAD.message(),
                         true,
+                        attemptedAt,
                         attemptedAt
                 );
             }

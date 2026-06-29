@@ -53,6 +53,10 @@ public class SemesterAcademicRecord extends BaseEntity {
     @Column(name = "earned_credits")
     private Integer earnedCredits;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "lecture_evaluation_status")
+    private LectureEvaluationStatus lectureEvaluationStatus;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     private Student student;
@@ -119,5 +123,38 @@ public class SemesterAcademicRecord extends BaseEntity {
         this.semesterGpa = src.semesterGpa;
         this.attemptedCredits = src.attemptedCredits;
         this.earnedCredits = src.earnedCredits;
+    }
+
+    public void markLectureEvaluationPending() {
+        if (this.lectureEvaluationStatus == LectureEvaluationStatus.SKIPPED
+                || this.lectureEvaluationStatus == LectureEvaluationStatus.COMPLETED) {
+            return;
+        }
+        this.lectureEvaluationStatus = LectureEvaluationStatus.PENDING;
+    }
+
+    public void markLectureEvaluationNotReleased() {
+        if (this.lectureEvaluationStatus != null) {
+            return;
+        }
+        this.lectureEvaluationStatus = LectureEvaluationStatus.NOT_RELEASED;
+    }
+
+    public void markLectureEvaluationSkipped() {
+        if (isLectureEvaluationPending()) {
+            this.lectureEvaluationStatus = LectureEvaluationStatus.SKIPPED;
+        }
+    }
+
+    public void markLectureEvaluationCompleted() {
+        this.lectureEvaluationStatus = LectureEvaluationStatus.COMPLETED;
+    }
+
+    public void setLectureEvaluationStatusForTest(LectureEvaluationStatus status) {
+        this.lectureEvaluationStatus = status;
+    }
+
+    public boolean isLectureEvaluationPending() {
+        return this.lectureEvaluationStatus == LectureEvaluationStatus.PENDING;
     }
 }

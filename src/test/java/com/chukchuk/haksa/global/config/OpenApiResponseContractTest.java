@@ -33,6 +33,14 @@ class OpenApiResponseContractTest {
             new OperationRef("/sentry-test", "get"),
             new OperationRef("/api/users/signin", "post"),
             new OperationRef("/api/auth/refresh", "post"),
+            new OperationRef("/api/admin/test-options", "get"),
+            new OperationRef("/api/admin/departments", "get"),
+            new OperationRef("/api/admin/course-offerings", "get"),
+            new OperationRef("/api/admin/test-lecture-evaluations/empty-semester", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/not-released", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/pending", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/skipped", "post"),
+            new OperationRef("/api/admin/test-lecture-evaluations/completed", "post"),
             new OperationRef("/internal/scrape-results", "post")
     );
 
@@ -40,6 +48,7 @@ class OpenApiResponseContractTest {
             new OperationRef("/portal/link", "post"),
             new OperationRef("/portal/link/jobs/{jobId}", "get"),
             new OperationRef("/portal/link/jobs/{jobId}/summary", "get"),
+            new OperationRef("/portal/link/jobs/{jobId}/duration", "get"),
             new OperationRef("/api/users/analytics-id", "get"),
             new OperationRef("/api/users/me", "get"),
             new OperationRef("/api/users/delete", "delete"),
@@ -50,7 +59,10 @@ class OpenApiResponseContractTest {
             new OperationRef("/api/semester/grades", "get"),
             new OperationRef("/api/graduation/progress", "get"),
             new OperationRef("/api/academic/summary", "get"),
-            new OperationRef("/api/academic/record", "get")
+            new OperationRef("/api/academic/record", "get"),
+            new OperationRef("/api/lecture-evaluations/required", "get"),
+            new OperationRef("/api/lecture-evaluations", "post"),
+            new OperationRef("/api/lecture-evaluations/skip", "post")
     );
 
     @Autowired
@@ -166,6 +178,23 @@ class OpenApiResponseContractTest {
         Map<String, Object> studentCourseDetailProperties = (Map<String, Object>) studentCourseDetail.get("properties");
         Map<String, Object> academicLiberalAreaCode = (Map<String, Object>) studentCourseDetailProperties.get("liberalAreaCode");
         assertThat(academicLiberalAreaCode.get("type")).isEqualTo("integer");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void staticOpenApiDocumentsNotReleasedLectureEvaluationStatus() throws Exception {
+        Map<String, Object> staticOpenApi;
+        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
+            staticOpenApi = new Yaml().load(inputStream);
+        }
+
+        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
+        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        Map<String, Object> response = (Map<String, Object>) schemas.get("LectureEvaluationRequiredResponse");
+        Map<String, Object> properties = (Map<String, Object>) response.get("properties");
+        Map<String, Object> evaluationStatus = (Map<String, Object>) properties.get("evaluationStatus");
+
+        assertThat((List<String>) evaluationStatus.get("enum")).contains("NOT_RELEASED");
     }
 
     @Test

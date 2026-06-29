@@ -37,4 +37,13 @@ public class PortalJobQueryController implements PortalLinkQueryControllerDocs {
         PortalLinkDto.JobSummaryResponse response = portalLinkJobQueryService.getJobSummary(userDetails.getId(), jobId);
         return ResponseEntity.ok(SuccessResponse.of(response));
     }
+
+    @GetMapping("/{jobId}/duration")
+    public ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable String jobId
+    ) {
+        PortalLinkDto.JobDurationResponse response = portalLinkJobQueryService.getJobDuration(userDetails.getId(), jobId);
+        return ResponseEntity.ok(SuccessResponse.of(response));
+    }
 }

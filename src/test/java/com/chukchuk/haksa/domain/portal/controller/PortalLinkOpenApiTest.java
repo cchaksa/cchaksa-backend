@@ -55,6 +55,14 @@ class PortalLinkOpenApiTest {
                 "PortalLinkJobSummaryApiResponse",
                 "JobSummaryResponse"
         );
+        assertSuccessResponseSchema(
+                apiDocs,
+                "/portal/link/jobs/{jobId}/duration",
+                "get",
+                "200",
+                "PortalLinkJobDurationApiResponse",
+                "JobDurationResponse"
+        );
     }
 
     private JsonNode apiDocs() throws Exception {

@@ -3,6 +3,8 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
 import com.chukchuk.haksa.application.academic.repository.AcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
+import com.chukchuk.haksa.domain.academic.record.repository.SemesterAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseBulkRepository;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -50,6 +52,8 @@ class SyncAcademicRecordServiceTest {
     private AcademicRecordRepository academicRecordRepository;
     @Mock
     private StudentCourseRepository studentCourseRepository;
+    @Mock
+    private SemesterAcademicRecordRepository semesterAcademicRecordRepository;
     @Mock
     private StudentService studentService;
     @Mock
@@ -181,6 +185,191 @@ class SyncAcademicRecordServiceTest {
         verify(studentCourseBulkRepository).insertAll(argThat(rows -> rows.size() == 1));
     }
 
+    @Test
+    void executeForRefreshPortalData_marksLectureEvaluationPendingWhenGradeChangesFromIpToCompleted() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+        doNothing().when(academicRecordRepository).updateChangedAcademicRecords(any(), any());
+
+        Professor professor = mock(Professor.class);
+        when(professor.getId()).thenReturn(11L);
+        when(professorService.getOrCreateAll(any())).thenReturn(Map.of(
+                "홍길동", professor,
+                "미확인 교수", professor
+        ));
+
+        Course course = mock(Course.class);
+        when(course.getId()).thenReturn(21L);
+        when(courseService.getOrCreateCourses(any())).thenReturn(Map.of("CSE101", course));
+
+        CourseOffering offering = mock(CourseOffering.class);
+        when(offering.getId()).thenReturn(31L);
+        when(offering.getYear()).thenReturn(2024);
+        when(offering.getSemester()).thenReturn(1);
+        when(courseOfferingService.getOrCreateAll(any())).thenAnswer(invocation -> {
+            List<CreateOfferingCommand> commands = invocation.getArgument(0);
+            return Map.of(CourseOfferingService.CourseOfferingKey.from(commands.get(0)), offering);
+        });
+
+        StudentCourse existing = new StudentCourse(
+                student,
+                offering,
+                Grade.createInProgress(),
+                3,
+                false,
+                0,
+                false
+        );
+        when(studentCourseRepository.findByStudent(student)).thenReturn(List.of(existing));
+
+        SemesterAcademicRecord semesterRecord = mock(SemesterAcademicRecord.class);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2024, 1))
+                .thenReturn(java.util.Optional.of(semesterRecord));
+
+        service.executeForRefreshPortalData(userId, new PortalData(
+                null,
+                sampleAcademicData(),
+                sampleCurriculumData()
+        ));
+
+        verify(semesterRecord).markLectureEvaluationPending();
+    }
+
+    @Test
+    void executeForRefreshPortalData_marksLectureEvaluationNotReleasedWhenGradeIsStillIp() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+        doNothing().when(academicRecordRepository).updateChangedAcademicRecords(any(), any());
+
+        Professor professor = mock(Professor.class);
+        when(professor.getId()).thenReturn(11L);
+        when(professorService.getOrCreateAll(any())).thenReturn(Map.of(
+                "홍길동", professor,
+                "미확인 교수", professor
+        ));
+
+        Course course = mock(Course.class);
+        when(course.getId()).thenReturn(21L);
+        when(courseService.getOrCreateCourses(any())).thenReturn(Map.of("CSE101", course));
+
+        CourseOffering offering = mock(CourseOffering.class);
+        when(offering.getId()).thenReturn(31L);
+        when(offering.getYear()).thenReturn(2024);
+        when(offering.getSemester()).thenReturn(1);
+        when(courseOfferingService.getOrCreateAll(any())).thenAnswer(invocation -> {
+            List<CreateOfferingCommand> commands = invocation.getArgument(0);
+            return Map.of(CourseOfferingService.CourseOfferingKey.from(commands.get(0)), offering);
+        });
+
+        StudentCourse existing = new StudentCourse(
+                student,
+                offering,
+                Grade.createInProgress(),
+                3,
+                false,
+                0,
+                false
+        );
+        when(studentCourseRepository.findByStudent(student)).thenReturn(List.of(existing));
+
+        SemesterAcademicRecord semesterRecord = mock(SemesterAcademicRecord.class);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2024, 1))
+                .thenReturn(java.util.Optional.of(semesterRecord));
+
+        service.executeForRefreshPortalData(userId, new PortalData(
+                null,
+                sampleAcademicDataWithIpGrade(),
+                sampleCurriculumDataWithIpGrade()
+        ));
+
+        verify(semesterRecord).markLectureEvaluationNotReleased();
+        verify(semesterRecord, never()).markLectureEvaluationPending();
+    }
+
+    @Test
+    void executeForRefreshPortalData_marksLectureEvaluationPendingOncePerSemester() {
+        UUID userId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        Student student = mock(Student.class);
+        when(student.getId()).thenReturn(studentId);
+        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+        doNothing().when(academicRecordRepository).updateChangedAcademicRecords(any(), any());
+
+        Professor professor = mock(Professor.class);
+        when(professor.getId()).thenReturn(11L);
+        when(professorService.getOrCreateAll(any())).thenReturn(Map.of(
+                "홍길동", professor,
+                "미확인 교수", professor
+        ));
+
+        Course course1 = mock(Course.class);
+        when(course1.getId()).thenReturn(21L);
+        Course course2 = mock(Course.class);
+        when(course2.getId()).thenReturn(22L);
+        when(courseService.getOrCreateCourses(any())).thenReturn(Map.of(
+                "CSE101", course1,
+                "CSE102", course2
+        ));
+
+        CourseOffering offering1 = mock(CourseOffering.class);
+        when(offering1.getId()).thenReturn(31L);
+        when(offering1.getYear()).thenReturn(2024);
+        when(offering1.getSemester()).thenReturn(1);
+
+        CourseOffering offering2 = mock(CourseOffering.class);
+        when(offering2.getId()).thenReturn(32L);
+        when(offering2.getYear()).thenReturn(2024);
+        when(offering2.getSemester()).thenReturn(1);
+
+        when(courseOfferingService.getOrCreateAll(any())).thenAnswer(invocation -> {
+            List<CreateOfferingCommand> commands = invocation.getArgument(0);
+            return Map.of(
+                    CourseOfferingService.CourseOfferingKey.from(commands.get(0)), offering1,
+                    CourseOfferingService.CourseOfferingKey.from(commands.get(1)), offering2
+            );
+        });
+
+        StudentCourse existing1 = new StudentCourse(
+                student,
+                offering1,
+                Grade.createInProgress(),
+                3,
+                false,
+                0,
+                false
+        );
+        StudentCourse existing2 = new StudentCourse(
+                student,
+                offering2,
+                Grade.createInProgress(),
+                3,
+                false,
+                0,
+                false
+        );
+        when(studentCourseRepository.findByStudent(student)).thenReturn(List.of(existing1, existing2));
+
+        SemesterAcademicRecord semesterRecord = mock(SemesterAcademicRecord.class);
+        when(semesterAcademicRecordRepository.findByStudentIdAndYearAndSemester(studentId, 2024, 1))
+                .thenReturn(java.util.Optional.of(semesterRecord));
+
+        service.executeForRefreshPortalData(userId, new PortalData(
+                null,
+                sampleAcademicDataWithTwoCourses(),
+                sampleCurriculumDataWithTwoCourses()
+        ));
+
+        verify(semesterAcademicRecordRepository, times(1))
+                .findByStudentIdAndYearAndSemester(studentId, 2024, 1);
+        verify(semesterRecord, times(1)).markLectureEvaluationPending();
+    }
+
     private PortalCurriculumData sampleCurriculumData() {
         return new PortalCurriculumData(
                 List.of(new CourseInfo(
@@ -248,6 +437,200 @@ class SyncAcademicRecordServiceTest {
                 List.of(semester),
                 grades,
                 new AcademicSummary(3, 3, 4.3, 95.0)
+        );
+    }
+
+    private PortalCurriculumData sampleCurriculumDataWithIpGrade() {
+        return new PortalCurriculumData(
+                List.of(new CourseInfo(
+                        "CSE101",
+                        "자료구조",
+                        "홍길동",
+                        "컴퓨터공학과",
+                        3,
+                        "",
+                        false,
+                        "월1-2",
+                        "전선",
+                        100,
+                        200,
+                        20241,
+                        0.0,
+                        false
+                )),
+                List.of(new ProfessorInfo("홍길동")),
+                List.of(new OfferingInfo(
+                        "CSE101",
+                        2024,
+                        1,
+                        "01",
+                        "홍길동",
+                        "월1-2",
+                        3,
+                        "컴퓨터공학과",
+                        "전선",
+                        20241,
+                        100,
+                        200,
+                        "ABSOLUTE",
+                        false
+                ))
+        );
+    }
+
+    private PortalAcademicData sampleAcademicDataWithIpGrade() {
+        SemesterCourseInfo semester = new SemesterCourseInfo(
+                2024,
+                1,
+                List.of(new CourseInfo(
+                        "CSE101",
+                        "자료구조",
+                        "홍길동",
+                        "컴퓨터공학과",
+                        3,
+                        "",
+                        false,
+                        "월1-2",
+                        "전선",
+                        100,
+                        200,
+                        20241,
+                        0.0,
+                        false
+                ))
+        );
+        GradeSummary grades = new GradeSummary(
+                List.of(new SemesterGrade(2024, 1, "3", "0", "0", 0.0, new Ranking(0, 10))),
+                new AcademicSummary(3, 0, 0.0, 0.0)
+        );
+        return new PortalAcademicData(
+                List.of(semester),
+                grades,
+                new AcademicSummary(3, 0, 0.0, 0.0)
+        );
+    }
+
+    private PortalCurriculumData sampleCurriculumDataWithTwoCourses() {
+        return new PortalCurriculumData(
+                List.of(
+                        new CourseInfo(
+                                "CSE101",
+                                "자료구조",
+                                "홍길동",
+                                "컴퓨터공학과",
+                                3,
+                                "A+",
+                                false,
+                                "월1-2",
+                                "전선",
+                                100,
+                                200,
+                                20241,
+                                4.3,
+                                false
+                        ),
+                        new CourseInfo(
+                                "CSE102",
+                                "운영체제",
+                                "홍길동",
+                                "컴퓨터공학과",
+                                3,
+                                "A0",
+                                false,
+                                "화1-2",
+                                "전선",
+                                100,
+                                200,
+                                20241,
+                                4.0,
+                                false
+                        )
+                ),
+                List.of(new ProfessorInfo("홍길동")),
+                List.of(
+                        new OfferingInfo(
+                                "CSE101",
+                                2024,
+                                1,
+                                "01",
+                                "홍길동",
+                                "월1-2",
+                                3,
+                                "컴퓨터공학과",
+                                "전선",
+                                20241,
+                                100,
+                                200,
+                                "ABSOLUTE",
+                                false
+                        ),
+                        new OfferingInfo(
+                                "CSE102",
+                                2024,
+                                1,
+                                "01",
+                                "홍길동",
+                                "화1-2",
+                                3,
+                                "컴퓨터공학과",
+                                "전선",
+                                20241,
+                                100,
+                                200,
+                                "ABSOLUTE",
+                                false
+                        )
+                )
+        );
+    }
+
+    private PortalAcademicData sampleAcademicDataWithTwoCourses() {
+        SemesterCourseInfo semester = new SemesterCourseInfo(
+                2024,
+                1,
+                List.of(
+                        new CourseInfo(
+                                "CSE101",
+                                "자료구조",
+                                "홍길동",
+                                "컴퓨터공학과",
+                                3,
+                                "A+",
+                                false,
+                                "월1-2",
+                                "전선",
+                                100,
+                                200,
+                                20241,
+                                4.3,
+                                false
+                        ),
+                        new CourseInfo(
+                                "CSE102",
+                                "운영체제",
+                                "홍길동",
+                                "컴퓨터공학과",
+                                3,
+                                "A0",
+                                false,
+                                "화1-2",
+                                "전선",
+                                100,
+                                200,
+                                20241,
+                                4.0,
+                                false
+                        )
+                )
+        );
+        GradeSummary grades = new GradeSummary(
+                List.of(new SemesterGrade(2024, 1, "6", "6", "4.15", 92.0, new Ranking(1, 10))),
+                new AcademicSummary(6, 6, 4.15, 92.0)
+        );
+        return new PortalAcademicData(
+                List.of(semester),
+                grades,
+                new AcademicSummary(6, 6, 4.15, 92.0)
         );
     }
 

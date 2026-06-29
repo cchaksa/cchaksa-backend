@@ -172,7 +172,7 @@ public class UserService {
         String userId = user.getId().toString();
         String accessToken = jwtProvider.createAccessToken(userId, user.getEmail(), "USER");
         AuthDto.RefreshTokenWithExpiry refresh = jwtProvider.createRefreshToken(userId);
-        refreshTokenService.save(userId, refresh.token(), refresh.expiry());
+        refreshTokenService.save(refresh.sessionId(), userId, refresh.token(), refresh.expiry());
 
         return new AuthDto.SignInTokenResponse(accessToken, refresh.token(), user.getPortalConnected());
     }

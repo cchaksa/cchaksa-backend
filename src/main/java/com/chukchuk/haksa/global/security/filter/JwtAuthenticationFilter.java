@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.global.security.filter;
 
+import com.chukchuk.haksa.global.exception.type.TokenException;
 import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
 import com.chukchuk.haksa.global.security.service.CustomUserDetailsService;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
@@ -16,6 +17,7 @@ import org.springframework.security.authentication.InsufficientAuthenticationExc
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -31,6 +33,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtProvider jwtProvider;
     private final CustomUserDetailsService userDetailsService;
     private final AuthTokenCache authTokenCache;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
 
     private static final List<String> WHITELIST_PATHS = List.of(
             "/", "/v3/api-docs", "/swagger", "/webjars", "/swagger-config", "/error"
@@ -56,6 +59,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             Claims claims = jwtProvider.parseToken(token);
             String userId = claims.getSubject();
+            if (userId == null || userId.isBlank()) {
+                throw new JwtException("Missing token subject");
+            }
 
             UserDetails userDetails = authTokenCache.getOrLoad(
                     userId,
@@ -68,14 +74,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authToken);
 
         } catch (ExpiredJwtException e) {
-            request.setAttribute("exception", "expired");
-            throw new InsufficientAuthenticationException("Access token expired", e);
-        } catch (IllegalStateException | JwtException e) {
-            request.setAttribute("exception", "invalid");
-            throw new InsufficientAuthenticationException("Invalid token", e);
+            handleAuthenticationFailure(request, response, "expired",
+                    new InsufficientAuthenticationException("Access token expired", e));
+            return;
+        } catch (TokenException | IllegalArgumentException | IllegalStateException | JwtException e) {
+            handleAuthenticationFailure(request, response, "invalid",
+                    new InsufficientAuthenticationException("Invalid token", e));
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private void handleAuthenticationFailure(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            String exceptionType,
+            InsufficientAuthenticationException exception
+    ) throws IOException, ServletException {
+        SecurityContextHolder.clearContext();
+        request.setAttribute("exception", exceptionType);
+        authenticationEntryPoint.commence(request, response, exception);
     }
 
     private String extractTokenFromHeader(HttpServletRequest request) {

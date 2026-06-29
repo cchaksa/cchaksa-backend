@@ -1,0 +1,44 @@
+# dev 전용 프론트 테스트 어드민 API Checklist
+
+- [x] `feat/279` 격리 worktree를 생성한다.
+- [x] 기준선 `./gradlew test`를 실행한다.
+- [x] 관련 컨트롤러, 서비스, 모델, repository, OpenAPI 파일을 확인한다.
+- [x] spec-lite를 작성한다.
+- [x] 구현 계획을 작성한다.
+- [x] context notes를 작성한다.
+- [x] 어드민 컨트롤러 테스트를 RED 상태로 추가한다.
+- [x] 어드민 서비스 단위 테스트를 RED 상태로 추가한다.
+- [x] 테스트 계정 생성 서비스를 구현한다.
+- [x] 옵션 조회 서비스를 구현한다.
+- [x] 강의 후보 검색 repository query와 서비스를 구현한다.
+- [x] 현재 인증 계정 강의 데이터 수정 서비스를 구현한다.
+- [x] 현재 인증 계정 전공 상태 수정 서비스를 구현한다.
+- [x] dev profile 제한과 security public endpoint를 적용한다.
+- [x] `openapi.yaml`을 갱신한다.
+- [x] `./gradlew test --tests '*AdminTest*'`를 실행한다.
+- [x] `./gradlew test`를 실행한다.
+- [x] 변경 내용을 커밋한다.
+- [x] `test_` 학번의 편입생 오판 여부를 확인한다.
+- [x] 테스트 계정 편입생 오판 방지 테스트와 로직을 보정한다.
+- [x] 옵션 조회와 강의 후보 조회를 dev 공개 조회 API로 전환한다.
+- [x] 강의 후보 조회의 학과 필터가 `hostDepartment` 데이터도 포함하도록 보정한다.
+- [x] Swagger와 정적 OpenAPI 문서를 공개 조회 정책에 맞게 갱신한다.
+- [x] 보정 후 관련 테스트와 전체 테스트를 실행한다.
+- [x] 학과 공개 검색 API 컨트롤러 테스트를 RED 상태로 추가한다.
+- [x] 학과 공개 검색 서비스 테스트를 RED 상태로 추가한다.
+- [x] 학과 공개 검색 API를 구현한다.
+- [x] 현재 인증 계정 초기화 API 테스트를 RED 상태로 추가한다.
+- [x] 현재 인증 계정 초기화 API를 구현한다.
+- [x] 현재 인증 계정 테스트 강의 생성 API 테스트를 RED 상태로 추가한다.
+- [x] 현재 인증 계정 테스트 강의 생성 API를 구현한다.
+- [x] Swagger와 정적 OpenAPI 문서를 8개 API 기준으로 갱신한다.
+- [x] 확장 후 관련 테스트와 전체 테스트를 실행한다.
+- [x] PR 리뷰의 계절학기 개설학기 매핑을 보정한다.
+- [x] PR 리뷰의 기본 학과 조회 1건 제한을 반영한다.
+- [x] PR 리뷰의 동일 주전공/복수전공 방어를 반영한다.
+- [x] PR 리뷰의 기본 연도 Asia/Seoul 기준을 반영한다.
+- [x] null/blank grade의 IP 처리 회귀 테스트를 추가한다.
+- [x] 테스트 계정 생성 요청에 `isPortalLinked` 옵션 테스트를 RED 상태로 추가한다.
+- [x] `isPortalLinked=false`이면 테스트 계정을 포털 미연동 상태로 생성한다.
+- [x] `isPortalLinked`를 생략하면 기존처럼 포털 연동 상태로 생성한다.
+- [x] `openapi.yaml`에 `isPortalLinked` 요청 필드를 반영한다.

@@ -97,4 +97,29 @@ class PortalJobQueryControllerApiIntegrationTest extends ApiControllerWebMvcTest
                 .andExpect(jsonPath("$.data.studentInfo.name").value("홍길동"))
                 .andExpect(jsonPath("$.data.studentInfo.majorName").value("소프트웨어학과"));
     }
+
+    @Test
+    @DisplayName("완료된 job duration 조회 시 소요 시간을 반환한다")
+    void getJobDuration_success() throws Exception {
+        UUID userId = UUID.randomUUID();
+        authenticate(userId);
+        when(portalLinkJobQueryService.getJobDuration(eq(userId), eq("job-4")))
+                .thenReturn(new PortalLinkDto.JobDurationResponse(
+                        "job-4",
+                        "succeeded",
+                        true,
+                        Instant.parse("2026-06-04T10:00:00Z"),
+                        Instant.parse("2026-06-04T10:00:12.345Z"),
+                        12_345L,
+                        "12s 345ms"
+                ));
+
+        mockMvc.perform(get("/portal/link/jobs/job-4/duration"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.job_id").value("job-4"))
+                .andExpect(jsonPath("$.data.status").value("succeeded"))
+                .andExpect(jsonPath("$.data.success").value(true))
+                .andExpect(jsonPath("$.data.elapsed_millis").value(12_345))
+                .andExpect(jsonPath("$.data.elapsed_time").value("12s 345ms"));
+    }
 }
