@@ -10,3 +10,5 @@
 - Focused `PortalClientTest` passed after replacing WebClient with RestTemplate.
 - `./gradlew test` passed after all #291 changes.
 - Focused `OpenApiResponseContractTest` and full `./gradlew test` passed after removing the static OpenAPI YAML.
+- Gemini's `RestTemplate` bean comment on PR #293 is covered by the existing `OIDCConfig.restTemplate` bean.
+- Gemini's null-body and portal-data guard comments are addressed with boundary checks plus focused tests.

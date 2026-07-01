@@ -36,12 +36,17 @@ public class RefreshPortalConnectionService {
                 return failure("아직 포털 계정과 연동되지 않은 사용자입니다.");
             }
 
+            if (portalData == null || portalData.student() == null) {
+                log.warn("[BIZ] portal.conn.fail userId={} reason=portal_data_null", userId);
+                return failure("포털 데이터가 존재하지 않습니다.");
+            }
+
             PortalStudentInfo raw = portalData.student();
             PortalStudentDataMapper.PortalStudentData portalStudentData =
                     portalStudentDataMapper.toStudentData(raw);
             if (portalStudentData == null) {
-                log.warn("[BIZ] portal.conn.fail userId={} reason=dept_init_failed deptCode={}", userId, raw.department().code());
-                return failure("학과/전공 정보 초기화 실패");
+                log.warn("[BIZ] portal.conn.fail userId={} reason=student_data_mapping_failed", userId);
+                return failure("포털 학생 정보 초기화 실패");
             }
 
             userPortalConnectionRepository.refreshPortalConnection(user, portalStudentData.studentData());

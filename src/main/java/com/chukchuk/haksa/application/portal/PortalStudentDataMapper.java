@@ -17,6 +17,15 @@ class PortalStudentDataMapper {
     private final DepartmentService departmentService;
 
     PortalStudentData toStudentData(PortalStudentInfo raw) {
+        if (raw == null || raw.department() == null || raw.academic() == null || raw.admission() == null) {
+            return null;
+        }
+
+        StudentStatus status = parseStatus(raw.status());
+        if (status == null) {
+            return null;
+        }
+
         Department department = departmentService.getOrCreateDepartment(
                 raw.department().code(),
                 raw.department().name()
@@ -40,9 +49,9 @@ class PortalStudentDataMapper {
                 .secondaryMajor(secondaryMajor)
                 .admissionYear(raw.admission().year())
                 .semesterEnrolled(raw.admission().semester())
-                .isTransferStudent(raw.admission().type().contains("편입"))
-                .isGraduated(raw.status().equals(StudentStatus.졸업.name()))
-                .status(StudentStatus.valueOf(raw.status()))
+                .isTransferStudent(raw.admission().type() != null && raw.admission().type().contains("편입"))
+                .isGraduated(status == StudentStatus.졸업)
+                .status(status)
                 .gradeLevel(raw.academic().gradeLevel())
                 .completedSemesters(raw.academic().completedSemesters())
                 .admissionType(raw.admission().type())
@@ -59,6 +68,14 @@ class PortalStudentDataMapper {
         );
 
         return new PortalStudentData(studentData, studentInfo);
+    }
+
+    private StudentStatus parseStatus(String status) {
+        try {
+            return StudentStatus.valueOf(status);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return null;
+        }
     }
 
     record PortalStudentData(

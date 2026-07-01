@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
 class PortalClientTest {
@@ -50,6 +51,24 @@ class PortalClientTest {
         assertThatThrownBy(() -> client.scrapeAll("student", "password"))
                 .isInstanceOfSatisfying(PortalScrapeException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.PORTAL_ACCOUNT_LOCKED));
+
+        server.verify();
+    }
+
+    @Test
+    void scrapeAllMapsEmptyBodyToPortalScrapeFailed() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        PortalClient client = new PortalClient(restTemplate);
+        ReflectionTestUtils.setField(client, "baseUrl", "https://crawler.example");
+
+        server.expect(requestTo("https://crawler.example/scrape"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withNoContent());
+
+        assertThatThrownBy(() -> client.scrapeAll("student", "password"))
+                .isInstanceOfSatisfying(PortalScrapeException.class, ex ->
+                        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.PORTAL_SCRAPE_FAILED));
 
         server.verify();
     }

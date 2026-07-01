@@ -10,3 +10,4 @@
 - [x] Run focused reference checks.
 - [x] Run `./gradlew test`.
 - [x] Commit in meaningful units.
+- [x] Address Gemini review comments on PR #293.

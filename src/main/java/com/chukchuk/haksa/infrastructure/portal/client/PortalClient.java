@@ -35,7 +35,11 @@ public class PortalClient {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(new LoginRequest(username, password));
 
-            return restTemplate.exchange(request, RawPortalData.class).getBody();
+            RawPortalData body = restTemplate.exchange(request, RawPortalData.class).getBody();
+            if (body == null) {
+                throw new PortalScrapeException(ErrorCode.PORTAL_SCRAPE_FAILED);
+            }
+            return body;
         } catch (RestClientResponseException e) {
             logHttpError(uri, t0, e);
             throw new PortalScrapeException(mapHttpStatus(e.getStatusCode()), e);
