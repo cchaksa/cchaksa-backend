@@ -65,7 +65,7 @@ public class SecurityConfig {
     private static final String[] SWAGGER_ENDPOINTS = {
             "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
             "/swagger-resources/**", "/swagger-config/**",
-            "/webjars/**", "/openapi.yaml"
+            "/webjars/**"
     };
 
     // ---- CORS (dev) ----
