@@ -21,16 +21,13 @@ import static com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecor
 @ConditionalOnProperty(name = "cache.type", havingValue = "local", matchIfMissing = true)
 public class LocalAcademicCache implements AcademicCache {
 
-    /**
-     * Redis DEFAULT_TTL과 동일한 의미
-     */
     private static final Duration DEFAULT_TTL = Duration.ofDays(30);
 
     /**
      * 주(Local) 캐시로 사용하기 위한 Caffeine 설정
      *
      * - maximumSize      : OOM 방지 (가장 중요)
-     * - expireAfterWrite: Redis TTL과 동일한 의미
+     * - expireAfterWrite: 오래된 캐시 자동 정리
      * - recordStats     : 필요 시 캐시 히트율 관찰 가능
      */
     private final Cache<String, Object> cache = Caffeine.newBuilder()
@@ -158,7 +155,6 @@ public class LocalAcademicCache implements AcademicCache {
 
     /**
      * student 단위 무효화
-     * - Redis의 prefix delete 대응
      * - Caffeine에서는 keySet 순회가 합리적인 선택
      */
     @Override
