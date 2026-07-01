@@ -7,7 +7,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class CourseInternalDto {
     private Long offeringId;
-    private String areaType;         // FacultyDivision은 나중에 파싱
+    private String areaType;
     private Integer credits;
     private String grade;
     private String courseName;
@@ -15,6 +15,5 @@ public class CourseInternalDto {
     private Integer year;
     private String courseCode;
     private Integer originalScore;
-    private Integer liberalAreaCode; // course_offerings.area_code (LiberalArtsAreaCode FK), nullable
+    private Integer liberalAreaCode;
 }
-

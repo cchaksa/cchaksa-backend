@@ -13,3 +13,6 @@
 - stale TODO 주석은 코드 동작을 바꾸지 않고 제거했다.
 - OpenAPI docs interface와 `*ApiResponse` wrapper는 이번 PR에서 제거하지 않는다. 현재 계약 테스트가 전용 wrapper schema 이름을 검증하고 있고, 프론트가 `/v3/api-docs`를 사용하므로 단순 삭제가 아니라 schema 이름 보존 customizer나 프론트 계약 변경이 필요하다. 이번 #295의 목표는 낮은 위험의 삭제이므로 여기서는 보류한다.
 - 관련 테스트와 전체 `./gradlew test`가 통과했다.
+- `ApiResponse` marker interface와 `ScrapeJobPublisher` 단일 구현 인터페이스는 런타임 다형성 없이 타입 껍데기만 남아 있어 제거했다.
+- `build.gradle`의 주석 처리된 `java-jwt` 의존성과 동작을 만들지 않는 남은 주석을 제거했다.
+- 추가 정리 후 전체 `./gradlew test`가 다시 통과했다.
