@@ -1,9 +1,5 @@
 package com.chukchuk.haksa.application.portal;
 
-import com.chukchuk.haksa.domain.department.model.Department;
-import com.chukchuk.haksa.domain.department.service.DepartmentService;
-import com.chukchuk.haksa.domain.student.model.StudentStatus;
-import com.chukchuk.haksa.domain.user.model.StudentInitializationDataType;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -24,9 +20,9 @@ import static com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionRes
 @RequiredArgsConstructor
 public class RefreshPortalConnectionService {
 
-    private final DepartmentService departmentService;
     private final UserPortalConnectionRepository userPortalConnectionRepository;
     private final UserService userService;
+    private final PortalStudentDataMapper portalStudentDataMapper;
 
     @Transactional
     public PortalConnectionResult executeWithPortalData(UUID userId, PortalData portalData) {
@@ -41,50 +37,16 @@ public class RefreshPortalConnectionService {
             }
 
             PortalStudentInfo raw = portalData.student();
-            Department department = departmentService.getOrCreateDepartment(
-                    raw.department().code(), raw.department().name());
-            var majorDto = raw.major();
-            Department major = (majorDto != null && majorDto.code() != null)
-                    ? departmentService.getOrCreateDepartment(majorDto.code(), majorDto.name())
-                    : null;
-            Department secondaryMajor = raw.secondaryMajor() != null
-                    ? departmentService.getOrCreateDepartment(raw.secondaryMajor().code(), raw.secondaryMajor().name())
-                    : null;
-
-            if (department == null) {
+            PortalStudentDataMapper.PortalStudentData portalStudentData =
+                    portalStudentDataMapper.toStudentData(raw);
+            if (portalStudentData == null) {
                 log.warn("[BIZ] portal.conn.fail userId={} reason=dept_init_failed deptCode={}", userId, raw.department().code());
                 return failure("학과/전공 정보 초기화 실패");
             }
 
-            StudentInitializationDataType studentData = StudentInitializationDataType.builder()
-                    .studentCode(raw.studentCode())
-                    .name(raw.name())
-                    .department(department)
-                    .major(major)
-                    .secondaryMajor(secondaryMajor)
-                    .admissionYear(raw.admission().year())
-                    .semesterEnrolled(raw.admission().semester())
-                    .isTransferStudent(raw.admission().type().contains("편입"))
-                    .isGraduated(raw.status().equals(StudentStatus.졸업.name()))
-                    .status(StudentStatus.valueOf(raw.status()))
-                    .gradeLevel(raw.academic().gradeLevel())
-                    .completedSemesters(raw.academic().completedSemesters())
-                    .admissionType(raw.admission().type())
-                    .build();
+            userPortalConnectionRepository.refreshPortalConnection(user, portalStudentData.studentData());
 
-            userPortalConnectionRepository.refreshPortalConnection(user, studentData);
-
-            StudentInfo studentInfo = new StudentInfo(
-                    raw.name(),
-                    "수원대학교",
-                    major != null ? major.getEstablishedDepartmentName() : department.getEstablishedDepartmentName(),
-                    raw.studentCode(),
-                    raw.academic().gradeLevel(),
-                    raw.status(),
-                    raw.academic().completedSemesters() % 2 == 0 ? 1 : 2
-            );
-
-            return success(raw.studentCode(), studentInfo);
+            return success(raw.studentCode(), portalStudentData.studentInfo());
 
         } catch (Exception e) {
             log.warn("[BIZ] portal.conn.ex userId={} ex={}", userId, e.getClass().getSimpleName(), e);
