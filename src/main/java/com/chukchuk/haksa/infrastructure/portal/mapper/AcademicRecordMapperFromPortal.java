@@ -34,7 +34,7 @@ public class AcademicRecordMapperFromPortal {
                         parseToInt(grade.appliedCredits()),
                         parseToInt(grade.earnedCredits()),
                         parseToDouble(grade.semesterGpa()),
-                        grade.score(), // TODO: 필드명 semesterPercentile으로 명확하게 변경
+                        grade.score(),
                         null,
                         grade.ranking() != null ? grade.ranking().rank() : null,
                         grade.ranking() != null ? grade.ranking().total() : null
