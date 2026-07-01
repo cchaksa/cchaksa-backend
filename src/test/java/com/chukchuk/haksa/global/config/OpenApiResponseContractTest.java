@@ -8,13 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
-import org.yaml.snakeyaml.Yaml;
 
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -131,70 +126,49 @@ class OpenApiResponseContractTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void staticOpenApiMeResponseMatchesGeneratedSchemaShape() throws Exception {
-        Map<String, Object> staticOpenApi;
-        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
-            staticOpenApi = new Yaml().load(inputStream);
-        }
+    void generatedOpenApiMeResponseMatchesSchemaShape() throws Exception {
+        JsonNode apiDocs = apiDocs();
+        JsonNode schemas = apiDocs.path("components").path("schemas");
 
-        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
-        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
-        Map<String, Object> meApiResponse = (Map<String, Object>) schemas.get("MeApiResponse");
-        Map<String, Object> meApiProperties = (Map<String, Object>) meApiResponse.get("properties");
-        Map<String, Object> data = (Map<String, Object>) meApiProperties.get("data");
-        Object meResponseObject = schemas.get("MeResponse");
-
-        assertThat(data.get("$ref")).isEqualTo("#/components/schemas/MeResponse");
-        assertThat(meResponseObject).isInstanceOf(Map.class);
-
-        Map<String, Object> meResponse = (Map<String, Object>) meResponseObject;
-        Map<String, Object> meResponseProperties = (Map<String, Object>) meResponse.get("properties");
-        Map<String, Object> isPortalLinked = (Map<String, Object>) meResponseProperties.get("isPortalLinked");
-
-        assertThat(isPortalLinked.get("type")).isEqualTo("boolean");
+        assertThat(schemas.path("MeApiResponse").path("properties").path("data").path("$ref").asText())
+                .isEqualTo("#/components/schemas/MeResponse");
+        assertThat(schemas.has("MeResponse")).isTrue();
+        assertThat(schemas.path("MeResponse").path("properties").path("isPortalLinked").path("type").asText())
+                .isEqualTo("boolean");
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void staticOpenApiDocumentsMissionLiberalAreaCodeForGraduationAndAcademicRecord() throws Exception {
-        Map<String, Object> staticOpenApi;
-        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
-            staticOpenApi = new Yaml().load(inputStream);
-        }
+    void generatedOpenApiDocumentsMissionLiberalAreaCodeForGraduationAndAcademicRecord() throws Exception {
+        JsonNode apiDocs = apiDocs();
 
-        Map<String, Object> paths = (Map<String, Object>) staticOpenApi.get("paths");
-        assertThat(paths).containsKeys("/api/graduation/progress", "/api/academic/record");
+        assertThat(apiDocs.path("paths").has("/api/graduation/progress")).isTrue();
+        assertThat(apiDocs.path("paths").has("/api/academic/record")).isTrue();
 
-        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
-        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
+        JsonNode graduationResponse = responseSchema(apiDocs, "/api/graduation/progress", "get", "200");
+        JsonNode graduationData = propertySchema(apiDocs, graduationResponse, "data");
+        JsonNode graduationProgress = arrayItemSchema(apiDocs,
+                propertySchema(apiDocs, graduationData, "graduationProgress"));
+        JsonNode graduationCourse = arrayItemSchema(apiDocs, propertySchema(apiDocs, graduationProgress, "courses"));
+        assertThat(propertySchema(apiDocs, graduationCourse, "liberalAreaCode").path("type").asText())
+                .isEqualTo("integer");
 
-        Map<String, Object> graduationCourse = (Map<String, Object>) schemas.get("GraduationCourse");
-        Map<String, Object> graduationCourseProperties = (Map<String, Object>) graduationCourse.get("properties");
-        Map<String, Object> graduationLiberalAreaCode = (Map<String, Object>) graduationCourseProperties.get("liberalAreaCode");
-        assertThat(graduationLiberalAreaCode.get("type")).isEqualTo("integer");
-
-        Map<String, Object> studentCourseDetail = (Map<String, Object>) schemas.get("StudentCourseDetail");
-        Map<String, Object> studentCourseDetailProperties = (Map<String, Object>) studentCourseDetail.get("properties");
-        Map<String, Object> academicLiberalAreaCode = (Map<String, Object>) studentCourseDetailProperties.get("liberalAreaCode");
-        assertThat(academicLiberalAreaCode.get("type")).isEqualTo("integer");
+        JsonNode academicRecordResponse = responseSchema(apiDocs, "/api/academic/record", "get", "200");
+        JsonNode academicRecordData = propertySchema(apiDocs, academicRecordResponse, "data");
+        JsonNode academicRecordCourses = propertySchema(apiDocs, academicRecordData, "courses");
+        JsonNode studentCourse = arrayItemSchema(apiDocs, propertySchema(apiDocs, academicRecordCourses, "liberal"));
+        assertThat(propertySchema(apiDocs, studentCourse, "liberalAreaCode").path("type").asText())
+                .isEqualTo("integer");
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void staticOpenApiDocumentsNotReleasedLectureEvaluationStatus() throws Exception {
-        Map<String, Object> staticOpenApi;
-        try (InputStream inputStream = Files.newInputStream(Path.of("src/main/resources/public/openapi.yaml"))) {
-            staticOpenApi = new Yaml().load(inputStream);
-        }
+    void generatedOpenApiDocumentsNotReleasedLectureEvaluationStatus() throws Exception {
+        JsonNode apiDocs = apiDocs();
 
-        Map<String, Object> components = (Map<String, Object>) staticOpenApi.get("components");
-        Map<String, Object> schemas = (Map<String, Object>) components.get("schemas");
-        Map<String, Object> response = (Map<String, Object>) schemas.get("LectureEvaluationRequiredResponse");
-        Map<String, Object> properties = (Map<String, Object>) response.get("properties");
-        Map<String, Object> evaluationStatus = (Map<String, Object>) properties.get("evaluationStatus");
+        JsonNode response = responseSchema(apiDocs, "/api/lecture-evaluations/required", "get", "200");
+        JsonNode data = propertySchema(apiDocs, response, "data");
 
-        assertThat((List<String>) evaluationStatus.get("enum")).contains("NOT_RELEASED");
+        assertThat(propertySchema(apiDocs, data, "evaluationStatus").path("enum").toString())
+                .contains("NOT_RELEASED");
     }
 
     @Test
@@ -246,6 +220,39 @@ class OpenApiResponseContractTest {
         assertThat(response.path("content").has("text/plain")).isTrue();
         assertThat(response.path("content").path("text/plain").path("schema").path("type").asText())
                 .isEqualTo("string");
+    }
+
+    private JsonNode responseSchema(JsonNode apiDocs, String path, String method, String responseCode) {
+        JsonNode response = apiDocs.path("paths").path(path).path(method).path("responses").path(responseCode);
+        JsonNode schema = response.path("content").path("application/json").path("schema");
+        return resolveSchema(apiDocs, schema);
+    }
+
+    private JsonNode propertySchema(JsonNode apiDocs, JsonNode schema, String propertyName) {
+        JsonNode property = resolveSchema(apiDocs, schema).path("properties").path(propertyName);
+        assertThat(property.isMissingNode()).as("schema property %s should exist", propertyName).isFalse();
+        return resolveSchema(apiDocs, property);
+    }
+
+    private JsonNode arrayItemSchema(JsonNode apiDocs, JsonNode schema) {
+        JsonNode arraySchema = resolveSchema(apiDocs, schema);
+        assertThat(arraySchema.path("type").asText()).isEqualTo("array");
+        return resolveSchema(apiDocs, arraySchema.path("items"));
+    }
+
+    private JsonNode resolveSchema(JsonNode apiDocs, JsonNode schema) {
+        if (schema.has("$ref")) {
+            return componentSchema(apiDocs, schema.path("$ref").asText());
+        }
+        return schema;
+    }
+
+    private JsonNode componentSchema(JsonNode apiDocs, String ref) {
+        assertThat(ref).startsWith("#/components/schemas/");
+        String schemaName = ref.substring("#/components/schemas/".length());
+        JsonNode schema = apiDocs.path("components").path("schemas").path(schemaName);
+        assertThat(schema.isMissingNode()).as("schema %s should exist", schemaName).isFalse();
+        return schema;
     }
 
     private record OperationRef(String path, String method) {
