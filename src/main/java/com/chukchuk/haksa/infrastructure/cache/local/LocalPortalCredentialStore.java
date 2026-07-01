@@ -4,18 +4,12 @@ import com.chukchuk.haksa.domain.portal.PortalCredentialStore;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(
-        name = "portal.credential.store",
-        havingValue = "local",
-        matchIfMissing = true
-)
 public class LocalPortalCredentialStore implements PortalCredentialStore {
 
     private static final Duration TTL = Duration.ofMinutes(10);
