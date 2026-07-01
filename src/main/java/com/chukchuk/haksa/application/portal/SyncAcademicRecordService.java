@@ -457,42 +457,6 @@ public class SyncAcademicRecordService {
         return course;
     }
 
-    private List<CourseEnrollment> collapseByCoursePreferLatestNonDeleted(
-            List<CourseEnrollment> enrollments, Map<Long, CourseOffering> offerings) {
-
-        // offerings에 없는 id는 스킵 (정상 데이터에서는 아무 것도 걸리지 않음)
-        List<CourseEnrollment> safe = enrollments.stream()
-                .filter(e -> offerings.containsKey((long) e.getOfferingId()))
-                .toList();
-
-        // course_id 단위로 그룹화
-        Map<Long, List<CourseEnrollment>> byCourse = safe.stream()
-                .collect(Collectors.groupingBy(e ->
-                        offerings.get((long) e.getOfferingId()).getCourse().getId()
-                ));
-
-        List<CourseEnrollment> result = new ArrayList<>();
-        for (List<CourseEnrollment> list : byCourse.values()) {
-            // 재수강 '삭제 아님'만 후보
-            List<CourseEnrollment> candidates = list.stream()
-                    .filter(e -> !e.isRetakeDeleted())
-                    .toList();
-
-            // 모두 '재수강 삭제'면 집계 제외
-            if (candidates.isEmpty()) continue;
-
-            CourseEnrollment picked = candidates.stream()
-                    .max(Comparator
-                            .comparingInt((CourseEnrollment e) -> offerings.get((long) e.getOfferingId()).getYear())
-                            .thenComparingInt(e -> offerings.get((long) e.getOfferingId()).getSemester())
-                    )
-                    .orElse(null);
-
-            if (picked != null) result.add(picked);
-        }
-        return result;
-    }
-
     private void markLectureEvaluationStatusFromSnapshot(
             UUID studentId,
             List<CourseEnrollment> enrollments,
