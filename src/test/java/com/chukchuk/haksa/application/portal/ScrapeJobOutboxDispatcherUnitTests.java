@@ -8,6 +8,7 @@ import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobStatus;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobOutboxRepository;
 import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
+import com.chukchuk.haksa.infrastructure.scrapejob.SqsScrapeJobPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ class ScrapeJobOutboxDispatcherUnitTests {
     private ScrapeJobRepository scrapeJobRepository;
 
     @Mock
-    private ScrapeJobPublisher scrapeJobPublisher;
+    private SqsScrapeJobPublisher scrapeJobPublisher;
 
     @Mock
     private Environment environment;

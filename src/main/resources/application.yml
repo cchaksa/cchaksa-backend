@@ -138,13 +138,6 @@ logging:
       - ^/internal/.*
       - /docs
 
-cache:
-  type: local
-
-portal:
-  credential:
-    store: local
-
 lecture-evaluation:
   target-year: ${LECTURE_EVALUATION_TARGET_YEAR:2026}
   target-semester: ${LECTURE_EVALUATION_TARGET_SEMESTER:10}

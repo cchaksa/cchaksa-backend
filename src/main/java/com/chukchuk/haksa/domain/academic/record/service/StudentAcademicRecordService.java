@@ -70,16 +70,6 @@ public class StudentAcademicRecordService {
     }
 
     /**
-     * 기존 단일 전공 졸업 필요 학점 계산 메서드
-     * @deprecated 예정
-     */
-    private Integer getGraduationCreditsWithCache(Long deptId, Integer admissionYear) {
-        return graduationQueryRepository.getAreaRequirementsWithCache(deptId, admissionYear).stream()
-                .mapToInt(AreaRequirementDto::requiredCredits)
-                .sum();
-    }
-
-    /**
      * 복수 전공을 고려한 졸업 필요 학점 계산 메서드
      */
     private Integer getGraduationCreditsWithCache(Long primaryMajorId, Long secondaryMajorId, Integer admissionYear) {

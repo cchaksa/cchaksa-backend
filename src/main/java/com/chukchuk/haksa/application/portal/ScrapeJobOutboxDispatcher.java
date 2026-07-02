@@ -3,6 +3,7 @@ package com.chukchuk.haksa.application.portal;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJobOutboxStatus;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
+import com.chukchuk.haksa.infrastructure.scrapejob.SqsScrapeJobPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
@@ -26,7 +27,7 @@ public class ScrapeJobOutboxDispatcher {
     );
 
     private final ScrapeJobOutboxDispatchTxService dispatchTxService;
-    private final ScrapeJobPublisher scrapeJobPublisher;
+    private final SqsScrapeJobPublisher scrapeJobPublisher;
     private final ScrapingProperties scrapingProperties;
     private final Environment environment;
 

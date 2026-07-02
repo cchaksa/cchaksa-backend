@@ -1,7 +1,5 @@
 package com.chukchuk.haksa.infrastructure.scrapejob;
 
-import com.chukchuk.haksa.application.portal.ScrapeJobMessage;
-import com.chukchuk.haksa.application.portal.ScrapeJobPublisher;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,12 +13,11 @@ import java.time.Duration;
 
 @Component
 @RequiredArgsConstructor
-public class SqsScrapeJobPublisher implements ScrapeJobPublisher {
+public class SqsScrapeJobPublisher {
 
     private final ScrapingProperties scrapingProperties;
     private volatile SqsClient sqsClient;
 
-    @Override
     public String publish(String payloadJson) {
         String queueUrl = scrapingProperties.getJob().getQueueUrl();
         if (queueUrl == null || queueUrl.isBlank()) {

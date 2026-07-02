@@ -8,7 +8,6 @@ import com.chukchuk.haksa.domain.graduation.dto.GraduationProgressResponse;
 import com.chukchuk.haksa.domain.student.dto.StudentSemesterDto;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -18,7 +17,6 @@ import java.util.UUID;
 import static com.chukchuk.haksa.domain.academic.record.dto.StudentAcademicRecordDto.AcademicSummaryResponse;
 
 @Component
-@ConditionalOnProperty(name = "cache.type", havingValue = "local", matchIfMissing = true)
 public class LocalAcademicCache implements AcademicCache {
 
     private static final Duration DEFAULT_TTL = Duration.ofDays(30);
