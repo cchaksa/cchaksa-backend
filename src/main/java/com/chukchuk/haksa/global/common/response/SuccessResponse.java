@@ -7,7 +7,7 @@ import lombok.Getter;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @Getter
 @Schema(description = "성공 응답 포맷")
-public class SuccessResponse<T> implements ApiResponse {
+public class SuccessResponse<T> {
 
     @Schema(description = "성공 여부", example = "true", required = true)
     private final boolean success = true;

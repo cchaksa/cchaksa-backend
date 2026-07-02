@@ -1,8 +1,4 @@
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
   profiles:
     active: local
     group:
@@ -133,9 +129,6 @@ management:
   # 기존 tracing 설정 유지
   tracing:
     enabled: true
-  health:
-    redis:
-      enabled: false
 
 logging:
   exclude:
@@ -145,20 +138,6 @@ logging:
       - ^/internal/.*
       - /docs
 
-# ─────────────────────────────────────────
-# Cache / Infra 전략 (기본값)
-# ─────────────────────────────────────────
-cache:
-  type: local   # local | redis
-
-portal:
-  credential:
-    store: local   # local | redis
-
 lecture-evaluation:
   target-year: ${LECTURE_EVALUATION_TARGET_YEAR:2026}
   target-semester: ${LECTURE_EVALUATION_TARGET_SEMESTER:10}
-
-infra:
-  redis:
-    enabled: false

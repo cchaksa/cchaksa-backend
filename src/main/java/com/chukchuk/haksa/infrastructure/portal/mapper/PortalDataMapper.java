@@ -150,7 +150,7 @@ public class PortalDataMapper {
                         parseIntOrZero(c.subjtEstbSmrCd()),
                         extractLeadingDigit(c.cltTerrNm()), // cltTerrNm: 선교 영역 (ex. '6영역'처럼 데이터가 넘어옴) -> 영역 숫자만 추출
                         parseIntOrZero(c.cltTerrCd()),
-                        "UNKNOWN", // TODO: 변경 필요 시 필드 추가
+                        "UNKNOWN",
                         false
                 ));
             }

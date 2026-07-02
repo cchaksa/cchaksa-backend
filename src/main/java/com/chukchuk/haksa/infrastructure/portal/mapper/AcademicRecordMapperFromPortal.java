@@ -3,13 +3,10 @@ package com.chukchuk.haksa.infrastructure.portal.mapper;
 import com.chukchuk.haksa.application.academic.AcademicRecord;
 import com.chukchuk.haksa.application.academic.AcademicSummary;
 import com.chukchuk.haksa.application.academic.SemesterGrade;
-import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollment;
-import com.chukchuk.haksa.application.academic.enrollment.CourseEnrollments;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.infrastructure.portal.model.PortalAcademicData;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,7 +34,7 @@ public class AcademicRecordMapperFromPortal {
                         parseToInt(grade.appliedCredits()),
                         parseToInt(grade.earnedCredits()),
                         parseToDouble(grade.semesterGpa()),
-                        grade.score(), // TODO: 필드명 semesterPercentile으로 명확하게 변경
+                        grade.score(),
                         null,
                         grade.ranking() != null ? grade.ranking().rank() : null,
                         grade.ranking() != null ? grade.ranking().total() : null
@@ -52,13 +49,8 @@ public class AcademicRecordMapperFromPortal {
                 academicData.summary().score()
         );
 
-        // 수강 이력은 포털 데이터에서 제공되지 않으므로 빈 배열 처리
-        List<CourseEnrollment> enrollments = new ArrayList<>();  // 빈 리스트 생성
-        // CourseEnrollments 객체 생성
-        CourseEnrollments courseEnrollments = CourseEnrollments.create(enrollments);
-
         // AcademicRecord 도메인 모델 생성
-        return new AcademicRecord(studentId, semesterGrades, summary, courseEnrollments);
+        return new AcademicRecord(studentId, semesterGrades, summary);
     }
 
     private static int parseToInt(String value) {

@@ -10,7 +10,6 @@ import java.util.Objects;
 
 public class StudentCourseDto {
 
-    // TODO: 타입 일치하는지 확인
     @Schema(description = "수강 과목 상세 정보")
     public record CourseDetailDto(
             @Schema(description = "수강 ID") String id,

@@ -7,10 +7,14 @@ import com.chukchuk.haksa.infrastructure.portal.exception.PortalScrapeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.RequestEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
 
 @Slf4j
 @Component
@@ -19,22 +23,24 @@ public class PortalClient {
     @Value("${crawler.base-url}")
     private String baseUrl;
 
-    private final WebClient webClient = WebClient.builder().build();
+    private final RestTemplate restTemplate;
 
     public RawPortalData scrapeAll(String username, String password) {
         String uri = "/scrape";
         long t0 = LogTime.start();
 
         try {
-            return webClient.post()
-                    .uri(baseUrl + uri)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(new LoginRequest(username, password))
-                    .retrieve()
-                    .bodyToMono(RawPortalData.class)
-                    .block();
+            RequestEntity<LoginRequest> request = RequestEntity
+                    .post(URI.create(baseUrl + uri))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new LoginRequest(username, password));
 
-        } catch (WebClientResponseException e) {
+            RawPortalData body = restTemplate.exchange(request, RawPortalData.class).getBody();
+            if (body == null) {
+                throw new PortalScrapeException(ErrorCode.PORTAL_SCRAPE_FAILED);
+            }
+            return body;
+        } catch (RestClientResponseException e) {
             logHttpError(uri, t0, e);
             throw new PortalScrapeException(mapHttpStatus(e.getStatusCode()), e);
 
@@ -47,7 +53,7 @@ public class PortalClient {
 
     private record LoginRequest(String username, String password) {}
 
-    private void logHttpError(String uri, long t0, WebClientResponseException e) {
+    private void logHttpError(String uri, long t0, RestClientResponseException e) {
         long tookMs = LogTime.elapsedMs(t0);
         int status = e.getStatusCode().value();
 
