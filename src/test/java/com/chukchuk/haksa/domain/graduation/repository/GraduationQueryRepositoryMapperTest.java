@@ -4,13 +4,22 @@ import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.graduation.dto.CourseDto;
 import com.chukchuk.haksa.domain.graduation.dto.CourseInternalDto;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class GraduationQueryRepositoryMapperTest {
@@ -20,6 +29,9 @@ class GraduationQueryRepositoryMapperTest {
 
     @Mock
     private AcademicCache academicCache;
+
+    @Mock
+    private Query query;
 
     private GraduationQueryRepository newRepository() {
         return new GraduationQueryRepository(em, academicCache);
@@ -96,5 +108,20 @@ class GraduationQueryRepositoryMapperTest {
         CourseDto dto = repository.toCourseResponseDto(internal);
 
         assertThat(dto.getLiberalAreaCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("최근 유효 과목 조회는 개인 이수 학점을 사용한다")
+    void getLatestValidCourses_usesStudentSpecificPoints() {
+        UUID studentId = UUID.randomUUID();
+        when(em.createNativeQuery(anyString())).thenReturn(query);
+        when(query.setParameter(eq("studentId"), eq(studentId))).thenReturn(query);
+        when(query.getResultList()).thenReturn(List.of());
+
+        newRepository().getLatestValidCourses(studentId);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(em).createNativeQuery(sqlCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("sc.points,").doesNotContain("co.points,");
     }
 }
