@@ -33,12 +33,24 @@ class GraduationQueryRepositoryEtcTests {
                 .findFirst()
                 .orElseThrow();
 
-        assertThat(majorArea.getCompletedElectiveCourses()).isEqualTo(1);
+        assertThat(majorArea.getCompletedElectiveCourses()).isEqualTo(2);
         assertThat(etcArea.getRequiredCredits()).isZero();
         assertThat(etcArea.getEarnedCredits()).isEqualTo(3);
         assertThat(etcArea.getCourses())
                 .map(CourseDto::getCourseName)
                 .containsExactlyInAnyOrder("특별활동", "미지정활동");
+    }
+
+    @Test
+    @DisplayName("학점이 없는 과목이 있어도 일반 영역 취득학점을 계산한다")
+    void getStudentAreaProgress_treatsNullCreditsAsZero() {
+        List<AreaProgressDto> progress = repository.getStudentAreaProgress(UUID.randomUUID(), 1L, 2024);
+
+        assertThat(progress)
+                .filteredOn(dto -> dto.getAreaType() == FacultyDivision.전핵)
+                .singleElement()
+                .extracting(AreaProgressDto::getEarnedCredits)
+                .isEqualTo(3);
     }
 
     @Test
@@ -75,13 +87,16 @@ class GraduationQueryRepositoryEtcTests {
             CourseInternalDto major = new CourseInternalDto(
                     1L, "전핵", 3, "A+", "자료구조", 1, 2024, "CSE101", 95, null
             );
+            CourseInternalDto unknownCredits = new CourseInternalDto(
+                    4L, "전핵", null, "P", "학점미확인", 1, 2024, "CSE102", 0, null
+            );
             CourseInternalDto etc = new CourseInternalDto(
                     2L, FacultyDivision.기타.name(), 1, "P", "특별활동", 1, 2024, "ETC001", 0, null
             );
             CourseInternalDto undefined = new CourseInternalDto(
                     3L, null, 2, "P", "미지정활동", 1, 2024, "UNK001", 0, null
             );
-            return List.of(major, etc, undefined);
+            return List.of(major, unknownCredits, etc, undefined);
         }
     }
 

@@ -106,12 +106,13 @@ public class PortalDataMapper {
         boolean isRetakeDeleted = c.cretDelNm()
                 .map(val -> val.trim().equals("재수강 삭제") || val.trim().equals("재수강삭제"))
                 .orElse(false);
+        Integer credits = c.point() != null ? c.point() : c.gainPoint();
         return new CourseInfo(
                 c.subjtCd(),
                 c.subjtNm(),
                 c.ltrPrfsNm() != null ? c.ltrPrfsNm() : "미확인 교수",
                 c.estbDpmjNm(),
-                c.point(),
+                credits,
                 c.cretGrdCd(),
                 !"-".equals(c.refacYearSmr()), // pick: 기존 is_Retake 처리
                 c.timtSmryCn(),
@@ -144,7 +145,7 @@ public class PortalDataMapper {
                         c.diclNo(),
                         c.ltrPrfsNm(),
                         c.timtSmryCn(),
-                        c.point(),
+                        c.point() != null ? c.point() : c.gainPoint(),
                         c.estbDpmjNm(),
                         c.facDvnm(),
                         parseIntOrZero(c.subjtEstbSmrCd()),

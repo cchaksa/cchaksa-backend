@@ -186,4 +186,10 @@ public class CourseOffering extends BaseEntity {
         }
         this.liberalArtsAreaCode = area;
     }
+
+    public void backfillPoints(Integer points) {
+        if (this.points == null && points != null) {
+            this.points = points;
+        }
+    }
 }

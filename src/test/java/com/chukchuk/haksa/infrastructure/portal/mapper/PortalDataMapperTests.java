@@ -54,6 +54,17 @@ class PortalDataMapperTests {
         assertThat(portalData.student().languageCertFulfilled()).isFalse();
     }
 
+    @Test
+    @DisplayName("point가 없으면 gainPoint를 과목 학점으로 변환한다")
+    void mapsGainPointWhenCoursePointIsNull() throws Exception {
+        RawPortalData raw = objectMapper.readValue(payloadWithNullPointAndGainPoint(), RawPortalData.class);
+
+        PortalData portalData = PortalDataMapper.toPortalData(raw);
+
+        assertThat(portalData.academic().semesters().get(0).courses().get(0).credits()).isEqualTo(4);
+        assertThat(portalData.curriculum().offerings().get(0).points()).isEqualTo(4);
+    }
+
     private static String payloadWithLanguageCert(String flangPassGb) {
         return """
                 {
@@ -65,5 +76,12 @@ class PortalDataMapperTests {
                   }
                 }
                 """.formatted(flangPassGb);
+    }
+
+    private static String payloadWithNullPointAndGainPoint() {
+        return payloadWithLanguageCert("통과").replace(
+                "\"semesters\":[]",
+                "\"semesters\":[{\"semester\":\"2025-10\",\"courses\":[{\"subjtCd\":\"C101\",\"subjtNm\":\"학점보정\",\"point\":null,\"gainPoint\":4,\"cretDelNm\":null}]}]"
+        );
     }
 }
