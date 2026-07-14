@@ -232,7 +232,7 @@ public class GraduationQueryRepository {
             SELECT DISTINCT ON (c.course_code, co.faculty_division_name)
                 sc.offering_id,
                 TRIM(co.faculty_division_name) AS area_type,
-                co.points,
+                sc.points,
                 sc.grade,
                 c.course_name,
                 co.semester,

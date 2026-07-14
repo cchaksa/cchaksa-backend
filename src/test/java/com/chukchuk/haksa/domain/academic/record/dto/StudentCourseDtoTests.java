@@ -58,6 +58,17 @@ class StudentCourseDtoTests {
     }
 
     @Test
+    @DisplayName("수강 과목 응답은 개인 이수 학점을 반환한다")
+    void from_returnsStudentSpecificPoints() {
+        StudentCourse studentCourse = studentCourse(offering(FacultyDivision.전핵, null));
+        when(studentCourse.getPoints()).thenReturn(21);
+
+        StudentCourseDto.CourseDetailDto result = StudentCourseDto.CourseDetailDto.from(studentCourse);
+
+        assertThat(result.credits()).isEqualTo(21);
+    }
+
+    @Test
     @DisplayName("선교 과목 응답은 liberalAreaCode 를 반환한다")
     void from_whenMissionCourseHasAreaCode_returnsLiberalAreaCode() {
         CourseOffering offering = offering(FacultyDivision.선교, areaCode(7));

@@ -38,7 +38,6 @@ class StudentCourseServiceUnitTests {
         when(course.getOffering().getCourse().getCourseName()).thenReturn("자료구조");
         when(course.getOffering().getCourse().getCourseCode()).thenReturn("CSE101");
         when(course.getOffering().getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
-        when(course.getOffering().getPoints()).thenReturn(3);
         when(course.getOffering().getProfessor().getProfessorName()).thenReturn("홍길동");
         when(course.getGrade().getValue().getValue()).thenReturn("A+");
         when(course.getPoints()).thenReturn(3);
@@ -71,7 +70,6 @@ class StudentCourseServiceUnitTests {
         when(course.getOffering().getCourse().getCourseName()).thenReturn("교양영어");
         when(course.getOffering().getCourse().getCourseCode()).thenReturn("ENG101");
         when(course.getOffering().getFacultyDivisionName()).thenReturn(FacultyDivision.중핵);
-        when(course.getOffering().getPoints()).thenReturn(2);
         when(course.getOffering().getProfessor()).thenReturn(null);
         when(course.getGrade()).thenReturn(null);
         when(course.getPoints()).thenReturn(null);

@@ -42,7 +42,7 @@ public class StudentCourseDto {
                     course.getOffering().getCourse().getCourseCode(),
                     course.getOffering().getFacultyDivisionName(),
                     course.getOffering().getRawFacultyDivisionName(),
-                    course.getOffering().getPoints(),
+                    course.getPoints() != null ? course.getPoints() : 0,
                     course.getOffering().getProfessor() != null ? course.getOffering().getProfessor().getProfessorName() : "미지정",
                     course.getGrade() != null ? course.getGrade().getValue().getValue() : "F",
                     course.getPoints() != null ? course.getPoints() : 0,
