@@ -106,7 +106,7 @@ public class GraduationQueryRepository {
             String areaType = normalizeAreaType(req.areaType());
             List<CourseInternalDto> taken = coursesByArea.getOrDefault(areaType, Collections.emptyList());
 
-            int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
+            int earnedCredits = taken.stream().mapToInt(course -> course.getCredits() != null ? course.getCredits() : 0).sum();
             int completedElectiveCourses = countCompletedElectiveCourses(areaType, taken);
 
             List<CourseDto> courseDtos = taken.stream()
@@ -196,7 +196,7 @@ public class GraduationQueryRepository {
             String areaType = normalizeAreaType(req.areaType());
             List<CourseInternalDto> taken = coursesByArea.getOrDefault(areaType, Collections.emptyList());
 
-            int earnedCredits = taken.stream().mapToInt(CourseInternalDto::getCredits).sum();
+            int earnedCredits = taken.stream().mapToInt(course -> course.getCredits() != null ? course.getCredits() : 0).sum();
             int completedElectiveCourses = countCompletedElectiveCourses(areaType, taken);
 
             List<CourseDto> courseDtos = taken.stream()
