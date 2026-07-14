@@ -16,7 +16,7 @@
 1. 스크래퍼 `main`을 `develop`에 fast-forward하여 기준 커밋을 맞춘다.
 2. 스크래퍼 `feat/301`의 병합·테스트 후 `develop`을 개발 환경에 배포한다.
 3. 스크래퍼 `develop`을 `main`에 fast-forward하고 운영 환경에 배포한다.
-4. 백엔드 `main`의 변경을 `dev`에 병합하고 `feat/301`을 최신 `dev`에 rebase한다.
+4. `dev` 보호 규칙이 있으면 `feat/301`을 `main`에 rebase해 PR로 `main` 변경과 hotfix를 함께 `dev`에 병합한다.
 5. 백엔드 `feat/301`을 `dev`에 병합한 뒤 개발 환경에 배포한다.
 6. 백엔드 `dev`를 `main`에 fast-forward하고 운영 환경에 배포한다.
 
