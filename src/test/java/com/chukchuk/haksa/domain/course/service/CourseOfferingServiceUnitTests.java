@@ -65,7 +65,6 @@ class CourseOfferingServiceUnitTests {
         when(existing.getClassSection()).thenReturn("01");
         when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
         when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
-        when(existing.getPoints()).thenReturn(null);
 
         when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
                 Set.of(10L), Set.of(2024), Set.of(1)
