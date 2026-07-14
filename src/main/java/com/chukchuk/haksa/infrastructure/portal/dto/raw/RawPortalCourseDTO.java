@@ -11,6 +11,7 @@ public record RawPortalCourseDTO(
         String ltrPrfsNm,
         String estbDpmjNm,
         Integer point,
+        Integer gainPoint,
         String cretGrdCd,
         String refacYearSmr, // 기존 재수강 판별 식별자: isRetake
         String timtSmryCn,
