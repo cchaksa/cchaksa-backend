@@ -57,6 +57,9 @@ public class CourseOfferingService {
             if (commandByKey.containsKey(key)) {
                 CreateOfferingCommand cmd = commandByKey.get(key);
                 backfillMissionAreaCodeIfNeeded(offering, cmd);
+                if (offering.getPoints() == null && cmd.points() != null) {
+                    offering.backfillPoints(cmd.points());
+                }
                 result.putIfAbsent(key, offering);
             }
         }

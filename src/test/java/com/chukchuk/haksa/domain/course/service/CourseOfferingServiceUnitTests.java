@@ -50,8 +50,8 @@ class CourseOfferingServiceUnitTests {
     private CourseOfferingService courseOfferingService;
 
     @Test
-    @DisplayName("동일 분반 강의가 이미 존재하면 기존 강의를 반환한다")
-    void getOrCreateOffering_whenExists_returnsExisting() {
+    @DisplayName("동일 분반 강의가 이미 존재하면 기존 강의를 반환하고 누락 학점을 보정한다")
+    void getOrCreateOffering_whenExists_returnsExistingAndBackfillsMissingPoints() {
         CreateOfferingCommand cmd = command(10L, 20L, 30L, 101);
         CourseOffering existing = mock(CourseOffering.class);
         Course course = mock(Course.class);
@@ -65,6 +65,7 @@ class CourseOfferingServiceUnitTests {
         when(existing.getClassSection()).thenReturn("01");
         when(existing.getFacultyDivisionName()).thenReturn(FacultyDivision.전핵);
         when(existing.getHostDepartment()).thenReturn("컴퓨터학과");
+        when(existing.getPoints()).thenReturn(null);
 
         when(courseOfferingRepository.findByCourseIdInAndYearInAndSemesterIn(
                 Set.of(10L), Set.of(2024), Set.of(1)
@@ -73,6 +74,7 @@ class CourseOfferingServiceUnitTests {
         CourseOffering result = courseOfferingService.getOrCreateOffering(cmd);
 
         assertThat(result).isSameAs(existing);
+        verify(existing).backfillPoints(3);
         verify(courseOfferingRepository, never()).saveAll(any());
         verify(courseRepository, never()).getReferenceById(any(Long.class));
     }
