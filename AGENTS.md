@@ -26,6 +26,15 @@
 - Keep this file short and durable. Put task-specific decisions in the relevant issue, PR, spec, or final response instead.
 - Update `AGENTS.md` only when a durable project-wide rule changes, and call that out explicitly.
 
+## Documentation Maintenance
+- Keep `README.md` as the project entry point and the GitHub Wiki as the detailed developer and operations guide.
+- The Wiki is the separate `https://github.com/cchaksa/cchaksa-backend.wiki.git` repository and uses `master` as its default branch.
+- Before completing a task, decide whether changes to public APIs, authentication, database schema, domain rules, architecture, deployment, operations, or incident response require a Wiki update.
+- Add or supersede an ADR when an architecture decision, its constraints, or its operational consequences change.
+- Internal refactors and test-only changes normally do not require a Wiki update. State why no Wiki update was needed in the final response.
+- When a Wiki update is required, update the separate Wiki repository, verify its links and sensitive-data safety, push it, and confirm the public page renders.
+- Follow the human-facing documentation and commit procedure in the Wiki `Development Guide`; do not duplicate its long-form content here.
+
 ## Communication
 - When the user writes in Korean, respond in Korean unless the task requires another language.
 - Korean sentences should end with `.`, `?`, or `!`, not a closing colon.
