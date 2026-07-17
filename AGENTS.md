@@ -28,6 +28,7 @@
 
 ## Documentation Maintenance
 - Keep `README.md` as the project entry point and the GitHub Wiki as the detailed developer and operations guide.
+- The Wiki is the separate `https://github.com/cchaksa/cchaksa-backend.wiki.git` repository and uses `master` as its default branch.
 - Before completing a task, decide whether changes to public APIs, authentication, database schema, domain rules, architecture, deployment, operations, or incident response require a Wiki update.
 - Add or supersede an ADR when an architecture decision, its constraints, or its operational consequences change.
 - Internal refactors and test-only changes normally do not require a Wiki update. State why no Wiki update was needed in the final response.
