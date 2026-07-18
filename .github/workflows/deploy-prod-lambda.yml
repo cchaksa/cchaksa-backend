@@ -2,29 +2,87 @@ name: Deploy to Prod Lambda
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: '배포 버전. 예시 1.2.0'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prod-lambda-deploy
+  cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Validate prod release
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.release.outputs.release_version }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+
+    steps:
+      - name: Validate main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production deploy must run from main branch" >&2
+            exit 1
+          fi
+
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate release version
+        id: release
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must use MAJOR.MINOR.PATCH format" >&2
+            exit 1
+          fi
+
+          release_tag="be-v$RELEASE_VERSION"
+          if git rev-parse -q --verify "refs/tags/$release_tag" >/dev/null; then
+            echo "$release_tag already exists" >&2
+            exit 1
+          fi
+
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
   migrate:
+    needs: preflight
     uses: ./.github/workflows/flyway-migration.yml
     with:
       environment: prod
-      ref: main
+      ref: ${{ github.sha }}
     secrets: inherit
 
   deploy:
-    needs: migrate
+    needs:
+      - preflight
+      - migrate
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ vars.PROD_AWS_REGION }}
       LAMBDA_FUNCTION_NAME: ${{ vars.PROD_LAMBDA_FUNCTION_NAME }}
       LAMBDA_ALIAS: ${{ vars.PROD_LAMBDA_ALIAS }}
       LAMBDA_ARTIFACT_BUCKET: ${{ vars.PROD_LAMBDA_ARTIFACT_BUCKET }}
+      RELEASE_VERSION: ${{ needs.preflight.outputs.release_version }}
+      RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
 
     steps:
-      - name: Checkout main branch
+      - name: Checkout release commit
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -133,6 +191,20 @@ jobs:
 
           echo "alias_version=${ALIAS_VERSION}" >> "$GITHUB_OUTPUT"
 
+      - name: Publish Git tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "$RELEASE_TAG 프로덕션 배포"
+          git push origin "$RELEASE_TAG"
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG" \
+            --generate-notes
+
       - name: Write deployment summary
         shell: bash
         run: |
@@ -142,6 +214,9 @@ jobs:
             echo "- Function name: \`${LAMBDA_FUNCTION_NAME}\`"
             echo "- Alias: \`${LAMBDA_ALIAS}\`"
             echo "- S3 key: \`${{ steps.metadata.outputs.s3_key }}\`"
+            echo "- Release version: \`${RELEASE_VERSION}\`"
+            echo "- Release tag: \`${RELEASE_TAG}\`"
+            echo "- Commit SHA: \`${{ steps.metadata.outputs.commit_sha }}\`"
             echo "- Published version: \`${{ steps.publish.outputs.new_version }}\`"
             echo "- Alias version: \`${{ steps.verify.outputs.alias_version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -151,6 +226,9 @@ jobs:
         run: |
           mkdir -p build/deployment-metadata
           {
+            echo "release_version=${RELEASE_VERSION}"
+            echo "release_tag=${RELEASE_TAG}"
+            echo "commit_sha=${{ steps.metadata.outputs.commit_sha }}"
             echo "function_name=${LAMBDA_FUNCTION_NAME}"
             echo "alias=${LAMBDA_ALIAS}"
             echo "s3_key=${{ steps.metadata.outputs.s3_key }}"
