@@ -434,3 +434,13 @@ git diff --check origin/dev...HEAD
 ```
 
 Expected: 설계, 문서 체계, workflow가 의미 있는 커밋으로 분리되고 이슈 #306 범위 밖 변경이 없다.
+
+---
+
+### Implementation Discovery: Wiki 릴리즈 절차 동기화
+
+Task 3 검증에서 프로덕션 workflow의 입력, 동일 SHA 고정, 태그와 GitHub Release 생성이 운영 절차 변경이므로 Wiki 갱신이 필요함을 확인했다.
+
+- Wiki `Deployment-and-Operations.md`의 prod 배포, 배포 흐름과 산출물을 현재 workflow에 맞춘다.
+- Wiki `ADR-0001-Lambda-Version-Alias-Deployment.md`에 Semantic Version, `be-v{버전}` 태그와 GitHub Release를 배포 추적 단위로 추가한다.
+- Wiki 변경은 별도 Wiki 저장소 `master`에 독립 커밋하고 링크, 민감정보, 공개 렌더링을 검증한다.
