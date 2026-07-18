@@ -18,7 +18,7 @@
 
 ## Workflow
 - 작업 전에 GitHub 이슈 번호를 확인합니다.
-- 설계 판단이 필요하면 `docs/tasks/{이슈 번호}/design.md`, 여러 단계 계획이 필요하면 `plan.md`를 사용합니다.
+- 설계 판단이 필요하면 `docs/tasks/{이슈 번호}/design.md`, 여러 단계 계획이 필요하면 `docs/tasks/{이슈 번호}/plan.md`를 사용합니다.
 - 기존 `docs/specs`, `docs/context`, `checklist.md`, `context-notes.md`는 과거 기록으로만 유지합니다.
 - 새 작업에는 기존 Spec Kit 파일인 `spec-lite.md`, `spec.md`, `clarify.md`, `tasks.md`, `checklist.md`, `context-notes.md`를 만들지 않습니다.
 

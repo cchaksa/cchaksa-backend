@@ -10,24 +10,24 @@
 
 ## 이슈와 작업 문서
 
-- GitHub 이슈 번호를 작업 식별자로 사용한다.
-- 설계 판단이 필요하면 `docs/tasks/{GitHub 이슈 번호}/design.md`를, 여러 단계 계획이나 인수인계가 필요하면 `plan.md`를 작성합니다.
+- GitHub 이슈 번호를 작업 식별자로 사용합니다.
+- 설계 판단이 필요하면 `docs/tasks/{GitHub 이슈 번호}/design.md`를, 여러 단계 계획이나 인수인계가 필요하면 `docs/tasks/{GitHub 이슈 번호}/plan.md`를 작성합니다.
 - 단순하거나 범위가 명확한 작업은 별도 작업 문서를 만들지 않습니다.
 - 기존 `docs/specs`와 `docs/context`는 과거 기록으로만 참고하며 일괄 이동하거나 다시 작성하지 않습니다.
 - 새 작업에는 기존 Spec Kit 파일인 `spec-lite.md`, `spec.md`, `clarify.md`, `tasks.md`, `checklist.md`, `context-notes.md`를 만들지 않습니다.
 
 ## 브랜치 전략
 
-- 일반 기능 브랜치는 feat/{이슈 번호}이며 dev에서 시작해 dev로 병합한다.
+- 일반 기능 브랜치는 `feat/{이슈 번호}`이며 `dev`에서 시작해 `dev`로 병합합니다.
 - 릴리즈 QA 수정은 대상 `release/v{버전}`에서 `fix/{이슈 번호}`를 생성해 같은 release 브랜치로 병합합니다.
-- release/v{버전}은 dev에서 시작하며 QA fix를 포함해 main으로 병합하고 운영 배포한 뒤 main을 dev에 역병합한다.
+- `release/v{버전}`은 `dev`에서 시작하며 QA fix를 포함해 `main`으로 병합하고 운영 배포한 뒤 `main`을 `dev`에 역병합합니다.
 - 운영 긴급 수정은 `main`에서 `hotfix/{이슈 번호}`를 생성해 반드시 `main`에 먼저 병합하고 운영 배포한 뒤 `main`을 `dev`와 진행 중인 `release/*` 브랜치에 역병합합니다.
 
 ## 버전과 릴리즈
 
 - 신규 기능은 MINOR, 운영 버그 수정은 PATCH, 호환되지 않는 변경은 MAJOR를 증가시킵니다.
 - 운영 배포는 `main`에서 선행 0이나 prerelease·build suffix가 없는 최종 `MAJOR.MINOR.PATCH` 버전을 입력해 실행합니다.
-- Alias 검증 후 Actions Summary와 deployment metadata artifact를 먼저 남기고 be-v{버전} annotated tag와 GitHub Release를 생성한다.
+- Alias 검증 후 Actions Summary와 deployment metadata artifact를 먼저 남기고 `be-v{버전}` annotated tag와 GitHub Release를 생성합니다.
 - 이미 게시한 태그는 삭제하거나 다른 커밋으로 이동하지 않으며, rollback과 MAJOR/MINOR 결정은 사용자 확인 없이 수행하지 않습니다.
 
 ## 코드와 데이터베이스
@@ -43,13 +43,13 @@
 
 ## 테스트와 검증
 
-- 최소 애플리케이션 검증은 ./gradlew test --stacktrace --no-daemon이다.
+- 최소 애플리케이션 검증은 `./gradlew test --stacktrace --no-daemon`입니다.
 - 문서만 변경하면 링크, `git diff --check`, 변경 범위를 검토합니다.
 - 검증에 실패하거나 실행하지 못했으면 이유와 영향을 명확히 기록합니다.
 
 ## 커밋 컨벤션
 
-- 커밋 형식은 {이슈 번호} {type}: {한국어 메시지}다.
+- 커밋 형식은 `{이슈 번호} {type}: {한국어 메시지}`입니다.
 - 하나의 커밋은 하나의 논리적 변경만 포함하고, 사용자 변경은 보존합니다.
 
 ## PR 규칙
