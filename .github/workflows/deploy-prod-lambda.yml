@@ -42,7 +42,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ ! "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
             echo "Version must use MAJOR.MINOR.PATCH format" >&2
             exit 1
           fi
@@ -191,20 +191,6 @@ jobs:
 
           echo "alias_version=${ALIAS_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Publish Git tag and GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "$RELEASE_TAG 프로덕션 배포"
-          git push origin "$RELEASE_TAG"
-          gh release create "$RELEASE_TAG" \
-            --verify-tag \
-            --target "$GITHUB_SHA" \
-            --title "$RELEASE_TAG" \
-            --generate-notes
-
       - name: Write deployment summary
         shell: bash
         run: |
@@ -241,3 +227,27 @@ jobs:
         with:
           name: prod-lambda-deployment-metadata
           path: build/deployment-metadata/prod-lambda-deployment.txt
+
+      - name: Publish Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "$RELEASE_TAG 프로덕션 배포"
+          git push origin "$RELEASE_TAG"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_notes=$(printf -- '- Product version: `%s`\n- Commit SHA: `%s`\n- Lambda published version: `%s`\n- Lambda alias version: `%s`\n' \
+            "$RELEASE_VERSION" \
+            "$GITHUB_SHA" \
+            "${{ steps.publish.outputs.new_version }}" \
+            "${{ steps.verify.outputs.alias_version }}")
+
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG" \
+            --generate-notes \
+            --notes "$release_notes"

@@ -3,3 +3,5 @@
 이 디렉터리는 기존 Spec Kit 방식으로 작성된 작업 문서를 보존합니다.
 
 새 작업 문서는 필요할 때만 `docs/tasks/{GitHub 이슈 번호}/design.md`와 `plan.md`로 작성합니다. 기존 파일은 과거 결정과 구현 기록을 확인할 때만 참고하며 일괄 이동하거나 다시 작성하지 않습니다.
+
+새 작업에는 기존 Spec Kit 파일인 `spec-lite.md`, `spec.md`, `clarify.md`, `tasks.md`, `checklist.md`, `context-notes.md`를 만들지 않습니다.
