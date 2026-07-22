@@ -37,7 +37,9 @@ public class GlobalExceptionHandler {
             ErrorCode.PORTAL_ACCOUNT_LOCKED.code(),
             ErrorCode.INVALID_CALLBACK_SIGNATURE.code(),
             ErrorCode.SCRAPE_INVALID_CALLBACK_REQUEST.code(),
-            ErrorCode.SCRAPE_INVALID_S3_KEY.code()
+            ErrorCode.SCRAPE_INVALID_S3_KEY.code(),
+            ErrorCode.LECTURE_EVALUATION_NOT_REQUIRED.code(),
+            ErrorCode.LECTURE_EVALUATION_COURSE_MISMATCH.code()
     );
 
     /** 비즈니스 예외(대부분 4xx)*/
@@ -93,15 +95,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex, HttpServletRequest req) {
 
-        try (SentryMdcContext.MdcScope ignored = SentryMdcContext.openFromRequest(req)) {
-            Sentry.withScope(scope -> {
-                scope.setTag("error.type", "ENTITY_NOT_FOUND");
-                scope.setTag("error.code", ex.getCode());
-                scope.setFingerprint(List.of("ENTITY_NOT_FOUND", ex.getCode()));
-                scope.setLevel(io.sentry.SentryLevel.WARNING);
-                SentryMdcTagBinder.bind(scope);
-                Sentry.captureException(ex);
-            });
+        if (shouldReportEntityNotFound(ex, req)) {
+            try (SentryMdcContext.MdcScope ignored = SentryMdcContext.openFromRequest(req)) {
+                Sentry.withScope(scope -> {
+                    scope.setTag("error.type", "ENTITY_NOT_FOUND");
+                    scope.setTag("error.code", ex.getCode());
+                    scope.setFingerprint(List.of("ENTITY_NOT_FOUND", ex.getCode()));
+                    scope.setLevel(io.sentry.SentryLevel.WARNING);
+                    SentryMdcTagBinder.bind(scope);
+                    Sentry.captureException(ex);
+                });
+            }
         }
 
         return ResponseEntity.status(ex.getStatus())
@@ -162,5 +166,10 @@ public class GlobalExceptionHandler {
             return !EXPECTED_CLIENT_ERROR_CODES.contains(ex.getCode());
         }
         return true;
+    }
+
+    boolean shouldReportEntityNotFound(EntityNotFoundException ex, HttpServletRequest req) {
+        return !ErrorCode.USER_NOT_FOUND.code().equals(ex.getCode())
+                || !"/api/auth/refresh".equals(req.getRequestURI());
     }
 }
