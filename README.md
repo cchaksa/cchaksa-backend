@@ -14,7 +14,7 @@
 4. [기술 스택](#기술-스택)
 5. [아키텍처](#아키텍처)
 6. [ERD](#erd)
-7. [커밋 컨벤션](#커밋-컨벤션)
+7. [개발 문서](#개발-문서)
 8. [관련 블로그 게시글](#관련-블로그-게시글)
 
 ---
@@ -151,42 +151,14 @@ flowchart LR
 
 ---
 
-## 커밋 컨벤션
+## 개발 문서
 
-### 기본 구조
-```
-type: subject
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): 사람용 이슈·브랜치·릴리즈·커밋·PR 규칙.
+- [Backend Wiki](https://github.com/cchaksa/cchaksa-backend/wiki): 로컬 실행, 아키텍처, API·인증, 배포, 운영, 트러블슈팅.
+- [Development Guide](https://github.com/cchaksa/cchaksa-backend/wiki/Development-Guide): 브랜치, 커밋, 테스트, PR, Wiki 갱신 절차.
+- [Architecture Decision Records](https://github.com/cchaksa/cchaksa-backend/wiki/Architecture-Decision-Records): 주요 기술 결정과 재검토 조건.
 
-body (선택)
-```
-
-### type 종류
-```
-feat: 기능 추가
-fix: 버그 수정
-refactor: 코드 리팩토링
-comment: 주석 추가/수정
-docs: 문서 수정
-test: 테스트 코드 작성 또는 수정
-chore: 빌드/패키지 설정 변경
-rename: 파일/폴더명 변경
-remove: 파일 삭제
-style: 코드 포맷팅
-!BREAKING CHANGE!: 기존 API 사용에 영향을 주는 변경 (예: 응답 포맷 변경 등)
-```
-
-### 커밋 예시
-```
-feat: 로그인 기능 구현
-
-Email 중복확인 API 개발
-
----
-
-fix: 사용자 정보 누락 버그 해결
-
-사용자 서비스 코드 수정
-```
+README는 프로젝트 진입점입니다. 사람용 협업 규칙은 [`CONTRIBUTING.md`](CONTRIBUTING.md), 개발·운영 상세 가이드와 ADR은 Wiki, AI Agent 실행 규칙은 [`AGENTS.md`](AGENTS.md)에서 관리합니다.
 
 ---
 
