@@ -6,12 +6,15 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 public class PortalDataMapper {
 
     private static final Integer DEFAULT_TOTAL_CREDITS = 0;
     private static final Double DEFAULT_GPA = 0.0;
+    private static final Pattern AREA_NAME_PATTERN = Pattern.compile("^\\s*(\\d+)\\s*영역\\s*$");
 
     public static PortalData toPortalData(RawPortalData raw) {
         return new PortalData(
@@ -149,7 +152,7 @@ public class PortalDataMapper {
                         c.estbDpmjNm(),
                         c.facDvnm(),
                         parseIntOrZero(c.subjtEstbSmrCd()),
-                        extractLeadingDigit(c.cltTerrNm()), // cltTerrNm: 선교 영역 (ex. '6영역'처럼 데이터가 넘어옴) -> 영역 숫자만 추출
+                        extractAreaCode(c.cltTerrNm()),
                         parseIntOrZero(c.cltTerrCd()),
                         "UNKNOWN",
                         false
@@ -217,10 +220,18 @@ public class PortalDataMapper {
         }
     }
 
-    private static int extractLeadingDigit(String input) {
-        if (input != null && !input.isBlank() && Character.isDigit(input.charAt(0))) {
-            return Character.getNumericValue(input.charAt(0));
+    private static int extractAreaCode(String input) {
+        if (input == null) {
+            return 0;
         }
-        return 0;
+        Matcher matcher = AREA_NAME_PATTERN.matcher(input);
+        if (!matcher.matches()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException exception) {
+            return 0;
+        }
     }
 }
