@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,6 +32,10 @@ class CodeRabbitConfigTest {
     @Test
     void 백엔드_자동_리뷰_정책을_유지한다() {
         assertThat(config.get("language")).isEqualTo("ko-KR");
+        assertThat(config.get("tone_instructions"))
+                .asString()
+                .contains("한국어", "결함", "보안", "API·DB 계약", "회귀")
+                .contains("취향 차이", "요청 범위 밖 리팩터링");
         assertThat(reviews.get("profile")).isEqualTo("chill");
         assertThat(reviews.get("poem")).isEqualTo(false);
         assertThat(reviews.get("in_progress_fortune")).isEqualTo(false);
@@ -67,6 +72,23 @@ class CodeRabbitConfigTest {
                         .isInstanceOf(String.class)
                         .asString()
                         .isNotBlank());
+
+        Map<String, String> instructionsByPath = pathInstructions.stream()
+                .collect(Collectors.toMap(
+                        instruction -> (String) instruction.get("path"),
+                        instruction -> (String) instruction.get("instructions")
+                ));
+        assertThat(instructionsByPath.get(
+                "src/main/java/com/chukchuk/haksa/global/security/**"))
+                .contains("JWT", "인증 우회");
+        assertThat(instructionsByPath.get(
+                "src/main/java/com/chukchuk/haksa/application/portal/**"))
+                .contains("콜백", "중복 생성");
+        assertThat(instructionsByPath.get("src/main/resources/db/migration/**"))
+                .contains("순방향", "이전 운영 Lambda");
+        assertThat(instructionsByPath.get(
+                "src/main/java/com/chukchuk/haksa/global/logging/**"))
+                .contains("민감정보", "Sentry");
     }
 
     @SuppressWarnings("unchecked")
