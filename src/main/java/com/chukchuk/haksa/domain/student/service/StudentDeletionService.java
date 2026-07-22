@@ -25,7 +25,7 @@ public class StudentDeletionService {
     private final StudentRepository studentRepository;
 
     @Transactional
-    public void deleteByStudent(Student student) {
+    public void anonymizeByStudent(Student student) {
         if (student == null) {
             log.warn("[BIZ] student.deletion.skip, reason=unconnected_user");
             return;
@@ -38,6 +38,7 @@ public class StudentDeletionService {
             studentAcademicRecordRepository.deleteByStudentId(studentId);
             studentGraduationProgressRepository.deleteByStudentId(studentId);
         }
-        studentRepository.delete(student);
+        student.anonymize();
+        studentRepository.save(student);
     }
 }

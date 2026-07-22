@@ -68,6 +68,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     token,
                     () -> userDetailsService.loadUserByUsername(userId)
             );
+            if (!userDetails.isEnabled()) {
+                throw new JwtException("Disabled user");
+            }
             UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

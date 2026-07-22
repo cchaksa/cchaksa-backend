@@ -9,4 +9,6 @@ import java.util.Date;
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, String> {
     int deleteByExpiryBefore(Date now);
+
+    int deleteByUserId(String userId);
 }

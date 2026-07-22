@@ -198,6 +198,11 @@ public class Student extends BaseEntity {
         this.reconnectionRequired = false;
     }
 
+    public void anonymize() {
+        this.studentCode = "deleted_" + UUID.randomUUID();
+        this.name = "탈퇴한 사용자입니다.";
+    }
+
     public void updateUser(User user) {
         this.user = user;
     }

@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,14 +79,16 @@ public class UserService {
         Student student = user.getStudent();
         UUID studentId = student != null ? student.getId() : null;
 
-        studentDeletionService.deleteByStudent(student);
+        studentDeletionService.anonymizeByStudent(student);
         if (studentId != null) {
             academicCache.deleteAllByStudentId(studentId);
         }
         authTokenCache.evictByUserId(userId.toString());
         socialAccountRepository.deleteByUser(user);
-        userRepository.delete(user);
-        log.info("[BIZ] user.delete.done userId={}", userId);
+        refreshTokenService.deleteAllByUserId(userId.toString());
+        user.withdraw(Instant.now());
+        userRepository.save(user);
+        log.info("[BIZ] user.withdraw.done userId={}", userId);
     }
 
     /**
