@@ -1,7 +1,9 @@
 // 포털 연동 데이터 경계의 방어 처리를 검증한다.
 package com.chukchuk.haksa.application.portal;
 
+import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.service.DepartmentService;
+import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserPortalConnectionRepository;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -37,6 +39,9 @@ class PortalConnectionGuardTests {
 
     @Mock
     private UserService userService;
+
+    @Mock
+    private Student student;
 
     @Test
     void mapperReturnsNullWhenRequiredPortalBlocksAreMissing() {
@@ -91,6 +96,55 @@ class PortalConnectionGuardTests {
         verify(userPortalConnectionRepository, never()).refreshPortalConnection(any(), any());
     }
 
+    @Test
+    void refreshReturnsFailureWhenStudentCodeDiffersFromCurrentStudent() {
+        UUID userId = UUID.randomUUID();
+        RefreshPortalConnectionService service = new RefreshPortalConnectionService(
+                userPortalConnectionRepository,
+                userService,
+                new PortalStudentDataMapper(departmentService)
+        );
+        User user = user(userId, true);
+        user.setStudent(student);
+        when(student.getStudentCode()).thenReturn("19018036");
+        when(userService.getUserById(userId)).thenReturn(user);
+
+        PortalConnectionResult result = service.executeWithPortalData(
+                userId,
+                new PortalData(student("재학", department(), admission(), academic(), "24028036"), null, null)
+        );
+
+        assertThat(result.isSuccess()).isFalse();
+        assertThat(result.error()).isEqualTo("포털 학번이 기존 연동 정보와 일치하지 않습니다.");
+        verify(userPortalConnectionRepository, never()).refreshPortalConnection(any(), any());
+        verifyNoInteractions(departmentService);
+    }
+
+    @Test
+    void refreshUpdatesCurrentStudentWhenStudentCodeMatches() {
+        UUID userId = UUID.randomUUID();
+        RefreshPortalConnectionService service = new RefreshPortalConnectionService(
+                userPortalConnectionRepository,
+                userService,
+                new PortalStudentDataMapper(departmentService)
+        );
+        User user = user(userId, true);
+        user.setStudent(student);
+        when(student.getStudentCode()).thenReturn("19018036");
+        when(userService.getUserById(userId)).thenReturn(user);
+        when(departmentService.getOrCreateDepartment("D1", "컴퓨터학부"))
+                .thenReturn(new Department("D1", "컴퓨터학부"));
+
+        PortalConnectionResult result = service.executeWithPortalData(
+                userId,
+                new PortalData(student("재학", department(), admission(), academic()), null, null)
+        );
+
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.studentId()).isEqualTo("19018036");
+        verify(userPortalConnectionRepository).refreshPortalConnection(any(), any());
+    }
+
     private static User user(UUID userId, boolean connected) {
         User user = User.builder()
                 .id(userId)
@@ -109,8 +163,18 @@ class PortalConnectionGuardTests {
             AdmissionInfo admission,
             PortalAcademicInfo academic
     ) {
+        return student(status, department, admission, academic, "19018036");
+    }
+
+    private static PortalStudentInfo student(
+            String status,
+            CodeName department,
+            AdmissionInfo admission,
+            PortalAcademicInfo academic,
+            String studentCode
+    ) {
         return new PortalStudentInfo(
-                "19018036",
+                studentCode,
                 "홍길동",
                 new CodeName("01", "수원대학교"),
                 department,

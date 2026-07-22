@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.UUID;
 
 import static com.chukchuk.haksa.infrastructure.portal.model.PortalConnectionResult.*;
@@ -42,6 +43,11 @@ public class RefreshPortalConnectionService {
             }
 
             PortalStudentInfo raw = portalData.student();
+            if (user.getStudent() == null || !Objects.equals(user.getStudent().getStudentCode(), raw.studentCode())) {
+                log.warn("[BIZ] portal.conn.fail userId={} reason=student_code_mismatch", userId);
+                return failure("포털 학번이 기존 연동 정보와 일치하지 않습니다.");
+            }
+
             PortalStudentDataMapper.PortalStudentData portalStudentData =
                     portalStudentDataMapper.toStudentData(raw);
             if (portalStudentData == null) {

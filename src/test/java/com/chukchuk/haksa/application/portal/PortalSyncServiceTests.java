@@ -154,7 +154,7 @@ class PortalSyncServiceTests {
                 .build();
         PortalData portalData = portalData("17019013", false);
 
-        when(userService.tryMergeWithExistingUser(userId, "17019013")).thenReturn(activeUser);
+        when(userService.getUserById(userId)).thenReturn(activeUser);
         when(refreshPortalConnectionService.executeWithPortalData(userId, portalData))
                 .thenReturn(successConnection("17019013"));
         when(syncAcademicRecordService.executeForRefreshPortalData(userId, portalData))
@@ -163,6 +163,7 @@ class PortalSyncServiceTests {
 
         portalSyncService.refreshFromPortal(userId, portalData);
 
+        verify(userService, never()).tryMergeWithExistingUser(any(), any());
         verify(studentGraduationProgressService)
                 .syncLanguageCert(eq(student), eq(false));
     }
