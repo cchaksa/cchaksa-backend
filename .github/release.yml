@@ -1,0 +1,25 @@
+changelog:
+  exclude:
+    labels:
+      - skip-release-notes
+  categories:
+    - title: "새 기능"
+      labels:
+        - "✨ Feature"
+        - "📬 API"
+    - title: "버그 수정"
+      labels:
+        - "🐞 BugFix"
+    - title: "개선"
+      labels:
+        - "🔨 Refactor"
+    - title: "문서"
+      labels:
+        - "📃 Docs"
+    - title: "운영 및 배포"
+      labels:
+        - "🌏 Deploy"
+        - "⚙ Setting"
+    - title: "기타 변경"
+      labels:
+        - "*"

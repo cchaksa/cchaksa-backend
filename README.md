@@ -153,11 +153,12 @@ flowchart LR
 
 ## 개발 문서
 
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): 사람용 이슈·브랜치·릴리즈·커밋·PR 규칙.
 - [Backend Wiki](https://github.com/cchaksa/cchaksa-backend/wiki): 로컬 실행, 아키텍처, API·인증, 배포, 운영, 트러블슈팅.
 - [Development Guide](https://github.com/cchaksa/cchaksa-backend/wiki/Development-Guide): 브랜치, 커밋, 테스트, PR, Wiki 갱신 절차.
 - [Architecture Decision Records](https://github.com/cchaksa/cchaksa-backend/wiki/Architecture-Decision-Records): 주요 기술 결정과 재검토 조건.
 
-AI Agent의 실행 규칙은 저장소의 [`AGENTS.md`](AGENTS.md)에서 관리합니다. 사람용 상세 절차는 Wiki에서 관리하며 README에 중복해서 작성하지 않습니다.
+README는 프로젝트 진입점입니다. 사람용 협업 규칙은 [`CONTRIBUTING.md`](CONTRIBUTING.md), 개발·운영 상세 가이드와 ADR은 Wiki, AI Agent 실행 규칙은 [`AGENTS.md`](AGENTS.md)에서 관리합니다.
 
 ---
 

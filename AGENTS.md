@@ -1,84 +1,54 @@
-# Repository Guidelines
+# AGENTS.md
 
-## Project Facts
-- Java 17 Gradle toolchain.
-- Spring Boot 3.2.5.
-- Spring Web MVC and WebFlux.
-- Spring Security with JWT through `jjwt`.
-- Spring Data JPA with PostgreSQL.
-- Caffeine local cache.
-- Hibernate Validator and Jakarta Validation.
-- OpenAPI via springdoc.
-- Observability through Actuator, Sentry, Micrometer, and OpenTelemetry.
-- Logging through Logback with logstash encoder.
+척척학사 백엔드에서 Codex와 다른 코딩 에이전트가 지켜야 할 저장소 규칙입니다.
 
-## Package Map
-- Base package: `com.chukchuk.haksa`.
-- `domain`: core models, domain services, controllers, repositories, wrappers, and DTOs.
-- `application`: use-case orchestration and application services.
-- `infrastructure`: portal clients, cache, mappers, repository implementations, and integration DTOs.
-- `global`: configuration, security, logging, exceptions, and common response code.
-- Resources live under `src/main/resources`, including `application-*.yml`, `logback-spring.xml`, and `public/openapi.yaml`.
+## Project Context
+- Java 17, Spring Boot 3.2.5, Gradle, PostgreSQL, Flyway를 사용합니다.
+- 기본 패키지는 `com.chukchuk.haksa`이며 `domain`, `application`, `infrastructure`, `global` 구조를 사용합니다.
 
 ## Agent Instruction Policy
-- `AGENTS.md` is the only project-level AI Agent instruction source.
-- Do not add or maintain separate project-local agent rule files, including `codex/skills`, `CLAUDE.md`, `GEMINI.md`, or tool-specific rule folders.
-- Keep this file short and durable. Put task-specific decisions in the relevant issue, PR, spec, or final response instead.
-- Update `AGENTS.md` only when a durable project-wide rule changes, and call that out explicitly.
+- `AGENTS.md`만 프로젝트 에이전트 규칙으로 사용합니다.
+- 작업별 결정은 이슈, PR 또는 `docs/tasks/{이슈 번호}/`에 둡니다.
+- 사용자가 한국어로 작성하면 한국어로 응답하고, 한국어 문장은 `.`, `?`, `!`로 끝냅니다.
 
-## Documentation Maintenance
-- Keep `README.md` as the project entry point and the GitHub Wiki as the detailed developer and operations guide.
-- The Wiki is the separate `https://github.com/cchaksa/cchaksa-backend.wiki.git` repository and uses `master` as its default branch.
-- Before completing a task, decide whether changes to public APIs, authentication, database schema, domain rules, architecture, deployment, operations, or incident response require a Wiki update.
-- Add or supersede an ADR when an architecture decision, its constraints, or its operational consequences change.
-- Internal refactors and test-only changes normally do not require a Wiki update. State why no Wiki update was needed in the final response.
-- When a Wiki update is required, update the separate Wiki repository, verify its links and sensitive-data safety, push it, and confirm the public page renders.
-- Follow the human-facing documentation and commit procedure in the Wiki `Development Guide`; do not duplicate its long-form content here.
+## Documentation Rules
+- `README.md`는 프로젝트 진입점, `CONTRIBUTING.md`는 사람용 협업 규칙, Wiki는 개발·운영 상세 가이드와 ADR을 담당합니다.
+- Wiki는 별도 `https://github.com/cchaksa/cchaksa-backend.wiki.git` 저장소의 `master` 브랜치에서 관리합니다.
+- 공개 API, 인증, DB 스키마, 도메인 규칙, 아키텍처, 배포, 운영, 장애 대응 변경은 Wiki 갱신 여부를 확인합니다.
 
-## Communication
-- When the user writes in Korean, respond in Korean unless the task requires another language.
-- Korean sentences should end with `.`, `?`, or `!`, not a closing colon.
+## Workflow
+- 작업 전에 GitHub 이슈 번호를 확인합니다.
+- 설계 판단이 필요하면 `docs/tasks/{이슈 번호}/design.md`, 여러 단계 계획이 필요하면 `docs/tasks/{이슈 번호}/plan.md`를 사용합니다.
+- 기존 `docs/specs`, `docs/context`, `checklist.md`, `context-notes.md`는 과거 기록으로만 유지합니다.
+- 새 작업에는 기존 Spec Kit 파일인 `spec-lite.md`, `spec.md`, `clarify.md`, `tasks.md`, `checklist.md`, `context-notes.md`를 만들지 않습니다.
+
+## Branch Rules
+- `feat/{이슈 번호}`는 `dev`에서 생성해 `dev`로 병합합니다.
+- `fix/{이슈 번호}`는 대상 `release/v{버전}`에서 생성해 같은 release 브랜치로 병합합니다.
+- `release/v{버전}`은 `dev`에서 생성하며 QA fix를 포함해 `main`으로 병합하고 운영 배포한 뒤 `main`을 `dev`에 역병합합니다.
+- `hotfix/{이슈 번호}`는 `main`에서 생성해 반드시 `main`에 먼저 병합하고 운영 배포한 뒤 `main`을 `dev`와 진행 중인 `release/*` 브랜치에 역병합합니다.
+
+## Release Automation
+- 운영 배포는 `main`에서 선행 0이나 prerelease·build suffix가 없는 최종 `MAJOR.MINOR.PATCH`를 입력해 실행합니다.
+- Alias 검증 후 Actions Summary와 deployment metadata artifact를 먼저 남기고 `be-v{버전}` annotated tag와 GitHub Release를 생성합니다.
+- 태그 변경, rollback, MAJOR/MINOR 결정은 사용자 확인 없이 수행하지 않습니다.
 
 ## Development Rules
-- Inspect the actual files and nearby call sites before editing.
-- Keep changes surgical and directly tied to the request.
-- Prefer the smallest explicit solution that preserves existing behavior.
-- Do not change business logic, public API contracts, dependencies, or transaction boundaries without clear context.
-- Match existing Java formatting with 4-space indentation.
-- Keep configuration environment-specific through `application-local.yml`, `application-dev.yml`, and `application-prod.yml`.
-- Redis auto-configuration is excluded in `application.yml`; local cache is the default.
-- Keep API documentation in `src/main/resources/public/openapi.yaml` aligned with externally visible API changes.
+- 실제 파일과 호출부를 확인하고 요청 범위만 변경합니다.
+- 설정은 `application-local.yml`, `application-dev.yml`, `application-prod.yml`로 환경별 관리합니다.
+- Redis 자동 구성은 `application.yml`에서 제외하며 local cache를 기본으로 사용합니다.
+- 공개 API 변경은 Springdoc annotation·configuration과 계약 테스트를 함께 갱신하고 실행 중인 애플리케이션의 `/v3/api-docs`를 검증합니다.
+- DB DDL 변경은 새 Flyway migration으로 남기고 적용된 migration은 수정하지 않습니다.
+- Flyway migration 파일명은 현재 마지막 version 다음 번호를 사용하며, 예를 들어 `V4__add_xxx_column.sql` 형식을 사용합니다.
+- prod Flyway migration은 현재 운영 중인 이전 Lambda 코드와 backward compatible해야 합니다.
+- Migration 성공 뒤 테스트·빌드·Lambda 게시가 실패해 이전 Alias가 계속 트래픽을 처리하더라도 새 schema와 호환돼야 합니다.
+- 적용된 migration은 수정하거나 자동 rollback하지 않으며, 보정은 다음 version의 forward migration으로 수행합니다.
 
-## Database Migration Rules
-- DB DDL 변경이 필요한 코드 변경은 반드시 `src/main/resources/db/migration` 아래 Flyway SQL 파일로 남긴다.
-- 엔티티, 컬럼, 테이블, 인덱스, 제약 조건 변경은 Java 코드만 수정해서 끝내지 않는다.
-- Migration 파일명은 현재 마지막 version 다음 번호를 사용한다. 예: `V4__add_xxx_column.sql`.
-- 이미 dev/prod 중 하나라도 적용된 migration 파일은 수정하지 않는다.
-- 적용된 migration의 보정이 필요하면 기존 파일을 고치지 않고 다음 version의 새 migration 파일을 추가한다.
-- Hibernate `ddl-auto`는 dev/prod에서 schema 변경 수단으로 사용하지 않는다. DB 변경은 Flyway migration을 통해 수행한다.
-
-## Planning And Specs
-- Use `docs/specs/<YYYYMMDD-slug>/` only when the work affects one or more of these areas: domain rules, public API contracts, database schema, security/auth behavior, transactions, deployment, rollback, or cross-module architecture.
-- Do not create a spec for small mechanical changes, narrow bug fixes, test-only changes, documentation-only changes, or single-file config updates unless the user asks for one.
-- Prefer a single `spec-lite.md` for work expected to fit within one day.
-- Use the full bundle, `spec.md`, `clarify.md`, `plan.md`, and `tasks.md`, only when requirements are unclear, the work spans multiple modules, or the rollout/rollback path needs explicit tracking.
-- If the user says to skip specs, use a concise conversation plan instead. When the change affects database schema, public API contracts, or security/auth behavior, briefly confirm whether they still want no spec before proceeding without one.
-- `./scripts/new-spec.sh <YYYYMMDD-slug> [--lite]` can create the expected spec files.
-
-## Testing
-- Tests live under `src/test/java`.
-- JUnit 5 is provided by the Spring Boot test starter.
-- `tasks.test` uses JUnit Platform.
-- If code changes, run the smallest relevant test first, then broader checks when risk is high.
-- If public API, configuration, security, persistence, or integration behavior changes, run `./gradlew test` unless there is a concrete blocker.
-- Final replies after code or docs changes must include the exact checks run, their result, and any remaining risk.
-- Do not commit with failing tests. If verification cannot run, state the exact reason.
+## Testing And Verification
+- 코드·설정·배포 변경 후 `./gradlew test --stacktrace --no-daemon`을 실행합니다.
+- 문서만 변경하면 링크, `git diff --check`, 변경 범위를 검토합니다.
+- 최종 응답에는 실제로 실행한 정확한 검사와 결과, 남은 위험을 포함합니다.
 
 ## Git
-- Work branches map to a GitHub issue and use `feat/{github-issue-number}`. Ask for the issue number before starting if it is missing.
-- If the current checkout has unrelated dirty changes and the task needs a new branch, prefer an isolated git worktree.
-- Keep unrelated user changes intact. Do not revert, overwrite, or reformat them.
-- Split commits by meaningful unit when changes are separable.
-- Commit messages are written in Korean and start with the branch issue number.
-- Commit message format: `{issue-number} {type}: {message}`.
-- Example: `236 chore: 프로젝트 로컬 에이전트 규약 제거`.
+- 커밋은 `{이슈 번호} {type}: {한국어 메시지}` 형식을 사용합니다.
+- 사용자 변경을 보존하고 dirty checkout에서는 격리 worktree를 우선합니다.
