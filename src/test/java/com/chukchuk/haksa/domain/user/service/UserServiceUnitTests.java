@@ -260,8 +260,8 @@ class UserServiceUnitTests {
     }
 
     @Test
-    @DisplayName("회원 탈퇴 시 학생 캐시/토큰/소셜계정을 정리한 뒤 사용자를 삭제한다")
-    void deleteUserById_cleansUpAndDeletesUser() {
+    @DisplayName("회원 탈퇴 시 학생 캐시와 인증 정보를 정리한 뒤 사용자를 익명화한다")
+    void deleteUserById_cleansUpAndAnonymizesUser() {
         UUID userId = UUID.randomUUID();
         UUID studentId = UUID.randomUUID();
 
@@ -283,7 +283,9 @@ class UserServiceUnitTests {
         verify(academicCache).deleteAllByStudentId(studentId);
         verify(authTokenCache).evictByUserId(userId.toString());
         verify(socialAccountRepository).deleteByUser(user);
-        verify(userRepository).delete(user);
+        verify(refreshTokenService).deleteAllByUserId(userId.toString());
+        verify(userRepository, never()).delete(user);
+        verify(userRepository).save(user);
     }
 
     @Test

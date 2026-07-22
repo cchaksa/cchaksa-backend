@@ -46,7 +46,7 @@ public class User extends BaseEntity {
     @Column(name = "last_synced_at")
     private Instant lastSyncedAt;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.REMOVE, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "user", fetch = FetchType.LAZY)
     private Student student;
 
     @Builder
@@ -70,6 +70,17 @@ public class User extends BaseEntity {
         this.portalConnected = true;
         this.connectedAt = now;
         this.lastSyncedAt = now;
+    }
+
+    public void withdraw(Instant now) {
+        this.email = null;
+        this.profileNickname = null;
+        this.profileImage = null;
+        this.isDeleted = true;
+        this.portalConnected = false;
+        this.connectedAt = null;
+        this.deletedAt = now;
+        this.lastSyncedAt = null;
     }
 
     public void absorbFrom(User origin) {

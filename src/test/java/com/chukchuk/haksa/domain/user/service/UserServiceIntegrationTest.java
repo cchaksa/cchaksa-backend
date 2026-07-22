@@ -84,8 +84,8 @@ class UserServiceIntegrationTest {
     private EntityManager entityManager;
 
     @Test
-    @DisplayName("사용자가 탈퇴하면 관련된 학생 및 학적 정보도 삭제된다")
-    void deleteUser_removesStudentAndAllAssociations() {
+    @DisplayName("사용자가 탈퇴하면 User와 Student를 익명화하고 학적 정보만 삭제한다")
+    void deleteUser_anonymizesUserAndStudentAndRemovesAcademicAssociations() {
         User user = userRepository.save(User.builder()
                 .email("test@haksa.com")
                 .profileNickname("tester")
@@ -103,8 +103,15 @@ class UserServiceIntegrationTest {
         entityManager.clear();
 
         UUID studentId = student.getId();
-        assertThat(userRepository.findById(user.getId())).isEmpty();
-        assertThat(studentRepository.findById(studentId)).isEmpty();
+        User withdrawnUser = userRepository.findById(user.getId()).orElseThrow();
+        Student withdrawnStudent = studentRepository.findById(studentId).orElseThrow();
+        assertThat(withdrawnUser.getIsDeleted()).isTrue();
+        assertThat(withdrawnUser.getDeletedAt()).isNotNull();
+        assertThat(withdrawnUser.getEmail()).isNull();
+        assertThat(withdrawnUser.getProfileNickname()).isNull();
+        assertThat(withdrawnUser.getProfileImage()).isNull();
+        assertThat(withdrawnStudent.getName()).isEqualTo("탈퇴한 사용자입니다.");
+        assertThat(withdrawnStudent.getStudentCode()).startsWith("deleted_");
         assertThat(studentAcademicRecordRepository.findByStudentId(studentId)).isEmpty();
         assertThat(semesterAcademicRecordRepository.findByStudentId(studentId)).isEmpty();
         assertThat(studentCourseRepository.findAll()).isEmpty();
@@ -115,7 +122,7 @@ class UserServiceIntegrationTest {
     }
 
     @Test
-    @DisplayName("연동하지 않은 사용자의 탈퇴에서는 학생 관련 정보는 아무 처리 되지 않는다")
+    @DisplayName("연동하지 않은 사용자의 탈퇴에서는 User만 익명화한다")
     void deleteUser_withoutStudent_doesNotFail() {
         User user = userRepository.save(User.builder()
                 .email("orphan@haksa.com")
@@ -130,7 +137,9 @@ class UserServiceIntegrationTest {
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(userRepository.findById(user.getId())).isEmpty();
+        User withdrawnUser = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(withdrawnUser.getIsDeleted()).isTrue();
+        assertThat(withdrawnUser.getEmail()).isNull();
         verify(academicCache, never()).deleteAllByStudentId(any());
         verify(authTokenCache).evictByUserId(user.getId().toString());
         verify(studentRepository, never()).delete(any());
