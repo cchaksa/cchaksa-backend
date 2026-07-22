@@ -24,6 +24,7 @@
     </appender>
 
     <appender name="SENTRY_DEV" class="io.sentry.logback.SentryAppender">
+        <filter class="com.chukchuk.haksa.global.logging.sentry.SentryDuplicateEventFilter"/>
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         <sendDefaultPii>false</sendDefaultPii>
@@ -44,6 +45,7 @@
     </appender>
 
     <appender name="SENTRY_PROD" class="io.sentry.logback.SentryAppender">
+        <filter class="com.chukchuk.haksa.global.logging.sentry.SentryDuplicateEventFilter"/>
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         <sendDefaultPii>false</sendDefaultPii>
