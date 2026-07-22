@@ -13,7 +13,7 @@ OIDC email claim이 없는 신규 사용자도 의미를 왜곡하지 않고 가
 - [x] 새 Flyway migration과 엔티티 메타데이터 변경을 적용한다.
 - [x] JWT null 이메일 동작을 검증한다.
 - [x] 관련 테스트와 전체 테스트를 실행한다.
-- [ ] `hotfix/314` Draft PR을 `main` 대상으로 올리고 작성자를 Assignee로 지정한다.
+- [x] `hotfix/314` PR을 `main` 대상으로 올리고 작성자를 Assignee로 지정한다.
 
 ## 제외 범위
 

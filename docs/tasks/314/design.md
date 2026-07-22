@@ -25,9 +25,9 @@
 
 로그인 요청·응답 DTO에는 이메일 필드가 없으므로 공개 API 응답 계약과 OpenAPI 문서는 변경하지 않는다.
 
-## Migration 순서 주의
+## Migration 순서
 
-현재 `origin/main`의 마지막 migration은 V8이지만, 아직 병합되지 않은 PR #315가 V9를 사용한다. 이 브랜치는 현재 main 기준 규칙에 따라 V9를 추가하되 Draft로 유지한다. PR #315가 먼저 병합되면 이 브랜치를 최신 main에 rebase하고 migration을 다음 version으로 변경한 뒤 전체 테스트를 다시 실행해야 한다.
+PR #315의 V9 migration이 반영된 `origin/main`을 기준으로 이메일 nullable 변경은 V10에 추가한다. NOT NULL 제거는 기존 애플리케이션의 이메일 저장 동작과 호환된다.
 
 ## 검증
 
