@@ -145,15 +145,17 @@ Replace the inaccurate “add `.coderabbit.yaml`” wording with “strengthen t
 - Regression: `./gradlew test --stacktrace --no-daemon` passed with `BUILD SUCCESSFUL`.
 - Scope: `git diff --check origin/dev...HEAD` passed, and the branch changes are limited to `.coderabbit.yaml`, the focused test, and `docs/tasks/319/*`.
 - Issue: #319 now describes strengthening the existing configuration and keeps CodeRabbit App verification and Gemini removal as separate external gates.
+- PR: Ready PR #320 targets `dev`, and its remote head matched the local branch at creation time.
+- External gate: CodeRabbit did not respond to automatic review or `@coderabbitai review`; Gemini still posted its consumer sunset notice. App access must be configured before Gemini access is removed.
 
-- [ ] **Step 4: Record verification and commit the plan.**
+- [x] **Step 4: Record verification and commit the plan.**
 
 ```bash
 git add docs/tasks/319/design.md docs/tasks/319/plan.md
 git commit -m "319 docs: CodeRabbit 전환 검증 결과 반영"
 ```
 
-- [ ] **Step 5: Push and create a Ready PR to `dev`.**
+- [x] **Step 5: Push and create a Ready PR to `dev`.**
 
 Push `feat/319`, create a Korean PR using the repository's current PR structure, and link `Closes #319`. Verify the remote head SHA equals local HEAD and the PR base is `dev`.
 
