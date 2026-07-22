@@ -42,6 +42,15 @@ class SentryEventTitleCallbackTest {
         assertThat(exception.getValue()).isEqualTo("boom");
     }
 
+    @Test
+    void 예외_목록이_없으면_이벤트를_그대로_반환한다() {
+        SentryEvent event = new SentryEvent();
+        event.setTag("error.title", "[G02] 졸업요건 데이터 없음");
+
+        assertThat(callback.execute(event, new Hint())).isSameAs(event);
+        assertThat(event.getExceptions()).isNull();
+    }
+
     private SentryException exception(String type, String value) {
         SentryException exception = new SentryException();
         exception.setType(type);
