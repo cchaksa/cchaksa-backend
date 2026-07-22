@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,7 @@ public class CourseOfferingService {
         for (CreateOfferingCommand command : commands) {
             commandByKey.put(CourseOfferingKey.from(command), command);
         }
+        registerAreaCodes(commandByKey.values());
 
         Set<Long> courseIds = commandByKey.keySet().stream().map(CourseOfferingKey::courseId).collect(Collectors.toSet());
         Set<Integer> years = commandByKey.keySet().stream().map(CourseOfferingKey::year).collect(Collectors.toSet());
@@ -127,6 +129,14 @@ public class CourseOfferingService {
         return EvaluationType.valueOf(rawValue);
     }
 
+    private void registerAreaCodes(Collection<CreateOfferingCommand> commands) {
+        commands.stream()
+                .map(CreateOfferingCommand::areaCode)
+                .filter(code -> code != null && code > 0)
+                .collect(Collectors.toSet())
+                .forEach(code -> liberalArtsAreaCodeRepository.insertIfAbsent(code, code + "영역"));
+    }
+
     /**
      * 선교(미션) 영역의 historical NULL area_code 단방향 backfill (Issue #226 2차 작업).
      * <p>4개 조건이 모두 충족될 때만 도메인 메서드를 호출한다:
@@ -134,7 +144,7 @@ public class CourseOfferingService {
      *   <li>{@code existing.facultyDivisionName == FacultyDivision.선교}</li>
      *   <li>{@code existing.liberalArtsAreaCode == null}</li>
      *   <li>{@code cmd.areaCode() != null}</li>
-     *   <li>{@code cmd.areaCode() != 0} ({@code extractLeadingDigit} 실패 시 0 반환을 거름)</li>
+     *   <li>{@code cmd.areaCode() != 0} (영역 코드 파싱 실패 시 0 반환을 거름)</li>
      * </ol>
      * 가드 통과 시 {@code @Transactional} dirty checking 으로 자동 UPDATE flush.
      */

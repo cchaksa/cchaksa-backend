@@ -103,6 +103,7 @@ class CourseOfferingServiceUnitTests {
         assertThat(result.getDepartment()).isSameAs(department);
         assertThat(result.getLiberalArtsAreaCode()).isSameAs(areaCode);
         assertThat(result.getFacultyDivisionName()).isEqualTo(FacultyDivision.전핵);
+        verify(liberalArtsAreaCodeRepository).insertIfAbsent(202, "202영역");
     }
 
     @Test
@@ -123,6 +124,7 @@ class CourseOfferingServiceUnitTests {
 
         assertThat(result.getDepartment()).isNull();
         assertThat(result.getLiberalArtsAreaCode()).isNull();
+        verify(liberalArtsAreaCodeRepository, never()).insertIfAbsent(anyInt(), anyString());
         verify(liberalArtsAreaCodeRepository, never()).getReferenceById(any(Integer.class));
         verify(departmentRepository, never()).getReferenceById(any(Long.class));
     }
