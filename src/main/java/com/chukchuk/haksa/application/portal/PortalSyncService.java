@@ -76,8 +76,8 @@ public class PortalSyncService {
     @Transactional
     public ScrapingResponse refreshFromPortal(UUID userId, PortalData portalData) {
         long t0 = LogTime.start();
-        User mergedUser = userService.tryMergeWithExistingUser(userId, portalData.student().studentCode());
-        return refreshActiveUserFromPortal(userId, mergedUser, portalData, t0);
+        User user = userService.getUserById(userId);
+        return refreshActiveUserFromPortal(userId, user, portalData, t0);
     }
 
     private ScrapingResponse refreshActiveUserFromPortal(UUID userId, User activeUser, PortalData portalData, long t0) {
