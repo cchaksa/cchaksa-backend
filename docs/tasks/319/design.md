@@ -34,7 +34,7 @@
 - poem과 fortune은 비활성화한다.
 - Draft PR은 리뷰하지 않고 Ready for review 이후 자동 리뷰한다.
 - 후속 push는 incremental review를 활성화한다.
-- 자동 리뷰 대상 base branch는 `dev`, `main`, `release/*`로 제한한다.
+- 기본 브랜치 `dev`는 자동 리뷰하고, `base_branches`에는 추가 대상인 `main`, `release/*`만 지정한다.
 
 ### 경로별 검토 기준
 
@@ -50,7 +50,7 @@
 ## 검증
 
 - JUnit에서 `.coderabbit.yaml`을 YAML 파서로 읽어 문법 오류를 검출한다.
-- 언어, 프로필, Draft 제외, incremental review, base branch 정규식, poem·fortune 비활성화를 테스트한다.
+- 언어, 프로필, Draft 제외, incremental review, 추가 base branch 정규식, poem·fortune 비활성화를 테스트한다.
 - `./gradlew test --stacktrace --no-daemon`으로 전체 회귀 테스트를 실행한다.
 - Ready PR에서 CodeRabbit 자동 리뷰가 생성되는지 확인한다.
 - 같은 PR에 후속 커밋을 추가하거나 수동 명령을 사용해 incremental review를 확인한다.
