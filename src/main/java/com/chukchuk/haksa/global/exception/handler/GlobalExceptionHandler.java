@@ -7,6 +7,7 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
 import com.chukchuk.haksa.global.logging.sanitize.LogSanitizer;
 import com.chukchuk.haksa.global.logging.sentry.SentryMdcContext;
+import com.chukchuk.haksa.global.logging.sentry.SentryEventTitleCallback;
 import com.chukchuk.haksa.global.logging.sentry.SentryMdcTagBinder;
 import io.sentry.Sentry;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,6 +52,7 @@ public class GlobalExceptionHandler {
                 Sentry.withScope(scope -> {
                     scope.setTag("error.type", "BASE_EXCEPTION");
                     scope.setTag("error.code", ex.getCode());
+                    scope.setTag(SentryEventTitleCallback.ERROR_TITLE_TAG, sentryTitle(ex));
                     scope.setFingerprint(List.of("BASE_EXCEPTION", ex.getCode()));
                     scope.setLevel(io.sentry.SentryLevel.WARNING); // 4xx 의미 유지
 
@@ -100,6 +102,7 @@ public class GlobalExceptionHandler {
                 Sentry.withScope(scope -> {
                     scope.setTag("error.type", "ENTITY_NOT_FOUND");
                     scope.setTag("error.code", ex.getCode());
+                    scope.setTag(SentryEventTitleCallback.ERROR_TITLE_TAG, sentryTitle(ex));
                     scope.setFingerprint(List.of("ENTITY_NOT_FOUND", ex.getCode()));
                     scope.setLevel(io.sentry.SentryLevel.WARNING);
                     SentryMdcTagBinder.bind(scope);
@@ -160,6 +163,10 @@ public class GlobalExceptionHandler {
     }
 
     private String nvl(String s) { return s == null ? "" : s; }
+
+    private String sentryTitle(BaseException ex) {
+        return "[%s] %s".formatted(ex.getCode(), ex.getMessage());
+    }
 
     boolean shouldReportBaseException(BaseException ex) {
         if (ex instanceof CommonException) {
