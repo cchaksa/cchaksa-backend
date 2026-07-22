@@ -71,6 +71,11 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'com.h2database:h2'
+    testImplementation 'io.zonky.test:embedded-postgres:2.2.2'
+    testRuntimeOnly 'io.zonky.test.postgres:embedded-postgres-binaries-darwin-arm64v8:14.22.0'
+    testRuntimeOnly('org.apache.commons:commons-lang3') {
+        version { strictly '3.20.0' }
+    }
 }
 
 tasks.named('test') {

@@ -52,3 +52,6 @@
 ## Git
 - 커밋은 `{이슈 번호} {type}: {한국어 메시지}` 형식을 사용합니다.
 - 사용자 변경을 보존하고 dirty checkout에서는 격리 worktree를 우선합니다.
+
+## Pull Requests
+- PR 생성 시 작성자 본인을 Assignee로 지정합니다.

@@ -6,6 +6,10 @@ import com.chukchuk.haksa.infrastructure.portal.model.PortalData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,6 +69,25 @@ class PortalDataMapperTests {
         assertThat(portalData.curriculum().offerings().get(0).points()).isEqualTo(4);
     }
 
+    @ParameterizedTest
+    @CsvSource({"8영역, 8", "10영역, 10"})
+    @DisplayName("숫자 영역명은 전체 영역 번호로 변환한다")
+    void mapsFullAreaNumber(String rawAreaName, int expected) throws Exception {
+        PortalData portalData = PortalDataMapper.toPortalData(areaPayload(rawAreaName));
+
+        assertThat(portalData.curriculum().offerings().get(0).areaCode()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"영역8", "8영역추가", "미지정"})
+    @DisplayName("누락되거나 숫자+영역 형식이 아니면 영역 코드 없음으로 변환한다")
+    void rejectsInvalidAreaFormat(String rawAreaName) throws Exception {
+        PortalData portalData = PortalDataMapper.toPortalData(areaPayload(rawAreaName));
+
+        assertThat(portalData.curriculum().offerings().get(0).areaCode()).isZero();
+    }
+
     private static String payloadWithLanguageCert(String flangPassGb) {
         return """
                 {
@@ -83,5 +106,15 @@ class PortalDataMapperTests {
                 "\"semesters\":[]",
                 "\"semesters\":[{\"semester\":\"2025-10\",\"courses\":[{\"subjtCd\":\"C101\",\"subjtNm\":\"학점보정\",\"point\":null,\"gainPoint\":4,\"cretDelNm\":null}]}]"
         );
+    }
+
+    private RawPortalData areaPayload(String areaName) throws Exception {
+        String rawAreaName = areaName == null ? "null" : "\"%s\"".formatted(areaName);
+        String payload = payloadWithLanguageCert("통과").replace(
+                "\"semesters\":[]",
+                "\"semesters\":[{\"semester\":\"2025-10\",\"courses\":[{\"subjtCd\":\"C101\",\"cltTerrNm\":%s,\"cretDelNm\":null}]}]"
+                        .formatted(rawAreaName)
+        );
+        return objectMapper.readValue(payload, RawPortalData.class);
     }
 }
