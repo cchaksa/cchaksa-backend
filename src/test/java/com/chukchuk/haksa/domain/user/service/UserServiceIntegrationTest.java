@@ -16,6 +16,14 @@ import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
 import com.chukchuk.haksa.domain.graduation.model.StudentGraduationProgress;
 import com.chukchuk.haksa.domain.graduation.repository.StudentGraduationProgressRepository;
+import com.chukchuk.haksa.domain.lectureevaluations.model.CourseEvaluation;
+import com.chukchuk.haksa.domain.lectureevaluations.model.LectureEvaluationTag;
+import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationRepository;
+import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationTagRepository;
+import com.chukchuk.haksa.domain.auth.entity.RefreshToken;
+import com.chukchuk.haksa.domain.auth.repository.RefreshTokenRepository;
+import com.chukchuk.haksa.domain.professor.model.Professor;
+import com.chukchuk.haksa.domain.professor.repository.ProfessorRepository;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -40,6 +48,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,6 +82,14 @@ class UserServiceIntegrationTest {
     private CourseRepository courseRepository;
     @Autowired
     private CourseOfferingRepository courseOfferingRepository;
+    @Autowired
+    private ProfessorRepository professorRepository;
+    @Autowired
+    private CourseEvaluationRepository courseEvaluationRepository;
+    @Autowired
+    private CourseEvaluationTagRepository courseEvaluationTagRepository;
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
     @SpyBean
     private StudentGraduationProgressRepository studentGraduationProgressRepository;
 
@@ -148,6 +166,73 @@ class UserServiceIntegrationTest {
     }
 
     @Test
+    @DisplayName("강의평가가 있는 회원도 탈퇴할 수 있고 재가입 학생과 과거 평가는 분리된다")
+    void deleteUser_preservesCourseEvaluationAndAllowsNewStudentWithOriginalStudentCode() {
+        String studentCode = "20260002";
+        User user = userRepository.save(User.builder()
+                .email("evaluation@haksa.com")
+                .profileNickname("evaluation")
+                .build());
+        Student student = createStudent(user, studentCode);
+        Course course = courseRepository.save(new Course("CS102", "알고리즘"));
+        Professor professor = professorRepository.save(new Professor("홍길동"));
+        CourseEvaluation evaluation = courseEvaluationRepository.save(new CourseEvaluation(
+                student,
+                course,
+                professor,
+                2026,
+                1,
+                "강의평가",
+                List.of(LectureEvaluationTag.INFORMATIVE_LECTURE)
+        ));
+        socialAccountRepository.save(SocialAccount.builder()
+                .provider(OidcProvider.KAKAO)
+                .socialId("withdrawn-social-id")
+                .email("evaluation@haksa.com")
+                .user(user)
+                .build());
+        refreshTokenRepository.save(new RefreshToken(
+                "withdrawn-session",
+                user.getId().toString(),
+                "refresh-token",
+                new Date(System.currentTimeMillis() + 60_000)
+        ));
+
+        entityManager.flush();
+        entityManager.clear();
+
+        userService.deleteUserById(user.getId());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        Student withdrawnStudent = studentRepository.findById(student.getId()).orElseThrow();
+        assertThat(withdrawnStudent.getStudentCode()).startsWith("deleted_");
+        assertThat(courseEvaluationRepository.findById(evaluation.getId())).isPresent();
+        assertThat(courseEvaluationTagRepository.count()).isEqualTo(1);
+        assertThat(socialAccountRepository.findByProviderAndSocialId(OidcProvider.KAKAO, "withdrawn-social-id"))
+                .isEmpty();
+        assertThat(refreshTokenRepository.findAll())
+                .noneMatch(token -> token.getUserId().equals(user.getId().toString()));
+
+        User rejoinedUser = userRepository.save(User.builder()
+                .email("rejoined@haksa.com")
+                .profileNickname("rejoined")
+                .build());
+        Student rejoinedStudent = createStudent(rejoinedUser, studentCode);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(rejoinedStudent.getId()).isNotEqualTo(student.getId());
+        assertThat(userRepository.findByStudent_StudentCode(studentCode))
+                .map(User::getId)
+                .contains(rejoinedUser.getId());
+        assertThat(courseEvaluationRepository.findById(evaluation.getId()).orElseThrow().getStudent().getId())
+                .isEqualTo(student.getId());
+    }
+
+    @Test
     @DisplayName("사용자와 소셜 계정은 이메일 없이 저장할 수 있다")
     void nullableSocialEmail_isPersistedAsNull() {
         User user = userRepository.save(User.builder()
@@ -172,9 +257,14 @@ class UserServiceIntegrationTest {
     }
 
     private Student createStudent(User user) {
-        Department department = departmentRepository.save(new Department("2000513", "컴퓨터학과"));
+        return createStudent(user, "20260001");
+    }
+
+    private Student createStudent(User user, String studentCode) {
+        Department department = departmentRepository.findByDepartmentCode("2000513")
+                .orElseGet(() -> departmentRepository.save(new Department("2000513", "컴퓨터학과")));
         Student student = Student.builder()
-                .studentCode("20260001")
+                .studentCode(studentCode)
                 .name("학생")
                 .department(department)
                 .major(null)
