@@ -4,9 +4,11 @@ package com.chukchuk.haksa.global.security.filter;
 import com.chukchuk.haksa.domain.student.controller.StudentController;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.user.controller.UserController;
+import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.TokenException;
+import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.global.security.SecurityConfig;
 import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
 import com.chukchuk.haksa.global.security.handler.CustomAccessDeniedHandler;
@@ -35,6 +37,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -127,6 +130,31 @@ class JwtAuthenticationFilterTests {
                 .thenThrow(new TokenException(ErrorCode.USER_NOT_FOUND));
 
         mockMvc.perform(get("/api/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value(ErrorCode.TOKEN_INVALID.code()))
+                .andExpect(header().string("WWW-Authenticate", "Bearer error=\"invalid_token\", error_description=\"TOKEN_INVALID\""));
+    }
+
+    @Test
+    @DisplayName("탈퇴 처리된 사용자 acToken으로 /api/users/analytics-id 호출 시 401 TOKEN_INVALID를 반환한다")
+    void getAnalyticsId_withWithdrawnUserAccessToken_returns401() throws Exception {
+        UUID userId = UUID.randomUUID();
+        String token = "withdrawn-user-access-token";
+        Claims claims = Jwts.claims().setSubject(userId.toString());
+        User withdrawnUser = User.builder()
+                .id(userId)
+                .email("withdrawn@example.com")
+                .profileNickname("withdrawn")
+                .build();
+        withdrawnUser.withdraw(Instant.now());
+
+        when(jwtProvider.parseToken(token)).thenReturn(claims);
+        when(authTokenCache.getOrLoad(eq(userId.toString()), eq(token), any()))
+                .thenReturn(new CustomUserDetails(withdrawnUser));
+
+        mockMvc.perform(get("/api/users/analytics-id")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
