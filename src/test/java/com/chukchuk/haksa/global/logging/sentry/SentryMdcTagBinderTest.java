@@ -22,8 +22,11 @@ class SentryMdcTagBinderTest {
         MDC.put("outboxId", "outbox-1");
         MDC.put("operationType", "LINK");
         MDC.put("workerRequestId", "worker-req-1");
-        MDC.put("student_code", "20201234");
-        MDC.put("admission_year", "2020");
+        MDC.put("studentCodeHash", "student-hash");
+        MDC.put("admissionYear", "2020");
+        MDC.put("departmentId", "38");
+        MDC.put("majorType", "SINGLE");
+        MDC.put("traceId", "trace-1");
 
         Map<String, String> tags = SentryMdcTagBinder.collect();
 
@@ -33,8 +36,12 @@ class SentryMdcTagBinderTest {
                 .containsEntry("outboxId", "outbox-1")
                 .containsEntry("operationType", "LINK")
                 .containsEntry("workerRequestId", "worker-req-1")
-                .containsEntry("student_code", "20201234")
-                .containsEntry("admission_year", "2020")
-                .doesNotContainKey("secondary_department_id");
+                .containsEntry("studentCodeHash", "student-hash")
+                .containsEntry("admissionYear", "2020")
+                .containsEntry("departmentId", "38")
+                .containsEntry("majorType", "SINGLE")
+                .containsEntry("traceId", "trace-1")
+                .doesNotContainKey("student_code")
+                .doesNotContainKey("secondaryDepartmentId");
     }
 }
