@@ -31,7 +31,7 @@ public class SocialAccount {
     @Column(name = "social_id", nullable = false, length = 255)
     private String socialId;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
     @ManyToOne(fetch = FetchType.LAZY)
