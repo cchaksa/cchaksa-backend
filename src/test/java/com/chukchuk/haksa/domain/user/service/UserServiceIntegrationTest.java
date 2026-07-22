@@ -21,10 +21,13 @@ import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.domain.user.model.SocialAccount;
 import com.chukchuk.haksa.domain.user.model.User;
+import com.chukchuk.haksa.domain.user.repository.SocialAccountRepository;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.global.security.cache.AuthTokenCache;
+import com.chukchuk.haksa.global.security.service.OidcProvider;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
@@ -53,6 +56,8 @@ class UserServiceIntegrationTest {
     private UserService userService;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private SocialAccountRepository socialAccountRepository;
     @SpyBean
     private StudentRepository studentRepository;
     @SpyBean
@@ -131,6 +136,30 @@ class UserServiceIntegrationTest {
         verify(studentRepository, never()).delete(any());
         verify(studentAcademicRecordRepository, never()).deleteByStudentId(any());
         verify(studentGraduationProgressRepository, never()).deleteByStudentId(any());
+    }
+
+    @Test
+    @DisplayName("사용자와 소셜 계정은 이메일 없이 저장할 수 있다")
+    void nullableSocialEmail_isPersistedAsNull() {
+        User user = userRepository.save(User.builder()
+                .email(null)
+                .profileNickname("email-less")
+                .build());
+        socialAccountRepository.save(SocialAccount.builder()
+                .provider(OidcProvider.APPLE)
+                .socialId("email-less-sub")
+                .email(null)
+                .user(user)
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        SocialAccount account = socialAccountRepository
+                .findByProviderAndSocialId(OidcProvider.APPLE, "email-less-sub")
+                .orElseThrow();
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getEmail()).isNull();
+        assertThat(account.getEmail()).isNull();
     }
 
     private Student createStudent(User user) {

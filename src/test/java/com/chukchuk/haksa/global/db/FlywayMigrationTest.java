@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class FlywayMigrationTest {
 
     @Test
-    void freshDatabaseMigratesFromV1ToV9() throws Exception {
+    void freshDatabaseMigratesFromV1ToV10() throws Exception {
         String dbName = "flyway-migration-" + UUID.randomUUID();
         String url = "jdbc:h2:mem:" + dbName + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
                 + "DB_CLOSE_DELAY=-1;"
@@ -57,7 +57,8 @@ class FlywayMigrationTest {
                         MigrationVersion.fromVersion("6"),
                         MigrationVersion.fromVersion("7"),
                         MigrationVersion.fromVersion("8"),
-                        MigrationVersion.fromVersion("9")
+                        MigrationVersion.fromVersion("9"),
+                        MigrationVersion.fromVersion("10")
                 );
 
         try (var connection = DriverManager.getConnection(url, "sa", "")) {
@@ -77,6 +78,8 @@ class FlywayMigrationTest {
             assertThat(hasColumn(connection, "refresh_token", "token_hash")).isTrue();
             assertThat(isNullable(connection, "refresh_token", "token")).isTrue();
             assertThat(primaryKeyColumn(connection, "refresh_token")).isEqualTo("session_id");
+            assertThat(isNullable(connection, "users", "email")).isTrue();
+            assertThat(isNullable(connection, "social_accounts", "email")).isTrue();
             try (var statement = connection.createStatement();
                  var resultSet = statement.executeQuery("""
                          SELECT area_name, is_active

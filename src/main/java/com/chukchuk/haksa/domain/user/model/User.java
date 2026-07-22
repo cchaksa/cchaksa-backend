@@ -22,7 +22,7 @@ public class User extends BaseEntity {
     @Column(nullable = false, unique = true)
     private UUID id;
 
-    @Column(name = "email", nullable = false)
+    @Column(name = "email")
     private String email;
 
     @Column(name = "profile_nickname")

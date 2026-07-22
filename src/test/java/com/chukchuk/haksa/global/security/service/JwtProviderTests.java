@@ -12,6 +12,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JwtProviderTests {
 
     @Test
+    @DisplayName("이메일이 없으면 access token에서 email claim을 생략한다")
+    void createAccessToken_withoutEmail_omitsEmailClaim() {
+        JwtProvider jwtProvider = jwtProvider();
+
+        Claims claims = jwtProvider.parseToken(jwtProvider.createAccessToken("user-1", null, "USER"));
+
+        assertThat(claims.getSubject()).isEqualTo("user-1");
+        assertThat(claims).doesNotContainKey("email");
+        assertThat(claims.get("role", String.class)).isEqualTo("USER");
+    }
+
+    @Test
     @DisplayName("refresh token에는 로그인 세션 식별자 sid가 포함된다")
     void createRefreshToken_containsSessionIdClaim() {
         JwtProvider jwtProvider = jwtProvider();
