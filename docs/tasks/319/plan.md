@@ -147,9 +147,10 @@ Replace the inaccurate “add `.coderabbit.yaml`” wording with “strengthen t
 - Issue: #319 now describes strengthening the existing configuration and keeps CodeRabbit App verification and Gemini removal as separate external gates.
 - PR: Ready PR #320 targets `dev`, and its remote head matched the local branch at creation time.
 - App access: the existing CodeRabbit installation initially allowed only `cchaksa-app`; `cchaksa-backend` was added as the second selected repository and the saved setting was rechecked.
-- Initial review: CodeRabbit acknowledged `@coderabbitai review`, loaded `.coderabbit.yaml`, selected all four changed files, and started a review. Its status remained pending when this note was recorded.
+- Review: CodeRabbit acknowledged `@coderabbitai review`, reviewed all four changed files, posted two findings, and completed with a successful status check.
 - Configuration activation: CodeRabbit reported that open source PRs use configuration from the base branch, so this PR verifies App and incremental behavior while the strengthened policy becomes active after merge.
-- Gemini gate: Gemini still posted its consumer sunset notice. Its App access remains until CodeRabbit review completes.
+- Incremental review: later pushes each created a CodeRabbit status on the new HEAD, and the latest review-fix commit completed successfully.
+- Gemini gate: `cchaksa-backend` was removed from Gemini Code Assist repository access after CodeRabbit verification. Terraform and scraper access remains unchanged.
 
 - [x] **Step 4: Record verification and commit the plan.**
 
@@ -162,6 +163,6 @@ git commit -m "319 docs: CodeRabbit 전환 검증 결과 반영"
 
 Push `feat/319`, create a Korean PR using the repository's current PR structure, and link `Closes #319`. Verify the remote head SHA equals local HEAD and the PR base is `dev`.
 
-- [ ] **Step 6: Check the external review gate.**
+- [x] **Step 6: Check the external review gate.**
 
 Confirm whether CodeRabbit creates a review or a skip/configuration message. If no CodeRabbit event appears, report CodeRabbit App installation as the remaining blocker and do not claim Gemini removal is complete. Remove Gemini access only after CodeRabbit review is proven.
