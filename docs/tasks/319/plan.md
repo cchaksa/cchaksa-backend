@@ -146,7 +146,10 @@ Replace the inaccurate “add `.coderabbit.yaml`” wording with “strengthen t
 - Scope: `git diff --check origin/dev...HEAD` passed, and the branch changes are limited to `.coderabbit.yaml`, the focused test, and `docs/tasks/319/*`.
 - Issue: #319 now describes strengthening the existing configuration and keeps CodeRabbit App verification and Gemini removal as separate external gates.
 - PR: Ready PR #320 targets `dev`, and its remote head matched the local branch at creation time.
-- External gate: CodeRabbit did not respond to automatic review or `@coderabbitai review`; Gemini still posted its consumer sunset notice. App access must be configured before Gemini access is removed.
+- App access: the existing CodeRabbit installation initially allowed only `cchaksa-app`; `cchaksa-backend` was added as the second selected repository and the saved setting was rechecked.
+- Initial review: CodeRabbit acknowledged `@coderabbitai review`, loaded `.coderabbit.yaml`, selected all four changed files, and started a review. Its status remained pending when this note was recorded.
+- Configuration activation: CodeRabbit reported that open source PRs use configuration from the base branch, so this PR verifies App and incremental behavior while the strengthened policy becomes active after merge.
+- Gemini gate: Gemini still posted its consumer sunset notice. Its App access remains until CodeRabbit review completes.
 
 - [x] **Step 4: Record verification and commit the plan.**
 
