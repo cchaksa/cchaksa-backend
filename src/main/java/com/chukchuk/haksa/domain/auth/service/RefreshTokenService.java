@@ -99,6 +99,12 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new TokenException(ErrorCode.REFRESH_TOKEN_NOT_FOUND));
     }
 
+    @Transactional
+    public void deleteAllByUserId(String userId) {
+        int deleted = refreshTokenRepository.deleteByUserId(userId);
+        log.info("[BIZ] auth.refresh.delete_all userId={} count={}", userId, deleted);
+    }
+
     /* 유효기간이 지난 RefreshToken 정보 삭제 */
     @Transactional
     public int deletedExpiredTokens() {

@@ -312,6 +312,16 @@ class RefreshTokenServiceUnitTests {
     }
 
     @Test
+    @DisplayName("사용자 탈퇴 시 해당 사용자의 모든 refresh token을 삭제한다")
+    void deleteAllByUserId_deletesAllTokensForUser() {
+        when(refreshTokenRepository.deleteByUserId("user-1")).thenReturn(2);
+
+        refreshTokenService.deleteAllByUserId("user-1");
+
+        verify(refreshTokenRepository).deleteByUserId("user-1");
+    }
+
+    @Test
     @DisplayName("만료 토큰 정리 작업은 삭제 쿼리를 호출한다")
     void deletedExpiredTokens_executesDelete() {
         when(refreshTokenRepository.deleteByExpiryBefore(any(Date.class))).thenReturn(3);
