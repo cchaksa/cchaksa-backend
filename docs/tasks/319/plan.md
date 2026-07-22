@@ -28,7 +28,7 @@
 - Consumes: repository-root `.coderabbit.yaml` and `org.yaml.snakeyaml.Yaml` already available in the test runtime.
 - Produces: parsed `Map<String, Object>` assertions for common review policy, automatic review targets, and required path instructions.
 
-- [ ] **Step 1: Add a failing structured YAML test.**
+- [x] **Step 1: Add a failing structured YAML test.**
 
 Create `CodeRabbitConfigTest` with a Korean file header. Load `.coderabbit.yaml` through `new Yaml().load(inputStream)` and assert these exact values.
 
@@ -61,18 +61,15 @@ assertThat(paths).containsExactly(
 );
 ```
 
-- [ ] **Step 2: Run the focused test and confirm the current minimal configuration fails.**
+- [x] **Step 2: Run the focused test and confirm the current minimal configuration fails.**
 
 Run: `./gradlew test --tests com.chukchuk.haksa.global.config.CodeRabbitConfigTest --stacktrace --no-daemon`
 
 Expected: FAIL because `poem` is true and incremental review, extra base branches, fortune, and path instructions are absent.
 
-- [ ] **Step 3: Commit the failing policy test.**
+- [x] **Step 3: Keep the failing test uncommitted and proceed to Task 2.**
 
-```bash
-git add src/test/java/com/chukchuk/haksa/global/config/CodeRabbitConfigTest.java
-git commit -m "319 test: CodeRabbit 리뷰 정책 검증 추가"
-```
+Record the expected assertion failure in the plan verification notes. Do not create a commit while the focused test is failing.
 
 ### Task 2: Apply the Haksa backend review policy
 
@@ -84,11 +81,11 @@ git commit -m "319 test: CodeRabbit 리뷰 정책 검증 추가"
 - Consumes: CodeRabbit schema v2 properties `tone_instructions`, `reviews.auto_review`, and `reviews.path_instructions`.
 - Produces: a repository policy that CodeRabbit reads from the PR base branch.
 
-- [ ] **Step 1: Add the official schema header and common review policy.**
+- [x] **Step 1: Add the official schema header and common review policy.**
 
 Add `# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json`, set `poem: false`, `in_progress_fortune: false`, and add concise Korean `tone_instructions` that excludes style-only, CI-format, and out-of-scope refactoring comments.
 
-- [ ] **Step 2: Configure automatic review behavior.**
+- [x] **Step 2: Configure automatic review behavior.**
 
 Set `auto_incremental_review: true`, preserve `drafts: false`, and add the exact additional base patterns below.
 
@@ -98,20 +95,20 @@ base_branches:
   - "^release/.*$"
 ```
 
-- [ ] **Step 3: Add repository-specific path instructions.**
+- [x] **Step 3: Add repository-specific path instructions.**
 
 Add the ten path globs from Task 1 in that order. Their instructions must cover JWT and authorization bypass, transaction and concurrency defects, portal callback validation and idempotency, forward-only Flyway compatibility, Sentry and log PII, and regression-focused tests.
 
-- [ ] **Step 4: Run the focused test and verify it passes.**
+- [x] **Step 4: Run the focused test and verify it passes.**
 
 Run: `./gradlew test --tests com.chukchuk.haksa.global.config.CodeRabbitConfigTest --stacktrace --no-daemon`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the reviewed configuration.**
+- [x] **Step 5: Commit the reviewed configuration.**
 
 ```bash
-git add .coderabbit.yaml
+git add .coderabbit.yaml src/test/java/com/chukchuk/haksa/global/config/CodeRabbitConfigTest.java
 git commit -m "319 chore: CodeRabbit 백엔드 리뷰 정책 보강"
 ```
 
@@ -125,21 +122,29 @@ git commit -m "319 chore: CodeRabbit 백엔드 리뷰 정책 보강"
 - Consumes: committed `.coderabbit.yaml`, passing Gradle tests, GitHub App access, and PR review events.
 - Produces: a clean pushed branch, an issue body aligned with the pre-existing config, and a Ready PR suitable for CodeRabbit verification.
 
-- [ ] **Step 1: Run the complete repository verification.**
+- [x] **Step 1: Run the complete repository verification.**
 
 Run: `./gradlew test --stacktrace --no-daemon`
 
 Expected: BUILD SUCCESSFUL with zero failed tests.
 
-- [ ] **Step 2: Inspect repository scope and policy safety.**
+- [x] **Step 2: Inspect repository scope and policy safety.**
 
 Run: `git diff --check origin/dev...HEAD`, `git status --short`, and `git diff --stat origin/dev...HEAD`.
 
 Expected: only `.coderabbit.yaml`, the focused test, and `docs/tasks/319/*` are changed; no application, API, DB, or workflow files are modified.
 
-- [ ] **Step 3: Update issue #319.**
+- [x] **Step 3: Update issue #319.**
 
 Replace the inaccurate “add `.coderabbit.yaml`” wording with “strengthen the existing `.coderabbit.yaml`”. Preserve the external gates for CodeRabbit App access, Ready/incremental review verification, and Gemini App removal after successful verification.
+
+**Verification notes:**
+
+- RED: the focused test failed against the original minimal configuration because the required review policy and path instructions were absent.
+- GREEN: `./gradlew test --tests com.chukchuk.haksa.global.config.CodeRabbitConfigTest --stacktrace --no-daemon` passed after the configuration update.
+- Regression: `./gradlew test --stacktrace --no-daemon` passed with `BUILD SUCCESSFUL`.
+- Scope: `git diff --check origin/dev...HEAD` passed, and the branch changes are limited to `.coderabbit.yaml`, the focused test, and `docs/tasks/319/*`.
+- Issue: #319 now describes strengthening the existing configuration and keeps CodeRabbit App verification and Gemini removal as separate external gates.
 
 - [ ] **Step 4: Record verification and commit the plan.**
 
