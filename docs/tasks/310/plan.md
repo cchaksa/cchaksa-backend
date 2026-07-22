@@ -108,4 +108,3 @@
 - [ ] Inspect `git diff --check` and `git status --short`.
 - [ ] Confirm `G02` remains reportable, expected client errors are excluded, raw student code is absent from tags, and only known duplicate loggers are denied.
 - [ ] Review the final diff for unrelated changes and PII exposure.
-
