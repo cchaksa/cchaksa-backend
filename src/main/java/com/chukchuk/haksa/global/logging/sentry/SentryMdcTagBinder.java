@@ -19,11 +19,12 @@ public final class SentryMdcTagBinder {
             "outboxId",
             "operationType",
             "workerRequestId",
-            "student_code",
-            "admission_year",
-            "primary_department_id",
-            "secondary_department_id",
-            "major_type"
+            "studentCodeHash",
+            "admissionYear",
+            "departmentId",
+            "secondaryDepartmentId",
+            "majorType",
+            "traceId"
     );
 
     private SentryMdcTagBinder() {

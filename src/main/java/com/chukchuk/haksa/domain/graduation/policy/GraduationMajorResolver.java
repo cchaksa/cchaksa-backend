@@ -7,6 +7,7 @@ import com.chukchuk.haksa.domain.graduation.repository.GraduationQueryRepository
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import com.chukchuk.haksa.global.logging.util.HashUtil;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
@@ -131,12 +132,12 @@ public class GraduationMajorResolver {
             Long secondaryMajorId,
             int admissionYear
     ) {
-        MDC.put("student_code", student.getStudentCode());
-        MDC.put("admission_year", String.valueOf(admissionYear));
-        MDC.put("primary_department_id", String.valueOf(primaryMajorId));
-        MDC.put("secondary_department_id",
+        MDC.put("studentCodeHash", HashUtil.sha256Short(student.getStudentCode()));
+        MDC.put("admissionYear", String.valueOf(admissionYear));
+        MDC.put("departmentId", String.valueOf(primaryMajorId));
+        MDC.put("secondaryDepartmentId",
                 secondaryMajorId == null ? "NONE" : String.valueOf(secondaryMajorId));
-        MDC.put("major_type", secondaryMajorId == null ? "SINGLE" : "DUAL");
+        MDC.put("majorType", secondaryMajorId == null ? "SINGLE" : "DUAL");
 
         throw new CommonException(ErrorCode.GRADUATION_REQUIREMENTS_DATA_NOT_FOUND);
     }

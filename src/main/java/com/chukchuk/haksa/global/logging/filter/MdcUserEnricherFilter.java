@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.global.logging.filter;
 
+import com.chukchuk.haksa.global.logging.sentry.SentryDuplicateEventFilter;
 import com.chukchuk.haksa.global.logging.util.HashUtil;
 import io.sentry.Sentry;
 import io.sentry.protocol.User;
@@ -30,6 +31,7 @@ public class MdcUserEnricherFilter extends OncePerRequestFilter {
 
             MDC.put("userId", userId);
             MDC.put("userIdHash", HashUtil.sha256Short(userId));
+            MDC.put(SentryDuplicateEventFilter.MANAGED_REQUEST_MDC_KEY, "true");
 
             String studentCode = resolveStudentCode();
             if (studentCode != null && !studentCode.isBlank()) {
@@ -48,6 +50,7 @@ public class MdcUserEnricherFilter extends OncePerRequestFilter {
             MDC.remove("userId");
             MDC.remove("userIdHash");
             MDC.remove("studentCodeHash");
+            MDC.remove(SentryDuplicateEventFilter.MANAGED_REQUEST_MDC_KEY);
             Sentry.setUser(null); // 반드시 해제
         }
     }

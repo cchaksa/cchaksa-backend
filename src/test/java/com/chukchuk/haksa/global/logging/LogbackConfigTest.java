@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,6 +21,8 @@ class LogbackConfigTest {
         assertThat(xml)
                 .contains("<appender name=\"SENTRY_DEV\" class=\"io.sentry.logback.SentryAppender\">")
                 .contains("<appender name=\"SENTRY_PROD\" class=\"io.sentry.logback.SentryAppender\">");
+        assertThat(Pattern.compile("SentryDuplicateEventFilter").matcher(xml).results().count())
+                .isEqualTo(2);
 
         for (String tag : SentryMdcTagBinder.tagKeys()) {
             assertThat(xml).contains("<tag>" + tag + "</tag>");

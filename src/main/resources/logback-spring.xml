@@ -24,6 +24,7 @@
     </appender>
 
     <appender name="SENTRY_DEV" class="io.sentry.logback.SentryAppender">
+        <filter class="com.chukchuk.haksa.global.logging.sentry.SentryDuplicateEventFilter"/>
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         <sendDefaultPii>false</sendDefaultPii>
@@ -34,15 +35,17 @@
             <tag>outboxId</tag>
             <tag>operationType</tag>
             <tag>workerRequestId</tag>
-            <tag>student_code</tag>
-            <tag>admission_year</tag>
-            <tag>primary_department_id</tag>
-            <tag>secondary_department_id</tag>
-            <tag>major_type</tag>
+            <tag>studentCodeHash</tag>
+            <tag>admissionYear</tag>
+            <tag>departmentId</tag>
+            <tag>secondaryDepartmentId</tag>
+            <tag>majorType</tag>
+            <tag>traceId</tag>
         </mdcTags>
     </appender>
 
     <appender name="SENTRY_PROD" class="io.sentry.logback.SentryAppender">
+        <filter class="com.chukchuk.haksa.global.logging.sentry.SentryDuplicateEventFilter"/>
         <minimumEventLevel>ERROR</minimumEventLevel>
         <minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
         <sendDefaultPii>false</sendDefaultPii>
@@ -53,11 +56,12 @@
             <tag>outboxId</tag>
             <tag>operationType</tag>
             <tag>workerRequestId</tag>
-            <tag>student_code</tag>
-            <tag>admission_year</tag>
-            <tag>primary_department_id</tag>
-            <tag>secondary_department_id</tag>
-            <tag>major_type</tag>
+            <tag>studentCodeHash</tag>
+            <tag>admissionYear</tag>
+            <tag>departmentId</tag>
+            <tag>secondaryDepartmentId</tag>
+            <tag>majorType</tag>
+            <tag>traceId</tag>
         </mdcTags>
     </appender>
 
