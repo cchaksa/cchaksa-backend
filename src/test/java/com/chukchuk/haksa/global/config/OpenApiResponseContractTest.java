@@ -59,7 +59,34 @@ class OpenApiResponseContractTest {
           new OperationRef("/api/academic/record", "get"),
           new OperationRef("/api/lecture-evaluations/required", "get"),
           new OperationRef("/api/lecture-evaluations", "post"),
-          new OperationRef("/api/lecture-evaluations/skip", "post"));
+          new OperationRef("/api/lecture-evaluations/skip", "post"),
+          new OperationRef("/api/reports", "post"),
+          new OperationRef("/api/reports", "get"),
+          new OperationRef("/api/reports/{reportId}", "get"));
+
+  @Test
+  void reportApiResponsesUseDedicatedWrappers() throws Exception {
+    JsonNode apiDocs = apiDocs();
+
+    assertJsonResponseRef(apiDocs, "/api/reports", "post", "201", "ReportCreateApiResponse");
+    assertJsonResponseRef(apiDocs, "/api/reports", "get", "200", "ReportListApiResponse");
+    assertJsonResponseRef(
+        apiDocs, "/api/reports/{reportId}", "get", "200", "ReportDetailApiResponse");
+    assertJsonResponseRef(apiDocs, "/api/reports/{reportId}", "get", "403", "ErrorResponseWrapper");
+    assertJsonResponseRef(apiDocs, "/api/reports/{reportId}", "get", "404", "ErrorResponseWrapper");
+
+    JsonNode requestContent =
+        operation(apiDocs, new OperationRef("/api/reports", "post"))
+            .path("requestBody")
+            .path("content");
+    assertThat(requestContent.has("application/json")).isTrue();
+    assertThat(requestContent.has("multipart/form-data")).isFalse();
+    JsonNode createRequest =
+        resolveSchema(apiDocs, requestContent.path("application/json").path("schema"));
+    assertThat(createRequest.path("properties").size()).isEqualTo(2);
+    assertThat(createRequest.path("properties").has("title")).isTrue();
+    assertThat(createRequest.path("properties").has("content")).isTrue();
+  }
 
   @Autowired private MockMvc mockMvc;
 

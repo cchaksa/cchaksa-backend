@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.report.service.ReportLifecycleService;
 import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
 import com.chukchuk.haksa.domain.user.model.User;
@@ -48,6 +49,8 @@ class UserServiceTests {
 
   @Mock private AuthTokenCache authTokenCache;
 
+  @Mock private ReportLifecycleService reportLifecycleService;
+
   @Mock private OidcService appleOidcService;
 
   @Captor private ArgumentCaptor<OidcProvider> providerCaptor;
@@ -84,6 +87,7 @@ class UserServiceTests {
             academicCache,
             authTokenCache,
             studentDeletionService,
+            reportLifecycleService,
             Map.of(OidcProvider.APPLE, appleOidcService));
 
     UserDto.SignInRequest request =
