@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.report.service.ReportLifecycleService;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
@@ -58,6 +59,8 @@ class UserServiceUnitTests {
   @Mock private OidcService oidcService;
 
   @Mock private StudentDeletionService studentDeletionService;
+
+  @Mock private ReportLifecycleService reportLifecycleService;
 
   @Test
   @DisplayName("userId로 사용자를 조회할 수 있다")
@@ -452,6 +455,7 @@ class UserServiceUnitTests {
         academicCache,
         authTokenCache,
         studentDeletionService,
+        reportLifecycleService,
         Map.of(OidcProvider.KAKAO, oidcService));
   }
 }

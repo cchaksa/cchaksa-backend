@@ -3,6 +3,7 @@ package com.chukchuk.haksa.domain.user.service;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
+import com.chukchuk.haksa.domain.report.service.ReportLifecycleService;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.service.StudentDeletionService;
 import com.chukchuk.haksa.domain.user.dto.UserDto;
@@ -38,6 +39,7 @@ public class UserService {
   private final AcademicCache academicCache;
   private final AuthTokenCache authTokenCache;
   private final StudentDeletionService studentDeletionService;
+  private final ReportLifecycleService reportLifecycleService;
 
   private final Map<OidcProvider, OidcService> oidcServices;
 
@@ -116,6 +118,7 @@ public class UserService {
     Student student = user.getStudent();
     UUID studentId = student != null ? student.getId() : null;
 
+    reportLifecycleService.anonymizeByUserId(userId);
     studentDeletionService.anonymizeByStudent(student);
     if (studentId != null) {
       academicCache.deleteAllByStudentId(studentId);
@@ -164,6 +167,7 @@ public class UserService {
     student.updateUser(currentUser);
     existingUser.setStudent(null);
 
+    reportLifecycleService.reassignOwner(existingUser.getId(), currentUserId);
     userRepository.delete(existingUser);
     log.info(
         "[BIZ] user.merged existingUserId={} into currentUserId={}",

@@ -30,6 +30,10 @@ import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationR
 import com.chukchuk.haksa.domain.lectureevaluations.repository.CourseEvaluationTagRepository;
 import com.chukchuk.haksa.domain.professor.model.Professor;
 import com.chukchuk.haksa.domain.professor.repository.ProfessorRepository;
+import com.chukchuk.haksa.domain.report.model.GraduationRequirementSnapshotStatus;
+import com.chukchuk.haksa.domain.report.model.Report;
+import com.chukchuk.haksa.domain.report.model.ReportSubmitterSnapshot;
+import com.chukchuk.haksa.domain.report.repository.ReportRepository;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
@@ -79,6 +83,7 @@ class UserServiceIntegrationTest {
   @Autowired private CourseEvaluationRepository courseEvaluationRepository;
   @Autowired private CourseEvaluationTagRepository courseEvaluationTagRepository;
   @Autowired private RefreshTokenRepository refreshTokenRepository;
+  @Autowired private ReportRepository reportRepository;
   @SpyBean private StudentGraduationProgressRepository studentGraduationProgressRepository;
 
   @MockBean private AcademicCache academicCache;
@@ -93,6 +98,24 @@ class UserServiceIntegrationTest {
         userRepository.save(
             User.builder().email("test@haksa.com").profileNickname("tester").build());
     Student student = createStudent(user);
+    final Report report =
+        reportRepository.save(
+            Report.create(
+                user.getId(),
+                "탈퇴 전 문의 제목",
+                "탈퇴 전 문의 본문",
+                new ReportSubmitterSnapshot(
+                    user.getId(),
+                    student.getDepartment().getId(),
+                    student.getDepartment().getEstablishedDepartmentName(),
+                    student.getStudentCode(),
+                    student.getDepartment().getId(),
+                    student.getDepartment().getEstablishedDepartmentName(),
+                    null,
+                    null,
+                    false,
+                    2024,
+                    GraduationRequirementSnapshotStatus.AVAILABLE)));
 
     persistStudentAssociations(student);
     studentDesignatedCourseRepository.save(
@@ -122,6 +145,15 @@ class UserServiceIntegrationTest {
     assertThat(studentGraduationProgressRepository.findByStudentId(studentId)).isEmpty();
     assertThat(studentDesignatedCourseRepository.findAllByStudentIdOrderBySourceOrder(studentId))
         .isEmpty();
+    Report anonymizedReport = reportRepository.findById(report.getId()).orElseThrow();
+    assertThat(anonymizedReport.getUserId()).isEqualTo(user.getId());
+    assertThat(anonymizedReport.getTitle()).isEqualTo("탈퇴 전 문의 제목");
+    assertThat(anonymizedReport.getContent()).isEqualTo("탈퇴 전 문의 본문");
+    assertThat(anonymizedReport.getSubmitterSnapshot().getSubmittedUserId()).isNull();
+    assertThat(anonymizedReport.getSubmitterSnapshot().getStudentCode()).isNull();
+    assertThat(anonymizedReport.getSubmitterSnapshot().getDepartmentName()).isNull();
+    assertThat(anonymizedReport.getSubmitterSnapshot().getGraduationRequirementStatus())
+        .isEqualTo(GraduationRequirementSnapshotStatus.UNKNOWN);
 
     verify(academicCache).deleteAllByStudentId(studentId);
     verify(authTokenCache).evictByUserId(user.getId().toString());
@@ -137,6 +169,13 @@ class UserServiceIntegrationTest {
         userRepository.save(
             User.builder().email("merge-existing@haksa.com").profileNickname("existing").build());
     Student existingStudent = createStudent(existingUser, "20263337");
+    final Report existingReport =
+        reportRepository.save(
+            Report.create(
+                existingUser.getId(),
+                "병합 전 문의",
+                "문의 내용",
+                ReportSubmitterSnapshot.unknown(existingUser.getId())));
     studentDesignatedCourseRepository.save(
         new StudentDesignatedCourse(existingStudent, designatedCourse("C337", 0)));
 
@@ -157,6 +196,10 @@ class UserServiceIntegrationTest {
         .extracting(StudentDesignatedCourse::getSubjtCd)
         .containsExactly("C337");
     assertThat(userRepository.findById(existingUser.getId())).isEmpty();
+    Report reassignedReport = reportRepository.findById(existingReport.getId()).orElseThrow();
+    assertThat(reassignedReport.getUserId()).isEqualTo(currentUser.getId());
+    assertThat(reassignedReport.getSubmitterSnapshot().getSubmittedUserId())
+        .isEqualTo(existingUser.getId());
   }
 
   @Test

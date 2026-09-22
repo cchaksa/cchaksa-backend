@@ -2,11 +2,15 @@ package com.chukchuk.haksa.global.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
@@ -15,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV14() throws Exception {
+  void freshDatabaseMigratesFromV1ToV15() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -66,7 +70,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("11"),
             MigrationVersion.fromVersion("12"),
             MigrationVersion.fromVersion("13"),
-            MigrationVersion.fromVersion("14"));
+            MigrationVersion.fromVersion("14"),
+            MigrationVersion.fromVersion("15"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -101,6 +106,16 @@ class FlywayMigrationTest {
       assertThat(
               hasColumn(connection, "student_graduation_progress", "graduation_review_fulfilled"))
           .isTrue();
+      assertThat(hasTable(connection, "reports")).isTrue();
+      assertThat(hasColumn(connection, "reports", "submitted_user_id")).isTrue();
+      assertThat(hasColumn(connection, "reports", "graduation_requirement_status")).isTrue();
+      assertThat(hasIndex(connection, "reports", "idx_reports_user_created_id_desc")).isTrue();
+      assertThat(indexColumns(connection, "idx_reports_user_created_id_desc"))
+          .containsExactly("user_id:ASC", "created_at:DESC", "id:DESC");
+      assertThat((int) foreignKeyDeleteRule(connection, "reports", "fk_reports_user_id"))
+          .isIn(
+              java.sql.DatabaseMetaData.importedKeyNoAction,
+              java.sql.DatabaseMetaData.importedKeyRestrict);
       assertThat(
               isNullable(connection, "student_graduation_progress", "graduation_review_fulfilled"))
           .isTrue();
@@ -120,6 +135,66 @@ class FlywayMigrationTest {
         assertThat(resultSet.getString("area_name")).isEqualTo("8영역");
         assertThat(resultSet.getBoolean("is_active")).isTrue();
       }
+    }
+  }
+
+  @Test
+  void v15UpgradesV14AndEnforcesReportStateConstraints() throws Exception {
+    String dbName = "flyway-v15-reports-" + UUID.randomUUID();
+    String url =
+        "jdbc:h2:mem:"
+            + dbName
+            + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+            + "DB_CLOSE_DELAY=-1;"
+            + "INIT=CREATE SCHEMA IF NOT EXISTS public";
+
+    Flyway.configure()
+        .dataSource(url, "sa", "")
+        .schemas("public")
+        .locations("classpath:db/migration")
+        .target(MigrationVersion.fromVersion("14"))
+        .load()
+        .migrate();
+
+    try (var connection = DriverManager.getConnection(url, "sa", "")) {
+      assertThat(hasTable(connection, "reports")).isFalse();
+    }
+
+    Flyway.configure()
+        .dataSource(url, "sa", "")
+        .schemas("public")
+        .locations("classpath:db/migration")
+        .load()
+        .migrate();
+
+    UUID userId = UUID.randomUUID();
+    UUID reportId = UUID.randomUUID();
+    try (var connection = DriverManager.getConnection(url, "sa", "");
+        var statement = connection.createStatement()) {
+      statement.executeUpdate(
+          "INSERT INTO public.users (id, is_deleted) VALUES ('%s', FALSE)".formatted(userId));
+      assertReportInsertRejected(
+          statement, reportId, userId, "ANSWERED", "NULL", "NULL", "AVAILABLE");
+      assertReportInsertRejected(
+          statement,
+          UUID.randomUUID(),
+          userId,
+          "PENDING",
+          "'답변'",
+          "CURRENT_TIMESTAMP",
+          "AVAILABLE");
+      assertReportInsertRejected(
+          statement,
+          UUID.randomUUID(),
+          userId,
+          "ANSWERED",
+          "'   '",
+          "CURRENT_TIMESTAMP",
+          "AVAILABLE");
+      assertReportInsertRejected(
+          statement, UUID.randomUUID(), userId, "INVALID", "NULL", "NULL", "AVAILABLE");
+      assertReportInsertRejected(
+          statement, UUID.randomUUID(), userId, "PENDING", "NULL", "NULL", "INVALID");
     }
   }
 
@@ -410,6 +485,42 @@ class FlywayMigrationTest {
     }
   }
 
+  private boolean hasIndex(Connection connection, String tableName, String indexName)
+      throws Exception {
+    try (var indexes =
+        connection.getMetaData().getIndexInfo(null, "public", tableName, false, false)) {
+      while (indexes.next()) {
+        if (indexName.equalsIgnoreCase(indexes.getString("INDEX_NAME"))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  private List<String> indexColumns(Connection connection, String indexName) throws Exception {
+    List<String> columns = new ArrayList<>();
+    try (var statement =
+        connection.prepareStatement(
+            """
+            SELECT COLUMN_NAME, ORDERING_SPECIFICATION
+            FROM INFORMATION_SCHEMA.INDEX_COLUMNS
+            WHERE TABLE_SCHEMA = 'public' AND INDEX_NAME = ?
+            ORDER BY ORDINAL_POSITION
+            """)) {
+      statement.setString(1, indexName);
+      try (var resultSet = statement.executeQuery()) {
+        while (resultSet.next()) {
+          columns.add(
+              resultSet.getString("column_name")
+                  + ":"
+                  + resultSet.getString("ordering_specification"));
+        }
+      }
+    }
+    return columns;
+  }
+
   private boolean isNullable(Connection connection, String tableName, String columnName)
       throws Exception {
     try (var columns = connection.getMetaData().getColumns(null, "public", tableName, columnName)) {
@@ -435,5 +546,30 @@ class FlywayMigrationTest {
       }
     }
     throw new AssertionError("외래 키를 찾을 수 없습니다: " + fkName);
+  }
+
+  private void assertReportInsertRejected(
+      Statement statement,
+      UUID reportId,
+      UUID userId,
+      String status,
+      String answerSql,
+      String answeredAtSql,
+      String graduationStatus) {
+    assertThatThrownBy(
+            () ->
+                statement.executeUpdate(
+                    """
+                    INSERT INTO public.reports (
+                        id, user_id, title, content, status, answer, answered_at,
+                        graduation_requirement_status, created_at, updated_at
+                    ) VALUES (
+                        '%s', '%s', '제목', '본문', '%s', %s, %s,
+                        '%s', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )
+                    """
+                        .formatted(
+                            reportId, userId, status, answerSql, answeredAtSql, graduationStatus)))
+        .isInstanceOf(java.sql.SQLException.class);
   }
 }
