@@ -94,6 +94,11 @@ public class StudentGraduationProgress extends BaseEntity {
     this.languageCertFulfilled = languageCertFulfilled;
   }
 
+  /** 다른 졸업 진행 상태를 보존하고 외국어 인증만 미확인 상태로 되돌린다. */
+  public void clearLanguageCert() {
+    this.languageCertFulfilled = null;
+  }
+
   /**
    * 학과 졸업논문·시험·작품·실기 심사 통과 여부를 수동으로 저장한다.
    *

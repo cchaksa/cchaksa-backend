@@ -3,10 +3,15 @@
 package com.chukchuk.haksa.domain.admin.controller.docs;
 
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
+import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
+import com.chukchuk.haksa.global.common.response.wrapper.ErrorResponseWrapper;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
@@ -87,6 +92,31 @@ public interface AdminTestControllerDocs {
       CustomUserDetails userDetails, AdminTestDto.UpdateMajorRequest request);
 
   /**
+   * 인증된 테스트 계정의 편입 진단용 원천 데이터를 부분 수정한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @param request 생략한 값은 유지할 편입 원천 데이터
+   * @return 편입 데이터 변경 완료 메시지
+   */
+  @Operation(
+      summary = "테스트 계정 편입 데이터 수정",
+      description =
+          "dev/test에서 생성한 본인 테스트 계정만 수정합니다. 생략은 유지하고 명시적 null은 400입니다. "
+              + "false, 0과 빈 지정과목 배열은 반영합니다. 결과는 기존 GET /api/graduation/progress로 확인합니다.")
+  @SecurityRequirement(name = "bearerAuth")
+  @ApiResponse(responseCode = "200", description = "편입 테스트 데이터 수정 완료")
+  @ApiResponse(
+      responseCode = "400",
+      description = "입력값 오류(C01) 또는 학생 미연결(U04)",
+      content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+  @ApiResponse(
+      responseCode = "403",
+      description = "테스트 계정이 아님(C04)",
+      content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateTransferData(
+      CustomUserDetails userDetails, UpdateTransferDataRequest request);
+
+  /**
    * 현재 관리자 테스트 계정의 학사 데이터를 초기화한다.
    *
    * @param userDetails 사용자 상세 정보
@@ -94,7 +124,9 @@ public interface AdminTestControllerDocs {
    */
   @Operation(
       summary = "현재 계정 테스트 데이터 초기화",
-      description = "현재 인증 계정의 수강 데이터와 전공 상태를 프론트 테스트 기준 상태로 초기화합니다.")
+      description =
+          "현재 인증 계정의 수강 데이터와 전공 상태를 초기화합니다. 테스트 계정은 추가로 편입 여부(false), "
+              + "입학 구분(신입), 이수 학기(0)를 복원하고 누적 성적·외국어 인증·지정과목 및 수신 상태를 초기화합니다.")
   @SecurityRequirement(name = "bearerAuth")
   ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetCurrentAccount(
       CustomUserDetails userDetails);

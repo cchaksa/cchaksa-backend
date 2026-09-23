@@ -2,9 +2,13 @@
 
 package com.chukchuk.haksa.domain.admin.service;
 
+import com.chukchuk.haksa.application.portal.SyncDesignatedCourseService;
+import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
+import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
+import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -13,20 +17,28 @@ import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.course.repository.CourseRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
+import com.chukchuk.haksa.domain.graduation.model.StudentGraduationProgress;
+import com.chukchuk.haksa.domain.graduation.repository.StudentGraduationProgressRepository;
+import com.chukchuk.haksa.domain.graduation.service.StudentGraduationProgressService;
 import com.chukchuk.haksa.domain.student.model.Grade;
 import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
+import com.chukchuk.haksa.domain.student.repository.StudentDesignatedCourseRepository;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
 import com.chukchuk.haksa.global.exception.type.EntityNotFoundException;
+import com.chukchuk.haksa.infrastructure.portal.model.DesignatedCourseData;
+import com.chukchuk.haksa.infrastructure.portal.model.DesignatedCourseSnapshot;
+import java.time.Instant;
 import java.time.Year;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +58,63 @@ public class AdminTestMutationService {
   private final CourseOfferingRepository courseOfferingRepository;
   private final StudentCourseRepository studentCourseRepository;
   private final AcademicCache academicCache;
+  private final StudentAcademicRecordRepository academicRecordRepository;
+  private final StudentGraduationProgressRepository graduationProgressRepository;
+  private final StudentGraduationProgressService graduationProgressService;
+  private final StudentDesignatedCourseRepository designatedCourseRepository;
+  private final SyncDesignatedCourseService syncDesignatedCourseService;
+
+  /**
+   * 인증된 테스트 계정의 편입 진단 원천 데이터를 부분 변경한다.
+   *
+   * @param userId 인증 사용자 식별자
+   * @param request 생략된 필드를 보존할 편입 데이터
+   * @throws CommonException 연결된 학생이 없거나 테스트 계정이 아닌 경우
+   */
+  public void updateTransferData(UUID userId, UpdateTransferDataRequest request) {
+    Student student = getLockedStudent(userId);
+    if (!isTestAccount(student)) {
+      throw new CommonException(ErrorCode.FORBIDDEN);
+    }
+
+    student.updateTransferAcademicInfo(
+        request.getIsTransferStudent(), request.getCompletedSemesters());
+    if (request.getTotalEarnedCredits() != null || request.getCumulativeGpa() != null) {
+      StudentAcademicRecord record =
+          academicRecordRepository
+              .findByStudentId(student.getId())
+              .orElseGet(() -> new StudentAcademicRecord(student, null, null, null, null));
+      record.updateGraduationSummary(request.getTotalEarnedCredits(), request.getCumulativeGpa());
+      academicRecordRepository.save(record);
+    }
+    if (request.getLanguageCertFulfilled() != null) {
+      graduationProgressService.syncLanguageCert(student, request.getLanguageCertFulfilled());
+    }
+    if (request.getDesignatedCourses() != null) {
+      List<UpdateTransferDataRequest.DesignatedCourseRequest> courses =
+          request.getDesignatedCourses();
+      List<DesignatedCourseData> data =
+          IntStream.range(0, courses.size())
+              .mapToObj(
+                  index -> {
+                    var course = courses.get(index);
+                    return new DesignatedCourseData(
+                        course.orgClsCd(),
+                        course.subjtCd(),
+                        course.subjtNm(),
+                        course.point(),
+                        course.precpResnCd(),
+                        course.cretGainYear(),
+                        course.cretSmrNm(),
+                        student.getStudentCode(),
+                        index);
+                  })
+              .toList();
+      syncDesignatedCourseService.sync(
+          userId, DesignatedCourseSnapshot.received(data), nextSnapshotVersion(student));
+    }
+    academicCache.deleteAllByStudentId(student.getId());
+  }
 
   /**
    * 테스트 계정의 졸업 판정용 수강 과목을 요청 목록으로 교체한다.
@@ -119,12 +188,51 @@ public class AdminTestMutationService {
    * @param userId 사용자 식별자
    */
   public void resetCurrentAccount(UUID userId) {
-    Student student = getRequiredStudent(userId);
+    Student student = getLockedStudent(userId);
 
     studentCourseRepository.deleteByStudentId(student.getId());
     student.updateMajors(student.getDepartment(), null);
+    if (isTestAccount(student)) {
+      student.updateTransferAcademicInfo(false, 0);
+      academicRecordRepository.deleteByStudentId(student.getId());
+      graduationProgressRepository
+          .findByStudentId(student.getId())
+          .ifPresent(StudentGraduationProgress::clearLanguageCert);
+      designatedCourseRepository.deleteAllByStudentId(student.getId());
+      student.resetDesignatedCourseSnapshot(nextSnapshotVersion(student));
+    }
     studentRepository.save(student);
     academicCache.deleteAllByStudentId(student.getId());
+  }
+
+  private Student getLockedStudent(UUID userId) {
+    return studentRepository
+        .findForUpdateByUserId(userId)
+        .orElseThrow(() -> new CommonException(ErrorCode.USER_NOT_CONNECTED));
+  }
+
+  private boolean isTestAccount(Student student) {
+    String studentCode = student.getStudentCode();
+    User user = student.getUser();
+    return studentCode != null
+        && studentCode.startsWith("test_")
+        && studentCode.length() > "test_".length()
+        && user != null
+        && !Boolean.TRUE.equals(user.getIsDeleted())
+        && (studentCode + "@cchaksa.dev").equals(user.getEmail());
+  }
+
+  private Instant nextSnapshotVersion(Student student) {
+    Instant version = Instant.now();
+    Instant snapshot = student.getDesignatedCoursesSnapshotVersion();
+    Instant reset = student.getDesignatedCoursesResetAt();
+    if (snapshot != null && !version.isAfter(snapshot)) {
+      version = snapshot.plusMillis(1);
+    }
+    if (reset != null && !version.isAfter(reset)) {
+      version = reset.plusMillis(1);
+    }
+    return version;
   }
 
   /**

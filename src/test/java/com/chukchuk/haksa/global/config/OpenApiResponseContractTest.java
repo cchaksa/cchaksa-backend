@@ -42,6 +42,7 @@ class OpenApiResponseContractTest {
 
   private static final List<OperationRef> PROTECTED_OPERATIONS =
       List.of(
+          new OperationRef("/api/admin/me/transfer-data", "patch"),
           new OperationRef("/portal/link", "post"),
           new OperationRef("/portal/link/jobs/{jobId}", "get"),
           new OperationRef("/portal/link/jobs/{jobId}/summary", "get"),
