@@ -154,7 +154,7 @@ class AdminTestMutationServiceUnitTests {
     Department otherMajor = new Department("BUS", "경영학과");
     Department secondaryMajor = new Department("ART", "예술학과");
     student.updateMajors(otherMajor, secondaryMajor);
-    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(studentRepository.findForUpdateByUserId(userId)).thenReturn(Optional.of(student));
 
     mutationService.resetCurrentAccount(userId);
 

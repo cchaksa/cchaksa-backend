@@ -216,6 +216,34 @@ public class Student extends BaseEntity {
   }
 
   /**
+   * 입학연도와 전공을 보존하면서 편입 여부와 이수 학기를 부분 변경한다.
+   *
+   * @param transferStudent 편입 여부이며 null이면 기존 값을 유지한다
+   * @param completedSemesters 이수 학기 수이며 null이면 기존 값을 유지한다
+   */
+  public void updateTransferAcademicInfo(Boolean transferStudent, Integer completedSemesters) {
+    if (transferStudent == null && completedSemesters == null) {
+      return;
+    }
+    this.academicInfo =
+        AcademicInfo.builder()
+            .admissionYear(academicInfo.getAdmissionYear())
+            .semesterEnrolled(academicInfo.getSemesterEnrolled())
+            .isTransferStudent(
+                transferStudent != null ? transferStudent : academicInfo.getIsTransferStudent())
+            .status(academicInfo.getStatus())
+            .gradeLevel(academicInfo.getGradeLevel())
+            .completedSemesters(
+                completedSemesters != null
+                    ? completedSemesters
+                    : academicInfo.getCompletedSemesters())
+            .build();
+    if (transferStudent != null) {
+      this.admissionType = transferStudent ? "2" : "신입";
+    }
+  }
+
+  /**
    * 요청한 지정과목 스냅샷이 저장된 버전과 마지막 초기화 시점보다 최신인지 확인한다.
    *
    * @param requestedVersion 비교할 스냅샷 버전

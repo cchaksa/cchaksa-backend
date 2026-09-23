@@ -4,6 +4,7 @@ package com.chukchuk.haksa.domain.admin.controller;
 
 import com.chukchuk.haksa.domain.admin.controller.docs.AdminTestControllerDocs;
 import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
+import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
 import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
@@ -88,6 +89,15 @@ public class AdminTestController implements AdminTestControllerDocs {
       @Valid @RequestBody AdminTestDto.UpdateMajorRequest request) {
     mutationService.updateMajor(userDetails.getId(), request);
     return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("전공 상태가 수정되었습니다.")));
+  }
+
+  @Override
+  @PatchMapping("/me/transfer-data")
+  public ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateTransferData(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody UpdateTransferDataRequest request) {
+    mutationService.updateTransferData(userDetails.getId(), request);
+    return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("편입 테스트 데이터가 수정되었습니다.")));
   }
 
   @Override

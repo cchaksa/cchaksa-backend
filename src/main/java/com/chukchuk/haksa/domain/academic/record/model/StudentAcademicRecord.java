@@ -86,6 +86,21 @@ public class StudentAcademicRecord extends BaseEntity {
   }
 
   /**
+   * 신청학점과 백분위를 보존하면서 졸업진단용 누적 성적을 부분 변경한다.
+   *
+   * @param earnedCredits 누적 취득학점이며 null이면 기존 값을 유지한다
+   * @param gpa 누적 GPA이며 null이면 기존 값을 유지한다
+   */
+  public void updateGraduationSummary(Integer earnedCredits, BigDecimal gpa) {
+    if (earnedCredits != null) {
+      this.totalEarnedCredits = earnedCredits;
+    }
+    if (gpa != null) {
+      this.cumulativeGpa = gpa;
+    }
+  }
+
+  /**
    * 저장된 누적 학점과 성적이 주어진 요약과 같은지 확인한다.
    *
    * @param summary 비교할 누적 성적 요약
