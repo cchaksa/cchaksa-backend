@@ -1,0 +1,30 @@
+.kakao-sign-in-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 6px;
+  color: #191919;
+  background: #fee500;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.kakao-sign-in-button:hover {
+  background: #f5dc00;
+}
+
+.kakao-sign-in-button:active {
+  transform: translateY(1px);
+}
+
+.kakao-sign-in-button:focus-visible {
+  outline: 3px solid rgba(25, 25, 25, 0.24);
+  outline-offset: 3px;
+}
