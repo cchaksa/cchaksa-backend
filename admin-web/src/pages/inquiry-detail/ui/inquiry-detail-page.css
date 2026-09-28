@@ -1,0 +1,144 @@
+.inquiry-detail-page {
+  display: grid;
+  width: 100%;
+  max-width: 1040px;
+  gap: 18px;
+}
+
+.back-link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  color: #4e5863;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inquiry-article {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.inquiry-article-header {
+  padding: 28px 30px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inquiry-article-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #858e98;
+  font-size: 12px;
+}
+
+.inquiry-article-header h1 {
+  margin: 16px 0 10px;
+  font-size: 24px;
+  line-height: 1.4;
+}
+
+.inquiry-article-header > p {
+  margin: 0;
+  color: #737d88;
+  font-size: 13px;
+}
+
+.inquiry-article-body {
+  min-height: 180px;
+  padding: 30px;
+  color: #333b44;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.inquiry-article-body p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.inquiry-metadata {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 22px 30px;
+  gap: 20px 28px;
+  border-top: 1px solid var(--color-border);
+  background: #f8f9fb;
+}
+
+.inquiry-metadata div {
+  min-width: 0;
+}
+
+.inquiry-metadata dt {
+  margin-bottom: 6px;
+  color: #7b858f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.inquiry-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #343c45;
+  font-size: 13px;
+}
+
+.inquiry-metadata code {
+  color: #5a4aca;
+  font-size: 11px;
+}
+
+.answered-placeholder,
+.inquiry-not-found {
+  padding: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.answered-placeholder p,
+.inquiry-not-found p {
+  color: #77818b;
+  font-size: 13px;
+}
+
+.inquiry-not-found {
+  display: grid;
+  min-height: 360px;
+  place-content: center;
+  justify-items: center;
+}
+
+.inquiry-not-found h1 {
+  margin: 16px 0 10px;
+  font-size: 22px;
+}
+
+.inquiry-not-found a {
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .inquiry-article-header,
+  .inquiry-article-body {
+    padding: 22px 18px;
+  }
+
+  .inquiry-article-header h1 {
+    font-size: 20px;
+  }
+
+  .inquiry-metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 20px 18px;
+  }
+}

@@ -1,0 +1,104 @@
+import { ArrowLeft, CircleAlert } from 'lucide-react'
+import { Link, useParams } from 'react-router'
+import { mockInquiryDetails, type InquiryCategory } from '../../../entities/inquiry'
+import { AnswerInquiryForm } from '../../../features/answer-inquiry'
+import { routes } from '../../../shared/config/routes'
+import './inquiry-detail-page.css'
+
+const categoryLabels: Record<InquiryCategory, string> = {
+  PORTAL_CONNECTION: '포털 연동',
+  GRADUATION_REQUIREMENT: '졸업 요건',
+  ACADEMIC_RECORD: '학적 정보',
+  ACCOUNT: '계정',
+  ETC: '기타',
+}
+
+const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
+export function InquiryDetailPage() {
+  const { reportId } = useParams()
+  const inquiry = mockInquiryDetails.find(
+    (item) => item.reportId === Number(reportId),
+  )
+
+  if (!inquiry) {
+    return (
+      <div className="inquiry-not-found">
+        <CircleAlert aria-hidden="true" size={30} />
+        <h1>문의를 찾을 수 없습니다.</h1>
+        <Link to={routes.inquiries}>문의 목록으로 돌아가기</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="inquiry-detail-page">
+      <Link className="back-link" to={routes.inquiries}>
+        <ArrowLeft aria-hidden="true" size={18} />
+        문의 목록
+      </Link>
+
+      <article className="inquiry-article">
+        <header className="inquiry-article-header">
+          <div className="inquiry-article-status">
+            <span className={`status-badge status-${inquiry.status.toLowerCase()}`}>
+              {inquiry.status === 'PENDING' ? '답변 필요' : '답변 완료'}
+            </span>
+            <span>문의 #{inquiry.reportId}</span>
+          </div>
+          <h1>{inquiry.title}</h1>
+          <p>
+            {categoryLabels[inquiry.category]} ·{' '}
+            {dateFormatter.format(new Date(inquiry.createdAt))}
+          </p>
+        </header>
+
+        <div className="inquiry-article-body">
+          <p>{inquiry.content}</p>
+        </div>
+
+        <dl className="inquiry-metadata">
+          <div>
+            <dt>사용자 ID</dt>
+            <dd>{inquiry.userId}</dd>
+          </div>
+          <div>
+            <dt>학번</dt>
+            <dd>{inquiry.studentCode ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>학교</dt>
+            <dd>{inquiry.academicSnapshot.universityName ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>학과</dt>
+            <dd>{inquiry.academicSnapshot.departmentName ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>학년 / 학기</dt>
+            <dd>
+              {inquiry.academicSnapshot.grade ?? '-'}학년 /{' '}
+              {inquiry.academicSnapshot.semester ?? '-'}학기
+            </dd>
+          </div>
+          <div>
+            <dt>오류 코드</dt>
+            <dd><code>{inquiry.errorCode ?? '-'}</code></dd>
+          </div>
+        </dl>
+      </article>
+
+      {inquiry.status === 'PENDING' ? (
+        <AnswerInquiryForm onSubmit={() => undefined} />
+      ) : (
+        <section className="answered-placeholder">
+          <strong>등록된 답변이 있습니다.</strong>
+          <p>답변 내용과 담당자 정보는 다음 구현 단계에서 표시됩니다.</p>
+        </section>
+      )}
+    </div>
+  )
+}

@@ -17,3 +17,23 @@ export interface InquirySummary {
   errorCode: string | null
   createdAt: string
 }
+
+export interface InquiryAnswer {
+  content: string
+  answeredAt: string
+  answeredBy: {
+    adminAccountId: number
+    displayName: string
+  }
+}
+
+export interface InquiryDetail extends InquirySummary {
+  content: string
+  academicSnapshot: {
+    universityName: string | null
+    departmentName: string | null
+    grade: number | null
+    semester: number | null
+  }
+  answer: InquiryAnswer | null
+}
