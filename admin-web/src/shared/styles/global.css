@@ -63,3 +63,23 @@ textarea:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+.route-status {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: #59636e;
+  background: #f5f6f8;
+}
+
+.route-status button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #30363d;
+  cursor: pointer;
+}

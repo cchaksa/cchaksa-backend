@@ -85,12 +85,36 @@ CloudFront에서는 `/api/admin/*`를 API 동작으로 분리하고, 그 외 프
 - 확정된 `/api/admin/...` 계약에 맞춰 세션 확인, 목록, 상세, 답변 API를 연결한다.
 - 인증 실패, 권한 없음, 세션 만료와 API 오류 상태를 구현한다.
 
-## 미확정 계약
+## 프론트엔드 API 계약
 
-- 로그인 성공·실패 callback 경로와 세션 확인 API.
-- 목록 pagination 방식과 검색 query parameter 이름.
-- 문의 목록·상세·답변 DTO.
-- 답변 가능한 상태 전이와 동시 답변 충돌 응답.
+이번 UI 구현에서 아래 계약을 기준으로 HTTP 어댑터를 구성했다. 서버 구현 단계에서 필드명이나 상태 코드가 달라지면 어댑터와 이 문서를 함께 갱신한다.
+
+### 관리자 인증
+
+- `GET /api/admin/auth/me`는 현재 세션의 `adminAccountId`, `displayName`, `role`을 반환한다.
+- `role`은 `ADMIN` 또는 `CS_AGENT`다.
+- 인증되지 않은 세션은 `401`, 관리자 허용 목록에 없거나 비활성인 계정은 `403`을 반환한다.
+- `POST /api/admin/auth/signout`은 관리자 세션을 종료하고 본문 없는 `204`를 반환한다.
+- 로그인 시작점은 `GET /api/admin/auth/signin`이며 성공 후 관리자 SPA의 `/inquiries`로 복귀한다.
+
+### 문의 목록
+
+- `GET /api/admin/reports`를 사용한다.
+- query parameter는 `status`, `searchField`, `query`, `page`, `size`다.
+- `status`는 `PENDING` 또는 `ANSWERED`, `searchField`는 `USER_ID`, `STUDENT_CODE`, `ERROR_CODE`다. 통합 검색은 `searchField`를 생략한다.
+- `page`는 0부터 시작하며 서버가 `createdAt` 내림차순으로 정렬한다.
+- 응답은 `items`, `page`, `size`, `totalElements`, `totalPages`를 포함한다.
+
+### 문의 상세와 답변
+
+- `GET /api/admin/reports/{reportId}`는 문의 요약 필드, 본문, 학적 스냅샷과 nullable `answer`를 반환한다.
+- 완료 답변의 `answer`는 `content`, `answeredAt`, `answeredBy.adminAccountId`, `answeredBy.displayName`을 포함한다.
+- `POST /api/admin/reports/{reportId}/answer`에 `{ "answer": "..." }`를 전송한다.
+- 서버는 요청 본문의 담당자 정보를 받지 않고 인증된 `admin_account_id`를 답변 감사 정보로 기록한다.
+- 이미 답변된 문의의 중복 답변은 `409 Conflict`로 거부하고, 성공 시 갱신된 문의 상세를 반환한다.
+- 문의 본문, 답변, 학번과 학적 스냅샷은 클라이언트 console 및 오류 추적 tag에 기록하지 않는다.
+
+개발 환경에서는 `.env.development`의 `VITE_USE_MOCK_API=true`로 같은 계약의 메모리 어댑터를 사용한다. 운영 빌드는 mock을 포함한 실행 분기를 선택하지 않고 `/api/admin/...` 상대 경로를 호출하며 `credentials: include`로 세션 쿠키를 전달한다.
 
 ## 참고 자료
 
@@ -98,4 +122,5 @@ CloudFront에서는 `/api/admin/*`를 API 동작으로 분리하고, 그 외 프
 - React Router, Picking a Mode: https://reactrouter.com/start/modes.
 - React Router, Declarative Installation: https://reactrouter.com/start/declarative/installation.
 - Feature-Sliced Design: https://feature-sliced.design/.
+- TanStack Query, Queries: https://tanstack.com/query/latest/docs/framework/react/guides/queries.
 - 공식 로고 원본: `cchaksa/cchaksa-app`의 `composeApp/src/androidMain/ic_logo-playstore.png`.

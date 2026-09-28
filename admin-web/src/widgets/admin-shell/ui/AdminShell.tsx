@@ -1,12 +1,25 @@
 import { ChevronDown, LogOut, Menu, MessageSquareText, X } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router'
+import { NavLink, Outlet, useNavigate } from 'react-router'
+import { useAdminSession, useAdminSignOut } from '../../../entities/admin-session'
 import cchaksaLogo from '../../../shared/assets/cchaksa-logo.png'
 import { routes } from '../../../shared/config/routes'
 import './admin-shell.css'
 
 export function AdminShell() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const navigate = useNavigate()
+  const session = useAdminSession()
+  const signOut = useAdminSignOut()
+  const displayName = session.data?.displayName ?? '관리자'
+  const roleLabel = session.data?.role === 'ADMIN' ? 'Admin' : 'CS Agent'
+  const initials = displayName.slice(0, 2).toUpperCase()
+
+  const handleSignOut = () => {
+    signOut.mutate(undefined, {
+      onSuccess: () => navigate(routes.login, { replace: true }),
+    })
+  }
 
   return (
     <div className="admin-layout">
@@ -38,10 +51,15 @@ export function AdminShell() {
           </NavLink>
         </nav>
 
-        <a className="sidebar-logout" href={routes.login}>
+        <button
+          className="sidebar-logout"
+          type="button"
+          disabled={signOut.isPending}
+          onClick={handleSignOut}
+        >
           <LogOut aria-hidden="true" size={19} />
-          <span>로그아웃</span>
-        </a>
+          <span>{signOut.isPending ? '로그아웃 중' : '로그아웃'}</span>
+        </button>
       </aside>
 
       {isMenuOpen && (
@@ -65,10 +83,10 @@ export function AdminShell() {
           </button>
           <span className="topbar-context">관리자 콘솔</span>
           <button type="button" className="admin-profile">
-            <span className="admin-avatar">CS</span>
+            <span className="admin-avatar">{initials}</span>
             <span className="admin-profile-copy">
-              <strong>CS 담당자</strong>
-              <small>CS Agent</small>
+              <strong>{displayName}</strong>
+              <small>{roleLabel}</small>
             </span>
             <ChevronDown aria-hidden="true" size={16} />
           </button>

@@ -52,7 +52,7 @@
 - CloudFront에서 SPA 동작과 `/api/admin/*` 동작을 분리한다.
 - 공개 API, 인증, DB, 배포 변경 시 관련 Wiki를 확인하고 갱신한다.
 
-## 초기 작업 범위
+## 최초 작업 범위
 
 - 1단계만 수행한다.
 - 서버 코드, DB migration, 배포 설정은 변경하지 않는다.
@@ -66,7 +66,7 @@
 - 관리자 셸과 문의 목록을 구현했다.
 - 미답변 문의 상세와 답변 작성 UI를 구현했다.
 - 답변 완료 문의의 읽기 전용 답변 및 담당자 표시를 구현했다.
-- 다음 단계는 인증 및 문의 API 계약과 mock/HTTP 데이터 어댑터 연결이다.
+- 인증 및 문의 API 계약과 mock/HTTP 데이터 어댑터를 연결했다.
 
 ## 복구 방법
 
@@ -76,7 +76,7 @@
 ## 작업 기록
 
 - `admin-web` 독립 React/Vite/TypeScript 패키지와 `package-lock.json`을 생성했다.
-- 상세 관리자 화면과 서버 API/DB/배포 설정은 변경하지 않았다.
+- 관리자 UI와 프론트엔드 API 어댑터를 구현했으며 서버 API/DB/배포 설정은 변경하지 않았다.
 - Wiki 갱신: 이번 단계에는 공개 API, 인증, DB 스키마, 배포 변경이 없어 갱신하지 않았다.
 
 검증 결과:
@@ -91,9 +91,11 @@
 
 남은 위험:
 
-- 관리자 화면의 정보 구조와 API 계약은 후속 상세 명세가 필요하다.
+- 관리자 인증, `admin_accounts`, 문의 API와 답변 감사 정보의 서버 구현이 필요하다.
+- 확정한 프론트 계약은 서버 구현 과정에서 응답 DTO와 오류 상태를 맞춰 통합 검증해야 한다.
 - CI와 배포 파이프라인에는 아직 `admin-web` npm 검증 및 S3 배포 단계가 연결되지 않았다.
-- `/api/admin/auth/signin` 서버 진입점과 로그인 callback 계약은 아직 구현·검증되지 않았다.
+- `/api/admin/auth/signin` 서버 진입점과 로그인 callback은 실제 카카오 계정으로 검증되지 않았다.
+- CloudFront의 `/api/admin/*` 동작 분리와 SPA fallback은 아직 설정·검증되지 않았다.
 
 UI 1단계 검증 결과:
 
@@ -125,6 +127,14 @@ UI 4단계 검증 결과:
 - 답변 완료 문의에는 답변 입력란과 추가 답변 버튼이 렌더링되지 않음을 확인했다.
 - 담당자 식별자는 화면 선택값이 아니라 API 응답의 감사 정보만 표시하는 계약으로 제한한다.
 
+UI 5단계 검증 결과:
+
+- TanStack Query 기반 관리자 세션, 문의 목록, 상세, 답변 mutation 상태를 연결했다.
+- 개발용 mock과 운영용 `/api/admin/...` HTTP 어댑터가 같은 화면 계약을 사용한다.
+- 목록 6건 조회 후 미답변 문의에 답변을 등록하고 읽기 전용 완료 상태로 전환되는 흐름을 확인했다.
+- 답변 완료 후 입력란이 제거되고 API 응답의 CS 담당자 이름과 처리 시각이 표시되는 것을 확인했다.
+- 운영 API와 DB는 이번 작업 범위에서 구현하지 않았다.
+
 ## 완료 점검
 
 - 요청 재확인: 완료.
@@ -133,7 +143,39 @@ UI 4단계 검증 결과:
 - 무관한 변경: 없음.
 - 문서와 구현 일치: 확인.
 - 보안 민감정보 검사: 통과. 이슈 본문, 작업 문서, 소스와 명령 출력에 자격 증명이나 개인정보를 기록하지 않았다.
-- 사전 PR 독립 검증: 아직 PR 생성 요청 전이므로 해당 없음.
+- 사전 PR 검증: 현재 작업 문맥에서 프론트 빌드와 저장소 전체 검사를 완료했다. 독립 리뷰는 PR 생성 전 별도로 수행할 수 있다.
+
+## PR 준비 요약
+
+- 독립 React/Vite 관리자 SPA에 카카오 로그인 진입점과 보호 라우팅을 구성했다.
+- 문의 목록 필터·검색·페이지네이션, 문의 상세, 단일 답변 등록과 완료 답변 감사 정보 UI를 구현했다.
+- TanStack Query와 mock/HTTP 어댑터를 분리하고 `/api/admin/...` 서버 계약을 `design.md`에 기록했다.
+- Wiki 갱신: 서버 API, 인증, DB, 배포 구현이 없어 갱신하지 않았다. 후속 서버 단계에서 관련 Wiki 갱신이 필요하다.
+
+```text
+[COMPLETION-CHECK]
+request_rechecked: yes
+agents_rechecked: yes
+changed_files_inspected: yes
+unrelated_changes: none
+documentation_consistent: yes
+required_tests:
+  - cd admin-web && npm ci --no-audit --no-fund: pass
+  - cd admin-web && npm run build: pass
+  - JAVA_HOME=<corretto-17> ./gradlew check --stacktrace --no-daemon: pass
+  - git diff --check: pass
+  - browser desktop/mobile and answer workflow: pass
+pre_pr_verification: pass
+pre_pr_verification_isolation: current-context
+security_check: pass
+task_note_updated: yes
+career_evaluated: yes
+unsupported_claims:
+  - 사용자 영향, 운영 효과와 배포 성과는 측정하지 않았다.
+remaining_risks:
+  - 관리자 인증, API, DB, CloudFront와 실제 카카오 로그인 통합은 아직 구현·검증되지 않았다.
+[END-COMPLETION-CHECK]
+```
 
 ## Career Extraction
 

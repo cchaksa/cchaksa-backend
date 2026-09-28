@@ -88,6 +88,12 @@
   cursor: not-allowed;
 }
 
+.answer-submit-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 12px;
+}
+
 @media (max-width: 640px) {
   .answer-composer {
     padding: 18px 16px;

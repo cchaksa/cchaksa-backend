@@ -5,10 +5,16 @@ import './answer-inquiry-form.css'
 const MAX_ANSWER_LENGTH = 2000
 
 interface AnswerInquiryFormProps {
-  onSubmit: (answer: string) => void
+  isSubmitting: boolean
+  errorMessage?: string
+  onSubmit: (answer: string) => Promise<void>
 }
 
-export function AnswerInquiryForm({ onSubmit }: AnswerInquiryFormProps) {
+export function AnswerInquiryForm({
+  isSubmitting,
+  errorMessage,
+  onSubmit,
+}: AnswerInquiryFormProps) {
   const [answer, setAnswer] = useState('')
   const normalizedAnswer = answer.trim()
 
@@ -38,13 +44,18 @@ export function AnswerInquiryForm({ onSubmit }: AnswerInquiryFormProps) {
         </span>
         <button
           type="button"
-          disabled={!normalizedAnswer}
-          onClick={() => onSubmit(normalizedAnswer)}
+          disabled={!normalizedAnswer || isSubmitting}
+          onClick={() => void onSubmit(normalizedAnswer)}
         >
           <Send aria-hidden="true" size={17} />
-          답변 등록
+          {isSubmitting ? '등록 중' : '답변 등록'}
         </button>
       </div>
+      {errorMessage && (
+        <p className="answer-submit-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
     </section>
   )
 }

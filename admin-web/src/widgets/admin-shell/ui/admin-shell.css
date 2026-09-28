@@ -91,6 +91,14 @@
 .sidebar-logout {
   margin: 14px;
   padding: 0 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sidebar-logout:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .admin-main {

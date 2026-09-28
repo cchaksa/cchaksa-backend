@@ -2,7 +2,8 @@ import { ArrowLeft, CircleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import {
   InquiryAnswerPanel,
-  mockInquiryDetails,
+  useAnswerInquiry,
+  useInquiryDetail,
   type InquiryCategory,
 } from '../../../entities/inquiry'
 import { AnswerInquiryForm } from '../../../features/answer-inquiry'
@@ -24,9 +25,25 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
 
 export function InquiryDetailPage() {
   const { reportId } = useParams()
-  const inquiry = mockInquiryDetails.find(
-    (item) => item.reportId === Number(reportId),
-  )
+  const numericReportId = Number(reportId)
+  const inquiryQuery = useInquiryDetail(numericReportId)
+  const answerMutation = useAnswerInquiry(numericReportId)
+  const inquiry = inquiryQuery.data
+
+  if (inquiryQuery.isPending && Number.isInteger(numericReportId)) {
+    return <div className="detail-state">문의 내용을 불러오고 있습니다.</div>
+  }
+
+  if (inquiryQuery.isError) {
+    return (
+      <div className="detail-state" role="alert">
+        <strong>문의 내용을 불러오지 못했습니다.</strong>
+        <button type="button" onClick={() => void inquiryQuery.refetch()}>
+          다시 시도
+        </button>
+      </div>
+    )
+  }
 
   if (!inquiry) {
     return (
@@ -96,7 +113,15 @@ export function InquiryDetailPage() {
       </article>
 
       {inquiry.status === 'PENDING' ? (
-        <AnswerInquiryForm onSubmit={() => undefined} />
+        <AnswerInquiryForm
+          isSubmitting={answerMutation.isPending}
+          errorMessage={
+            answerMutation.isError
+              ? '답변을 등록하지 못했습니다. 문의 상태를 확인한 뒤 다시 시도해 주세요.'
+              : undefined
+          }
+          onSubmit={(answer) => answerMutation.mutateAsync(answer).then(() => undefined)}
+        />
       ) : inquiry.answer ? (
         <InquiryAnswerPanel answer={inquiry.answer} />
       ) : null}

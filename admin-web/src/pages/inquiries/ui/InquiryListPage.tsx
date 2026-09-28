@@ -1,10 +1,8 @@
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
-import { useMemo } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
-  mockInquirySummaries,
+  useInquiryPage,
   type InquiryCategory,
-  type InquirySummary,
 } from '../../../entities/inquiry'
 import {
   InquiryFilterBar,
@@ -30,42 +28,38 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
   hour12: false,
 })
 
-function matchesQuery(
-  inquiry: InquirySummary,
-  field: InquirySearchField,
-  query: string,
-) {
-  if (!query) return true
-  const normalized = query.toLowerCase()
-  const values: Record<InquirySearchField, string[]> = {
-    ALL: [
-      String(inquiry.userId),
-      inquiry.studentCode ?? '',
-      inquiry.errorCode ?? '',
-    ],
-    USER_ID: [String(inquiry.userId)],
-    STUDENT_CODE: [inquiry.studentCode ?? ''],
-    ERROR_CODE: [inquiry.errorCode ?? ''],
-  }
+function parseStatus(value: string | null): InquiryStatusFilter {
+  return value === 'PENDING' || value === 'ANSWERED' ? value : 'ALL'
+}
 
-  return values[field].some((value) => value.toLowerCase().includes(normalized))
+function parseSearchField(value: string | null): InquirySearchField {
+  return value === 'USER_ID' ||
+    value === 'STUDENT_CODE' ||
+    value === 'ERROR_CODE'
+    ? value
+    : 'ALL'
+}
+
+function parsePage(value: string | null) {
+  const page = Number(value ?? '0')
+  return Number.isInteger(page) && page >= 0 ? page : 0
 }
 
 export function InquiryListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const status = (searchParams.get('status') ?? 'ALL') as InquiryStatusFilter
-  const searchField = (searchParams.get('field') ?? 'ALL') as InquirySearchField
+  const status = parseStatus(searchParams.get('status'))
+  const searchField = parseSearchField(searchParams.get('field'))
   const query = searchParams.get('query') ?? ''
 
-  const inquiries = useMemo(
-    () =>
-      mockInquirySummaries.filter(
-        (inquiry) =>
-          (status === 'ALL' || inquiry.status === status) &&
-          matchesQuery(inquiry, searchField, query),
-      ),
-    [query, searchField, status],
-  )
+  const page = parsePage(searchParams.get('page'))
+  const inquiryQuery = useInquiryPage({
+    ...(status === 'ALL' ? {} : { status }),
+    ...(searchField === 'ALL' ? {} : { searchField }),
+    ...(query ? { query } : {}),
+    page,
+    size: 20,
+  })
+  const inquiries = inquiryQuery.data?.items ?? []
 
   const setFilters = (next: {
     status?: InquiryStatusFilter
@@ -80,6 +74,7 @@ export function InquiryListPage() {
     nextStatus === 'ALL' ? params.delete('status') : params.set('status', nextStatus)
     nextField === 'ALL' ? params.delete('field') : params.set('field', nextField)
     nextQuery ? params.set('query', nextQuery) : params.delete('query')
+    params.delete('page')
     setSearchParams(params, { replace: true })
   }
 
@@ -90,7 +85,13 @@ export function InquiryListPage() {
           <p>고객 지원</p>
           <h1>문의</h1>
         </div>
-        <button type="button" className="refresh-button" title="목록 새로고침">
+        <button
+          type="button"
+          className="refresh-button"
+          title="목록 새로고침"
+          disabled={inquiryQuery.isFetching}
+          onClick={() => void inquiryQuery.refetch()}
+        >
           <RefreshCw aria-hidden="true" size={18} />
           <span>새로고침</span>
         </button>
@@ -102,7 +103,7 @@ export function InquiryListPage() {
             <h2 id="inquiry-list-title">문의 목록</h2>
             <p>최근 접수된 순서로 표시됩니다.</p>
           </div>
-          <strong>{inquiries.length}건</strong>
+          <strong>{inquiryQuery.data?.totalElements ?? 0}건</strong>
         </div>
 
         <InquiryFilterBar
@@ -114,7 +115,18 @@ export function InquiryListPage() {
           onReset={() => setSearchParams({}, { replace: true })}
         />
 
-        {inquiries.length > 0 ? (
+        {inquiryQuery.isPending ? (
+          <div className="inquiry-empty-state" aria-live="polite">
+            <strong>문의 목록을 불러오고 있습니다.</strong>
+          </div>
+        ) : inquiryQuery.isError ? (
+          <div className="inquiry-empty-state" role="alert">
+            <strong>문의 목록을 불러오지 못했습니다.</strong>
+            <button type="button" onClick={() => void inquiryQuery.refetch()}>
+              다시 시도
+            </button>
+          </div>
+        ) : inquiries.length > 0 ? (
           <div className="inquiry-table-scroll">
             <table className="inquiry-table">
               <thead>
@@ -168,11 +180,27 @@ export function InquiryListPage() {
         <footer className="table-footer">
           <p>페이지당 20개</p>
           <div className="pagination" aria-label="페이지 이동">
-            <button type="button" disabled aria-label="이전 페이지">
+            <button
+              type="button"
+              disabled={page <= 0}
+              aria-label="이전 페이지"
+              onClick={() => setSearchParams((params) => {
+                params.set('page', String(page - 1))
+                return params
+              })}
+            >
               <ChevronLeft aria-hidden="true" size={18} />
             </button>
-            <span>1 / 1</span>
-            <button type="button" disabled aria-label="다음 페이지">
+            <span>{page + 1} / {inquiryQuery.data?.totalPages ?? 1}</span>
+            <button
+              type="button"
+              disabled={page + 1 >= (inquiryQuery.data?.totalPages ?? 1)}
+              aria-label="다음 페이지"
+              onClick={() => setSearchParams((params) => {
+                params.set('page', String(page + 1))
+                return params
+              })}
+            >
               <ChevronRight aria-hidden="true" size={18} />
             </button>
           </div>
