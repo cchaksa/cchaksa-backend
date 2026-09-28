@@ -1,6 +1,10 @@
 import { ArrowLeft, CircleAlert } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { mockInquiryDetails, type InquiryCategory } from '../../../entities/inquiry'
+import {
+  InquiryAnswerPanel,
+  mockInquiryDetails,
+  type InquiryCategory,
+} from '../../../entities/inquiry'
 import { AnswerInquiryForm } from '../../../features/answer-inquiry'
 import { routes } from '../../../shared/config/routes'
 import './inquiry-detail-page.css'
@@ -93,12 +97,9 @@ export function InquiryDetailPage() {
 
       {inquiry.status === 'PENDING' ? (
         <AnswerInquiryForm onSubmit={() => undefined} />
-      ) : (
-        <section className="answered-placeholder">
-          <strong>등록된 답변이 있습니다.</strong>
-          <p>답변 내용과 담당자 정보는 다음 구현 단계에서 표시됩니다.</p>
-        </section>
-      )}
+      ) : inquiry.answer ? (
+        <InquiryAnswerPanel answer={inquiry.answer} />
+      ) : null}
     </div>
   )
 }

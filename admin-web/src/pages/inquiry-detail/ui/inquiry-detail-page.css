@@ -94,7 +94,6 @@
   font-size: 11px;
 }
 
-.answered-placeholder,
 .inquiry-not-found {
   padding: 32px;
   border: 1px solid var(--color-border);
@@ -103,7 +102,6 @@
   text-align: center;
 }
 
-.answered-placeholder p,
 .inquiry-not-found p {
   color: #77818b;
   font-size: 13px;
