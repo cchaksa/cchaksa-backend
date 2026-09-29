@@ -1,0 +1,116 @@
+name: Deploy Admin Web to Prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-admin-web-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-prod-admin-web
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      AWS_REGION: ${{ vars.PROD_AWS_REGION }}
+      ADMIN_WEB_S3_BUCKET: ${{ vars.ADMIN_WEB_S3_BUCKET }}
+      ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID }}
+      ADMIN_WEB_BASE_URL: https://admin.cchaksa.com
+
+    steps:
+      - name: Validate main branch
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production deploy must run from main branch" >&2
+            exit 1
+          fi
+
+      - name: Validate deployment variables
+        run: |
+          set -euo pipefail
+          test -n "${AWS_REGION}"
+          test -n "${ADMIN_WEB_S3_BUCKET}"
+          test -n "${ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}"
+
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: admin-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify admin web
+        working-directory: admin-web
+        run: |
+          npm run lint
+          npm run test
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload versioned assets
+        run: |
+          aws s3 sync admin-web/dist/assets "s3://${ADMIN_WEB_S3_BUCKET}/assets" \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload non-versioned files
+        run: |
+          aws s3 sync admin-web/dist "s3://${ADMIN_WEB_S3_BUCKET}" \
+            --delete \
+            --exclude "assets/*" \
+            --exclude "index.html" \
+            --cache-control "public,max-age=3600"
+
+          aws s3 cp admin-web/dist/index.html "s3://${ADMIN_WEB_S3_BUCKET}/index.html" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront
+        id: invalidation
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "${ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --id "${INVALIDATION_ID}"
+
+          echo "id=${INVALIDATION_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify SPA and API routing
+        run: ./scripts/verify_admin_web_production.sh "${ADMIN_WEB_BASE_URL}"
+
+      - name: Publish deployment summary
+        if: ${{ always() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Admin Web Production Deployment"
+            echo "- Status: ${JOB_STATUS}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Bucket: ${ADMIN_WEB_S3_BUCKET}"
+            echo "- Distribution: ${ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}"
+            echo "- Invalidation: ${{ steps.invalidation.outputs.id }}"
+          } >> "$GITHUB_STEP_SUMMARY"
