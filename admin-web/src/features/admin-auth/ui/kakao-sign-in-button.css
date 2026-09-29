@@ -16,6 +16,18 @@
     transform 160ms ease;
 }
 
+.kakao-sign-in-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.kakao-sign-in-error {
+  margin: 10px 0 0;
+  color: #b42318;
+  font-size: 12px;
+  text-align: center;
+}
+
 .kakao-sign-in-button:hover {
   background: #f5dc00;
 }

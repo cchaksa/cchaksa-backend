@@ -1,20 +1,11 @@
 export type InquiryStatus = 'PENDING' | 'ANSWERED'
 
-export type InquiryCategory =
-  | 'PORTAL_CONNECTION'
-  | 'GRADUATION_REQUIREMENT'
-  | 'ACADEMIC_RECORD'
-  | 'ACCOUNT'
-  | 'ETC'
-
 export interface InquirySummary {
-  reportId: number
+  reportId: string
   status: InquiryStatus
-  category: InquiryCategory
   title: string
-  userId: number
+  submittedUserId: string | null
   studentCode: string | null
-  errorCode: string | null
   createdAt: string
 }
 
@@ -22,7 +13,7 @@ export interface InquiryAnswer {
   content: string
   answeredAt: string
   answeredBy: {
-    adminAccountId: number
+    adminAccountId: string
     displayName: string
   }
 }
@@ -30,10 +21,12 @@ export interface InquiryAnswer {
 export interface InquiryDetail extends InquirySummary {
   content: string
   academicSnapshot: {
-    universityName: string | null
-    departmentName: string | null
-    grade: number | null
-    semester: number | null
+    department: string | null
+    primaryMajor: string | null
+    secondaryMajor: string | null
+    isTransferStudent: boolean | null
+    admissionYear: number | null
+    graduationRequirementStatus: string | null
   }
   answer: InquiryAnswer | null
 }

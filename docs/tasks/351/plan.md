@@ -184,3 +184,37 @@ remaining_risks:
 - career note path: none.
 - action: skipped.
 - unsupported metrics/outcomes: 사용자 영향, 운영 효과, 배포 성과는 아직 측정하지 않았다.
+
+## 서버 정본 계약 후속 정합화
+
+- `reportId`, 사용자 식별자와 답변 관리자 식별자를 UUID 문자열로 변경한다.
+- 서버에 없는 분류·오류 코드·학교·학년·학기 필드를 제거한다.
+- 상세 화면을 nullable 학적 스냅샷 필드로 교체한다.
+- 검색을 사용자 UUID·학번 정확 일치로 제한하고 `page=0`, `size=20`, `createdAt DESC` 계약을 기록한다.
+- 로그인 GET 링크를 제거하고 nonce·CSRF 준비 provider를 통한 POST 제출 경계를 둔다.
+- 미확정 challenge endpoint와 CSRF cookie/header 이름은 #352 연동 지점으로 남긴다.
+- 상태 변경 요청에서 매번 CSRF provider를 읽고 토큰 누락 시 전송 전에 차단한다.
+- 백엔드 코드는 변경하지 않는다.
+
+후속 정합화 검증 결과:
+
+- `cd admin-web && npm ci --no-audit --no-fund`: 통과.
+- `cd admin-web && npm run lint`: 통과. Biome가 47개 파일을 검사했다.
+- `cd admin-web && npm run test`: 통과. 3개 파일의 8개 테스트가 통과했다.
+- `cd admin-web && npm run build`: 통과. TypeScript 검사와 Vite 운영 빌드가 완료됐다.
+- `git diff --check`: 통과.
+- 데스크톱과 모바일 브라우저에서 목록, 정확 일치 검색, 미답변 답변 입력, 완료 답변의 관리자 UUID·표시 이름, POST 로그인 버튼 경계를 확인했다.
+- 브라우저 warning/error가 없으며 소스에 console, 오류 추적 tag, 브라우저 저장소 기록이 없음을 확인했다.
+- 변경 범위는 `admin-web/`과 `docs/tasks/351/`에 한정되며 백엔드 코드는 변경하지 않았다.
+
+남은 위험:
+
+- nonce/challenge 응답 DTO와 endpoint, CSRF cookie/header 이름은 #352에서 확정한 뒤 준비 provider와 앱 초기화에 연결해야 한다.
+- 실제 관리자 세션, 문의 API와 DB 통합 검증은 #352, #354에서 수행해야 한다.
+
+후속 이슈:
+
+- 관리자 인증·인가 및 세션: #352.
+- 테스트 데이터 API 경계 분리: #353.
+- 관리자 문의 목록·상세·답변 API: #354.
+- 관리자 문의 검색 쿼리·인덱스 전략: #355.

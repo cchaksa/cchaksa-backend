@@ -7,7 +7,7 @@ import {
 export const inquiryQueryKeys = {
   all: ['admin-inquiries'] as const,
   list: (params: InquiryListParams) => [...inquiryQueryKeys.all, 'list', params] as const,
-  detail: (reportId: number) => [...inquiryQueryKeys.all, 'detail', reportId] as const,
+  detail: (reportId: string) => [...inquiryQueryKeys.all, 'detail', reportId] as const,
 }
 
 export function useInquiryPage(params: InquiryListParams) {
@@ -17,15 +17,15 @@ export function useInquiryPage(params: InquiryListParams) {
   })
 }
 
-export function useInquiryDetail(reportId: number) {
+export function useInquiryDetail(reportId: string) {
   return useQuery({
     queryKey: inquiryQueryKeys.detail(reportId),
     queryFn: () => adminInquiryApi.getDetail(reportId),
-    enabled: Number.isInteger(reportId) && reportId > 0,
+    enabled: reportId.length > 0,
   })
 }
 
-export function useAnswerInquiry(reportId: number) {
+export function useAnswerInquiry(reportId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({

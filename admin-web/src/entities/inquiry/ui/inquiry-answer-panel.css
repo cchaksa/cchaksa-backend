@@ -47,6 +47,12 @@
   font-weight: 700;
 }
 
+.answer-audit code {
+  color: #5c6860;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
 .answer-audit time::before {
   content: "·";
   margin-right: 7px;

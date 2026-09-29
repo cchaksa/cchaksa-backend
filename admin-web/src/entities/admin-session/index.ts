@@ -1,2 +1,13 @@
-export { useAdminSession, useAdminSignOut } from './model/queries'
-export type { AdminSession } from './model/types'
+export {
+  configureAdminSignInPreparation,
+} from './api/adminSessionApi'
+export {
+  useAdminSession,
+  useAdminSignIn,
+  useAdminSignOut,
+} from './model/queries'
+export type {
+  AdminSession,
+  AdminSignInPreparation,
+  AdminSignInPreparationProvider,
+} from './model/types'

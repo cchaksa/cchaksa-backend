@@ -25,6 +25,7 @@ export function InquiryAnswerPanel({ answer }: InquiryAnswerPanelProps) {
         <div className="answer-audit">
           <UserRound aria-hidden="true" size={16} />
           <span>{answer.answeredBy.displayName}</span>
+          <code>{answer.answeredBy.adminAccountId}</code>
           <time dateTime={answer.answeredAt}>
             {dateFormatter.format(new Date(answer.answeredAt))}
           </time>

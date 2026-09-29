@@ -7,11 +7,7 @@ import type {
   InquirySummary,
 } from '../model/types'
 
-export type InquirySearchField =
-  | 'ALL'
-  | 'USER_ID'
-  | 'STUDENT_CODE'
-  | 'ERROR_CODE'
+export type InquirySearchField = 'USER_ID' | 'STUDENT_CODE'
 
 export interface InquiryListParams {
   status?: InquiryStatus
@@ -29,26 +25,23 @@ export interface InquiryPage {
   totalPages: number
 }
 
-function matchesQuery(
+export function matchesExactQuery(
   inquiry: InquirySummary,
   field: InquirySearchField,
   query: string,
 ) {
-  const normalized = query.toLowerCase()
-  const values: Record<InquirySearchField, string[]> = {
-    ALL: [String(inquiry.userId), inquiry.studentCode ?? '', inquiry.errorCode ?? ''],
-    USER_ID: [String(inquiry.userId)],
-    STUDENT_CODE: [inquiry.studentCode ?? ''],
-    ERROR_CODE: [inquiry.errorCode ?? ''],
-  }
-  return values[field].some((value) => value.toLowerCase().includes(normalized))
+  return field === 'USER_ID'
+    ? inquiry.submittedUserId === query
+    : inquiry.studentCode === query
 }
 
 async function getMockInquiryPage(params: InquiryListParams): Promise<InquiryPage> {
   const filtered = mockInquiryDetails.filter(
     (inquiry) =>
       (!params.status || inquiry.status === params.status) &&
-      (!params.query || matchesQuery(inquiry, params.searchField ?? 'ALL', params.query)),
+      (!params.query ||
+        (params.searchField &&
+          matchesExactQuery(inquiry, params.searchField, params.query))),
   )
   const start = params.page * params.size
   return {
@@ -60,14 +53,16 @@ async function getMockInquiryPage(params: InquiryListParams): Promise<InquiryPag
   }
 }
 
-function buildListUrl(params: InquiryListParams) {
+export function buildInquiryListUrl(params: InquiryListParams) {
   const searchParams = new URLSearchParams({
     page: String(params.page),
     size: String(params.size),
   })
   if (params.status) searchParams.set('status', params.status)
-  if (params.searchField) searchParams.set('searchField', params.searchField)
-  if (params.query) searchParams.set('query', params.query)
+  if (params.searchField && params.query) {
+    searchParams.set('searchField', params.searchField)
+    searchParams.set('query', params.query)
+  }
   return `/api/admin/reports?${searchParams}`
 }
 
@@ -75,14 +70,14 @@ export const adminInquiryApi = {
   getPage: (params: InquiryListParams) =>
     useMockApi
       ? getMockInquiryPage(params)
-      : requestJson<InquiryPage>(buildListUrl(params)),
-  getDetail: (reportId: number) =>
+      : requestJson<InquiryPage>(buildInquiryListUrl(params)),
+  getDetail: (reportId: string) =>
     useMockApi
       ? Promise.resolve(
           mockInquiryDetails.find((inquiry) => inquiry.reportId === reportId) ?? null,
         )
       : requestJson<InquiryDetail>(`/api/admin/reports/${reportId}`),
-  answer: async (reportId: number, answer: string) => {
+  answer: async (reportId: string, answer: string) => {
     if (!useMockApi) {
       return requestJson<InquiryDetail>(`/api/admin/reports/${reportId}/answer`, {
         method: 'POST',
@@ -91,14 +86,17 @@ export const adminInquiryApi = {
     }
 
     const inquiry = mockInquiryDetails.find((item) => item.reportId === reportId)
-    if (!inquiry || inquiry.status !== 'PENDING') {
+    if (inquiry?.status !== 'PENDING') {
       throw new Error('답변할 수 없는 문의입니다.')
     }
     inquiry.status = 'ANSWERED'
     inquiry.answer = {
       content: answer,
       answeredAt: new Date().toISOString(),
-      answeredBy: { adminAccountId: 7, displayName: '김척척' },
+      answeredBy: {
+        adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
+        displayName: '김척척',
+      },
     }
     return inquiry
   },

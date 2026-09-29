@@ -1,37 +1,42 @@
 # 관리자 웹 UI 설계
 
-## 목표
+## 목표와 범위
 
-관리자와 CS 담당자가 카카오 계정으로 인증한 뒤 문의를 조회하고, 미답변 문의에 한 번만 답변할 수 있는 업무용 SPA를 구성한다.
+관리자와 CS 담당자가 별도 관리자 인증을 거쳐 문의를 조회하고, 미답변 문의에 한 번만 답변하는 React SPA를 구성한다.
+
+- 이 문서는 #351 프론트엔드 UI와 어댑터 계약을 다룬다.
+- 관리자 인증·인가는 #352, 테스트 데이터 API 경계는 #353, 문의 API는 #354, 검색 쿼리·인덱스 전략은 #355에서 구현한다.
+- 서버의 UUID 식별자와 `reports` 스키마를 정본으로 사용한다.
+- #351에서는 백엔드 코드, DB migration과 배포 설정을 변경하지 않는다.
 
 ## 정보 구조
 
 | 경로 | 화면 | 역할 |
 | --- | --- | --- |
-| `/login` | 관리자 로그인 | 카카오 관리자 인증 시작 |
-| `/inquiries` | 문의 목록 | 상태 필터, 검색, 최신 문의 조회 |
+| `/login` | 관리자 로그인 | 관리자 POST 로그인 시작 |
+| `/inquiries` | 문의 목록 | 상태 필터, 정확 일치 검색, 최신 문의 조회 |
 | `/inquiries/:reportId` | 문의 상세 | 문의 확인, 미답변 문의 답변, 완료 답변 조회 |
 
-로그인 뒤 기본 진입점은 `/inquiries`로 한다. 관리자 앱의 사이드바에는 초기 범위에서 `문의`만 노출한다.
+로그인 뒤 기본 진입점은 `/inquiries`이며, 초기 사이드바에는 `문의`만 노출한다.
 
 ## 화면 흐름
 
 1. 인증되지 않은 관리자는 `/login`에서 척척학사 로고와 카카오 로그인 버튼을 본다.
-2. 카카오 로그인 버튼은 `/api/admin/auth/signin`으로 전체 페이지 이동한다.
-3. 인증 성공 뒤 `/inquiries`에서 전체 문의를 서버가 반환한 최신순으로 본다.
-4. 목록 상단에서 `전체`, `답변 필요`, `답변 완료` 상태를 선택하고 사용자 ID, 학번, 오류 코드 검색어를 입력한다.
-5. 미답변 문의 상세에서는 문의 본문 아래에 답변 작성 영역을 제공한다.
-6. 답변 완료 문의 상세에서는 답변과 답변한 CS 담당자 이름을 읽기 전용으로 표시한다.
-
-관리자 인증은 카카오 OIDC만 사용하므로 별도 아이디·비밀번호 입력 필드는 두지 않는다.
+2. 로그인 버튼은 링크 이동이 아니라 관리자 로그인 mutation을 시작한다.
+3. 별도 준비 단계에서 서버가 발급한 nonce와 CSRF 정보를 얻은 뒤 `POST /api/admin/auth/signin`을 호출한다.
+4. 인증 성공 뒤 `/inquiries`에서 서버가 `createdAt DESC`로 반환한 문의를 본다.
+5. 목록에서는 전체·답변 필요·답변 완료 상태 필터를 사용한다.
+6. 검색은 `USER_ID`의 UUID 또는 `STUDENT_CODE`를 정확히 일치시키는 방식만 제공한다.
+7. 미답변 문의 상세에서는 문의 본문 아래에 답변 작성 영역을 제공한다.
+8. 답변 완료 문의 상세에서는 답변과 답변한 관리자의 UUID·표시 이름을 읽기 전용으로 표시한다.
 
 ## 화면 원칙
 
-- 첨부 레퍼런스의 어두운 고정 사이드바, 얇은 상단 바, 넓은 목록 영역을 관리자 셸에 적용한다.
-- 운영 도구답게 장식보다 검색, 상태 구분, 표 가독성과 반복 작업 효율을 우선한다.
+- 운영 도구답게 검색, 상태 구분, 표 가독성과 반복 작업 효율을 우선한다.
 - 상태는 색상만으로 구분하지 않고 텍스트 라벨을 함께 제공한다.
-- 문의 본문, 답변, 학번과 학적 정보는 브라우저 로그나 오류 추적 태그에 기록하지 않는다.
-- 답변자 이름은 서버가 인증된 `admin_account_id`로 결정한 결과만 표시한다.
+- nullable 서버 스냅샷은 값이 없을 때 `-`로 표시한다.
+- 문의 본문, 답변, 학번과 학적 스냅샷을 console 또는 오류 추적 tag에 기록하지 않는다.
+- 답변 관리자 정보는 서버가 인증된 관리자 계정으로 기록해 반환한 값만 표시한다.
 
 ## 프론트엔드 구조
 
@@ -39,88 +44,68 @@
 
 ```text
 src/
-  app/       # 전역 라우터와 앱 초기화
+  app/       # 전역 provider와 라우터
   pages/     # 라우트 단위 화면
-  features/  # 관리자 로그인, 문의 필터, 문의 답변 등 사용자 행동
-  shared/    # 자산, 공통 설정, 범용 UI와 스타일
+  widgets/   # 관리자 셸
+  features/  # 로그인, 문의 필터, 문의 답변
+  entities/  # 관리자 세션 및 문의 계약·query
+  shared/    # HTTP 어댑터, 설정, 자산, 공통 스타일
 ```
 
-- `entities`는 문의 API DTO와 도메인 모델이 확정되는 목록 단계에서 추가한다.
-- `widgets`는 사이드바·상단 바·목록 조합이 반복되는 관리자 셸 단계에서 추가한다.
-- 현재 규모에서 루트 전역 store는 두지 않고 상태를 사용하는 가장 가까운 화면 또는 기능에 둔다.
-- 각 feature/page는 `index.ts`를 공개 진입점으로 사용하고 외부에서 내부 파일을 깊게 import하지 않는다.
+- 루트 전역 store는 두지 않고 서버 상태는 TanStack Query로 관리한다.
+- feature/page는 `index.ts`를 공개 진입점으로 사용한다.
+- Vite SPA와 S3 배포 형태를 유지하고 React Router 선언형 모드를 사용한다.
+- CloudFront는 `/api/admin/*`를 API 동작으로 분리하고 프론트 경로에만 SPA fallback을 적용해야 한다.
 
-## 라우팅 선택
+## 서버 정본 계약
 
-Vite SPA와 S3 배포 형태를 유지하고 React Router의 선언형 모드를 사용한다. 현재는 클라이언트 라우팅과 활성 메뉴 상태만 필요하므로 Framework Mode나 SSR은 도입하지 않는다.
+### 식별자와 공통 규칙
 
-CloudFront에서는 `/api/admin/*`를 API 동작으로 분리하고, 그 외 프론트 경로만 SPA fallback을 적용해야 한다.
-
-## 단계별 구현
-
-### 1단계: 로그인과 앱 기반
-
-- 공식 척척학사 앱 로고 자산을 재사용한다.
-- `/login` 화면과 카카오 로그인 진입점을 구현한다.
-- React Router와 위 계층 구조를 적용한다.
-
-### 2단계: 관리자 셸과 문의 목록
-
-- 사이드바, 상단 바와 `/inquiries` 화면을 구현한다.
-- 전체/답변 필요/답변 완료 필터와 검색 UI를 구현한다.
-- API 계약 전에는 실제 데이터 호출을 연결하지 않는다.
-
-### 3단계: 미답변 문의 상세
-
-- 게시글 형태의 문의 내용과 댓글 형태의 답변 작성 UI를 구현한다.
-- 답변 등록 중, 성공, 실패 상태와 중복 제출 방지를 정의한다.
-
-### 4단계: 답변 완료 상세
-
-- 완료 답변과 CS 담당자 이름을 읽기 전용으로 표시한다.
-- 추가 답변 입력은 렌더링하지 않는다.
-
-### 5단계: API와 인증 연동
-
-- 확정된 `/api/admin/...` 계약에 맞춰 세션 확인, 목록, 상세, 답변 API를 연결한다.
-- 인증 실패, 권한 없음, 세션 만료와 API 오류 상태를 구현한다.
-
-## 프론트엔드 API 계약
-
-이번 UI 구현에서 아래 계약을 기준으로 HTTP 어댑터를 구성했다. 서버 구현 단계에서 필드명이나 상태 코드가 달라지면 어댑터와 이 문서를 함께 갱신한다.
-
-### 관리자 인증
-
-- `GET /api/admin/auth/me`는 현재 세션의 `adminAccountId`, `displayName`, `role`을 반환한다.
-- `role`은 `ADMIN` 또는 `CS_AGENT`다.
-- 인증되지 않은 세션은 `401`, 관리자 허용 목록에 없거나 비활성인 계정은 `403`을 반환한다.
-- `POST /api/admin/auth/signout`은 관리자 세션을 종료하고 본문 없는 `204`를 반환한다.
-- 로그인 시작점은 `GET /api/admin/auth/signin`이며 성공 후 관리자 SPA의 `/inquiries`로 복귀한다.
+- `reportId`, `submittedUserId`, `answeredBy.adminAccountId`는 UUID 문자열이다.
+- 날짜·시각은 ISO 8601 문자열로 수신한다.
+- 문의 상태는 `PENDING` 또는 `ANSWERED`다.
+- `category`, `errorCode`, `universityName`, `grade`, `semester`는 `reports` 스키마에 없으므로 프론트 계약에서도 사용하지 않는다.
 
 ### 문의 목록
 
 - `GET /api/admin/reports`를 사용한다.
-- query parameter는 `status`, `searchField`, `query`, `page`, `size`다.
-- `status`는 `PENDING` 또는 `ANSWERED`, `searchField`는 `USER_ID`, `STUDENT_CODE`, `ERROR_CODE`다. 통합 검색은 `searchField`를 생략한다.
-- `page`는 0부터 시작하며 서버가 `createdAt` 내림차순으로 정렬한다.
-- 응답은 `items`, `page`, `size`, `totalElements`, `totalPages`를 포함한다.
+- 기본 요청은 `page=0`, `size=20`이며 서버 정렬은 `createdAt DESC`다.
+- 선택 query parameter는 `status`, `searchField`, `query`다.
+- `searchField`는 `USER_ID` 또는 `STUDENT_CODE`만 허용한다.
+- 검색값은 부분검색이나 통합검색 없이 정확히 일치시킨다.
+- 목록 항목은 `reportId`, `status`, `title`, nullable `submittedUserId`, nullable `studentCode`, `createdAt`을 사용한다.
+- 응답 페이지는 `items`, `page`, `size`, `totalElements`, `totalPages`를 포함한다.
 
 ### 문의 상세와 답변
 
-- `GET /api/admin/reports/{reportId}`는 문의 요약 필드, 본문, 학적 스냅샷과 nullable `answer`를 반환한다.
-- 완료 답변의 `answer`는 `content`, `answeredAt`, `answeredBy.adminAccountId`, `answeredBy.displayName`을 포함한다.
+- `GET /api/admin/reports/{reportId}`는 목록 필드에 문의 본문과 nullable 학적 스냅샷, nullable 답변을 더해 반환한다.
+- 학적 스냅샷은 `department`, `primaryMajor`, `secondaryMajor`, `isTransferStudent`, `admissionYear`, `graduationRequirementStatus`를 사용하며 각 값은 nullable이다.
 - `POST /api/admin/reports/{reportId}/answer`에 `{ "answer": "..." }`를 전송한다.
-- 서버는 요청 본문의 담당자 정보를 받지 않고 인증된 `admin_account_id`를 답변 감사 정보로 기록한다.
-- 이미 답변된 문의의 중복 답변은 `409 Conflict`로 거부하고, 성공 시 갱신된 문의 상세를 반환한다.
-- 문의 본문, 답변, 학번과 학적 스냅샷은 클라이언트 console 및 오류 추적 tag에 기록하지 않는다.
+- 서버는 클라이언트에서 답변 관리자 값을 받지 않고 인증된 관리자 계정을 감사 정보로 기록한다.
+- 완료 답변은 `content`, `answeredAt`, `answeredBy.adminAccountId`, `answeredBy.displayName`을 포함한다.
+- 이미 답변된 문의의 중복 답변은 서버가 충돌 응답으로 거부하고, 성공 시 갱신된 문의 상세를 반환한다.
 
-개발 환경에서는 `.env.development`의 `VITE_USE_MOCK_API=true`로 같은 계약의 메모리 어댑터를 사용한다. 운영 빌드는 mock을 포함한 실행 분기를 선택하지 않고 `/api/admin/...` 상대 경로를 호출하며 `credentials: include`로 세션 쿠키를 전달한다.
+### 관리자 인증과 CSRF
+
+- 로그인 제출은 `POST /api/admin/auth/signin`을 사용하며 GET 링크 방식은 사용하지 않는다.
+- 로그인 준비 provider는 서버 발급 nonce와 CSRF header 이름·값을 로그인 mutation에 전달한다.
+- nonce/challenge를 발급하는 endpoint, 응답 DTO, CSRF cookie 이름과 header 이름은 #352에서 확정한다. #351은 이 값을 임의로 고정하지 않는다.
+- 준비 provider가 연결되지 않은 운영 환경에서는 로그인 요청을 전송하지 않고 일반 오류 상태를 표시한다.
+- HTTP 어댑터는 `POST`, `PUT`, `PATCH`, `DELETE`마다 CSRF provider를 다시 호출한다. 따라서 로그인·로그아웃 뒤 쿠키가 회전되면 다음 요청에서 새 값을 읽을 수 있다.
+- cookie 이름과 header 이름이 확정되면 `createCookieCsrfTokenProvider`와 `configureCsrfTokenProvider`를 앱 초기화 시 연결한다.
+- CSRF 값이 없는 상태 변경 요청은 네트워크 전송 전에 차단한다.
+- 관리자 세션 확인과 로그아웃 endpoint의 최종 계약도 #352와 통합할 때 확인한다.
+
+## 개발 및 검증
+
+- 개발 환경은 `.env.development`의 `VITE_USE_MOCK_API=true`로 같은 문의 계약의 메모리 어댑터를 사용한다.
+- 운영 빌드는 `/api/admin/...` 상대 경로와 `credentials: include`를 사용한다.
+- `npm run lint`, `npm run test`, `npm run build`를 #351의 필수 검증으로 실행한다.
 
 ## 참고 자료
 
 - React, Thinking in React: https://react.dev/learn/thinking-in-react.
 - React Router, Picking a Mode: https://reactrouter.com/start/modes.
-- React Router, Declarative Installation: https://reactrouter.com/start/declarative/installation.
 - Feature-Sliced Design: https://feature-sliced.design/.
 - TanStack Query, Queries: https://tanstack.com/query/latest/docs/framework/react/guides/queries.
 - 공식 로고 원본: `cchaksa/cchaksa-app`의 `composeApp/src/androidMain/ic_logo-playstore.png`.

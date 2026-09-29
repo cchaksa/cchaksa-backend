@@ -4,19 +4,10 @@ import {
   InquiryAnswerPanel,
   useAnswerInquiry,
   useInquiryDetail,
-  type InquiryCategory,
 } from '../../../entities/inquiry'
 import { AnswerInquiryForm } from '../../../features/answer-inquiry'
 import { routes } from '../../../shared/config/routes'
 import './inquiry-detail-page.css'
-
-const categoryLabels: Record<InquiryCategory, string> = {
-  PORTAL_CONNECTION: '포털 연동',
-  GRADUATION_REQUIREMENT: '졸업 요건',
-  ACADEMIC_RECORD: '학적 정보',
-  ACCOUNT: '계정',
-  ETC: '기타',
-}
 
 const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
   dateStyle: 'medium',
@@ -25,12 +16,12 @@ const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
 
 export function InquiryDetailPage() {
   const { reportId } = useParams()
-  const numericReportId = Number(reportId)
-  const inquiryQuery = useInquiryDetail(numericReportId)
-  const answerMutation = useAnswerInquiry(numericReportId)
+  const resolvedReportId = reportId ?? ''
+  const inquiryQuery = useInquiryDetail(resolvedReportId)
+  const answerMutation = useAnswerInquiry(resolvedReportId)
   const inquiry = inquiryQuery.data
 
-  if (inquiryQuery.isPending && Number.isInteger(numericReportId)) {
+  if (inquiryQuery.isPending && resolvedReportId) {
     return <div className="detail-state">문의 내용을 불러오고 있습니다.</div>
   }
 
@@ -71,10 +62,7 @@ export function InquiryDetailPage() {
             <span>문의 #{inquiry.reportId}</span>
           </div>
           <h1>{inquiry.title}</h1>
-          <p>
-            {categoryLabels[inquiry.category]} ·{' '}
-            {dateFormatter.format(new Date(inquiry.createdAt))}
-          </p>
+          <p>{dateFormatter.format(new Date(inquiry.createdAt))}</p>
         </header>
 
         <div className="inquiry-article-body">
@@ -83,31 +71,42 @@ export function InquiryDetailPage() {
 
         <dl className="inquiry-metadata">
           <div>
-            <dt>사용자 ID</dt>
-            <dd>{inquiry.userId}</dd>
+            <dt>사용자 UUID</dt>
+            <dd><code>{inquiry.submittedUserId ?? '-'}</code></dd>
           </div>
           <div>
             <dt>학번</dt>
             <dd>{inquiry.studentCode ?? '-'}</dd>
           </div>
           <div>
-            <dt>학교</dt>
-            <dd>{inquiry.academicSnapshot.universityName ?? '-'}</dd>
+            <dt>소속 학과</dt>
+            <dd>{inquiry.academicSnapshot.department ?? '-'}</dd>
           </div>
           <div>
-            <dt>학과</dt>
-            <dd>{inquiry.academicSnapshot.departmentName ?? '-'}</dd>
+            <dt>주전공</dt>
+            <dd>{inquiry.academicSnapshot.primaryMajor ?? '-'}</dd>
           </div>
           <div>
-            <dt>학년 / 학기</dt>
+            <dt>복수전공</dt>
+            <dd>{inquiry.academicSnapshot.secondaryMajor ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>편입 여부</dt>
             <dd>
-              {inquiry.academicSnapshot.grade ?? '-'}학년 /{' '}
-              {inquiry.academicSnapshot.semester ?? '-'}학기
+              {inquiry.academicSnapshot.isTransferStudent === null
+                ? '-'
+                : inquiry.academicSnapshot.isTransferStudent
+                  ? '편입'
+                  : '일반'}
             </dd>
           </div>
           <div>
-            <dt>오류 코드</dt>
-            <dd><code>{inquiry.errorCode ?? '-'}</code></dd>
+            <dt>입학 연도</dt>
+            <dd>{inquiry.academicSnapshot.admissionYear ?? '-'}</dd>
+          </div>
+          <div>
+            <dt>졸업요건 상태</dt>
+            <dd>{inquiry.academicSnapshot.graduationRequirementStatus ?? '-'}</dd>
           </div>
         </dl>
       </article>

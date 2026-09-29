@@ -41,7 +41,8 @@ export function InquiryFilterBar({
 
   return (
     <div className="inquiry-filter-bar">
-      <div className="status-segments" aria-label="문의 답변 상태">
+      <fieldset className="status-segments">
+        <legend className="sr-only">문의 답변 상태</legend>
         {statusOptions.map((option) => (
           <button
             key={option.value}
@@ -53,9 +54,10 @@ export function InquiryFilterBar({
             {option.label}
           </button>
         ))}
-      </div>
+      </fieldset>
 
-      <form className="inquiry-search" role="search" onSubmit={handleSubmit}>
+      <search>
+        <form className="inquiry-search" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="inquiry-search-field">
           검색 대상
         </label>
@@ -66,10 +68,8 @@ export function InquiryFilterBar({
             setDraftField(event.target.value as InquirySearchField)
           }
         >
-          <option value="ALL">통합 검색</option>
-          <option value="USER_ID">사용자 ID</option>
+          <option value="USER_ID">사용자 UUID</option>
           <option value="STUDENT_CODE">학번</option>
-          <option value="ERROR_CODE">오류 코드</option>
         </select>
 
         <label className="sr-only" htmlFor="inquiry-search-query">
@@ -81,7 +81,11 @@ export function InquiryFilterBar({
             id="inquiry-search-query"
             type="search"
             value={draftQuery}
-            placeholder="사용자, 학번 또는 오류 코드 검색"
+            placeholder={
+              draftField === 'USER_ID'
+                ? '사용자 UUID 정확히 입력'
+                : '학번 정확히 입력'
+            }
             onChange={(event) => setDraftQuery(event.target.value)}
           />
         </div>
@@ -100,7 +104,8 @@ export function InquiryFilterBar({
             <X aria-hidden="true" size={18} />
           </button>
         )}
-      </form>
+        </form>
+      </search>
     </div>
   )
 }

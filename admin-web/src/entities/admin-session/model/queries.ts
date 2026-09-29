@@ -12,6 +12,16 @@ export function useAdminSession() {
   })
 }
 
+export function useAdminSignIn() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: adminSessionApi.signIn,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: adminSessionQueryKey }),
+  })
+}
+
 export function useAdminSignOut() {
   const queryClient = useQueryClient()
 

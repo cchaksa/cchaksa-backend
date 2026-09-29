@@ -76,7 +76,7 @@
 
 .inquiry-table {
   width: 100%;
-  min-width: 1060px;
+  min-width: 960px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -110,20 +110,19 @@
 }
 
 .inquiry-table th:nth-child(2) {
-  width: 300px;
+  width: 320px;
 }
 
 .inquiry-table th:nth-child(3) {
-  width: 110px;
+  width: 300px;
 }
 
-.inquiry-table th:nth-child(4),
+.inquiry-table th:nth-child(4) {
+  width: 130px;
+}
+
 .inquiry-table th:nth-child(5) {
-  width: 110px;
-}
-
-.inquiry-table th:nth-child(6) {
-  width: 190px;
+  width: 150px;
 }
 
 .status-badge {
@@ -170,6 +169,7 @@
   color: #5a4aca;
   font-family: "SFMono-Regular", Consolas, monospace;
   font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .inquiry-empty-state {

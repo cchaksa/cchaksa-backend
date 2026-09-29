@@ -4,7 +4,6 @@ export { useAnswerInquiry, useInquiryDetail, useInquiryPage } from './model/quer
 export type { InquiryListParams, InquiryPage } from './api/adminInquiryApi'
 export type {
   InquiryAnswer,
-  InquiryCategory,
   InquiryDetail,
   InquiryStatus,
   InquirySummary,

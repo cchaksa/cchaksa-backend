@@ -1,9 +1,6 @@
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router'
-import {
-  useInquiryPage,
-  type InquiryCategory,
-} from '../../../entities/inquiry'
+import { useInquiryPage } from '../../../entities/inquiry'
 import {
   InquiryFilterBar,
   type InquirySearchField,
@@ -11,14 +8,6 @@ import {
 } from '../../../features/inquiry-filter'
 import { routes } from '../../../shared/config/routes'
 import './inquiry-list-page.css'
-
-const categoryLabels: Record<InquiryCategory, string> = {
-  PORTAL_CONNECTION: '포털 연동',
-  GRADUATION_REQUIREMENT: '졸업 요건',
-  ACADEMIC_RECORD: '학적 정보',
-  ACCOUNT: '계정',
-  ETC: '기타',
-}
 
 const dateFormatter = new Intl.DateTimeFormat('ko-KR', {
   month: '2-digit',
@@ -33,11 +22,7 @@ function parseStatus(value: string | null): InquiryStatusFilter {
 }
 
 function parseSearchField(value: string | null): InquirySearchField {
-  return value === 'USER_ID' ||
-    value === 'STUDENT_CODE' ||
-    value === 'ERROR_CODE'
-    ? value
-    : 'ALL'
+  return value === 'STUDENT_CODE' ? value : 'USER_ID'
 }
 
 function parsePage(value: string | null) {
@@ -54,8 +39,7 @@ export function InquiryListPage() {
   const page = parsePage(searchParams.get('page'))
   const inquiryQuery = useInquiryPage({
     ...(status === 'ALL' ? {} : { status }),
-    ...(searchField === 'ALL' ? {} : { searchField }),
-    ...(query ? { query } : {}),
+    ...(query ? { searchField, query } : {}),
     page,
     size: 20,
   })
@@ -72,7 +56,7 @@ export function InquiryListPage() {
     const nextQuery = next.query ?? query
 
     nextStatus === 'ALL' ? params.delete('status') : params.set('status', nextStatus)
-    nextField === 'ALL' ? params.delete('field') : params.set('field', nextField)
+    nextField === 'USER_ID' ? params.delete('field') : params.set('field', nextField)
     nextQuery ? params.set('query', nextQuery) : params.delete('query')
     params.delete('page')
     setSearchParams(params, { replace: true })
@@ -133,10 +117,8 @@ export function InquiryListPage() {
                 <tr>
                   <th>상태</th>
                   <th>문의</th>
-                  <th>분류</th>
-                  <th>사용자 ID</th>
+                  <th>사용자 UUID</th>
                   <th>학번</th>
-                  <th>오류 코드</th>
                   <th>접수일</th>
                 </tr>
               </thead>
@@ -154,16 +136,8 @@ export function InquiryListPage() {
                         <span>#{inquiry.reportId}</span>
                       </Link>
                     </td>
-                    <td>{categoryLabels[inquiry.category]}</td>
-                    <td>{inquiry.userId}</td>
+                    <td><code>{inquiry.submittedUserId ?? '-'}</code></td>
                     <td>{inquiry.studentCode ?? '-'}</td>
-                    <td>
-                      {inquiry.errorCode ? (
-                        <code>{inquiry.errorCode}</code>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
                     <td>{dateFormatter.format(new Date(inquiry.createdAt))}</td>
                   </tr>
                 ))}
@@ -179,7 +153,7 @@ export function InquiryListPage() {
 
         <footer className="table-footer">
           <p>페이지당 20개</p>
-          <div className="pagination" aria-label="페이지 이동">
+          <nav className="pagination" aria-label="페이지 이동">
             <button
               type="button"
               disabled={page <= 0}
@@ -203,7 +177,7 @@ export function InquiryListPage() {
             >
               <ChevronRight aria-hidden="true" size={18} />
             </button>
-          </div>
+          </nav>
         </footer>
       </section>
     </div>
