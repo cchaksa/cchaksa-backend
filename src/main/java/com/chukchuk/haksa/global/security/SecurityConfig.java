@@ -106,6 +106,7 @@ public class SecurityConfig {
         List.of(
             "http://localhost:3000",
             "https://dv.cchaksa.com",
+            "https://admin.cchaksa.com",
             "https://*.cchaksa.com",
             "https://dev.api.cchaksa.com"));
     c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
@@ -131,6 +132,7 @@ public class SecurityConfig {
         List.of(
             "https://www.cchaksa.com",
             "https://cchaksa.com",
+            "https://admin.cchaksa.com",
             "https://dv.cchaksa.com",
             "https://*.cchaksa.com",
             "https://api.cchaksa.com",

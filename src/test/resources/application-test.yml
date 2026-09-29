@@ -15,6 +15,11 @@ security:
     refresh-expiration: 86400
   appKey: test-app-key
   nativeAppKey: test-native-key
+  admin:
+    kakao:
+      app-key: test-admin-app-key
+      redirect-uri: http://localhost/admin/auth/callback
+    cookie-secure: false
 
 crawler:
   base-url: https://example.com

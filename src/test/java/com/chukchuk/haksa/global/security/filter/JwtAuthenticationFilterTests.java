@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.chukchuk.haksa.domain.admin.auth.security.AdminSessionAuthenticationFilter;
 import com.chukchuk.haksa.domain.student.controller.StudentController;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.domain.testsupport.config.TestSupportSecurityConfig;
@@ -77,6 +78,8 @@ class JwtAuthenticationFilterTests {
   @MockBean private StudentService studentService;
 
   @MockBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
+
+  @MockBean private AdminSessionAuthenticationFilter adminSessionAuthenticationFilter;
 
   @Test
   @DisplayName("만료된 acToken으로 /api/users/me 호출 시 401 TOKEN_EXPIRED를 반환한다")

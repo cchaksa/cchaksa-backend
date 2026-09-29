@@ -52,6 +52,14 @@ security:
     allowed-client-ids: ${APPLE_ALLOWED_CLIENT_IDS:}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
     keys-url: ${APPLE_KEYS_URL:https://appleid.apple.com/auth/keys}
+  admin:
+    kakao:
+      app-key: ${ADMIN_KAKAO_APP_KEY:}
+      redirect-uri: ${ADMIN_KAKAO_REDIRECT_URI:}
+    challenge-ttl: ${ADMIN_AUTH_CHALLENGE_TTL:5m}
+    idle-timeout: ${ADMIN_AUTH_IDLE_TIMEOUT:30m}
+    absolute-timeout: ${ADMIN_AUTH_ABSOLUTE_TIMEOUT:8h}
+    cookie-secure: ${ADMIN_AUTH_COOKIE_SECURE:true}
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}

@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.support;
 
+import com.chukchuk.haksa.domain.admin.auth.security.AdminSessionAuthenticationFilter;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
 import com.chukchuk.haksa.global.security.filter.JwtAuthenticationFilter;
 import java.util.UUID;
@@ -15,6 +16,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public abstract class ApiControllerWebMvcTestSupport {
 
   @MockBean protected JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  @MockBean protected AdminSessionAuthenticationFilter adminSessionAuthenticationFilter;
 
   @MockBean protected JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
