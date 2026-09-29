@@ -74,10 +74,11 @@ class AdminAuthApiIntegrationTest {
                         "{\"challengeId\":\"%s\",\"idToken\":\"id-token\"}"
                             .formatted(challenge.challengeId())))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.role").value("CS_AGENT"))
+            .andExpect(jsonPath("$.data.adminRole").value("CS_AGENT"))
+            .andExpect(jsonPath("$.data.role").doesNotExist())
             .andReturn();
 
-    Cookie session = signIn.getResponse().getCookie("ADMIN_SESSION");
+    Cookie session = signIn.getResponse().getCookie("cchaksa_admin_session");
     mockMvc
         .perform(get("/api/admin/auth/me").cookie(session))
         .andExpect(status().isOk())

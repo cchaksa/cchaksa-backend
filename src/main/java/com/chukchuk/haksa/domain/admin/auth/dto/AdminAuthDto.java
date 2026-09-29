@@ -16,5 +16,5 @@ public final class AdminAuthDto {
   public record SignInRequest(@NotNull UUID challengeId, @NotBlank String idToken) {}
 
   /** 인증된 관리자에게 노출할 최소 계정 정보다. */
-  public record AdminResponse(UUID adminAccountId, String displayName, AdminRole role) {}
+  public record AdminResponse(UUID adminAccountId, String displayName, AdminRole adminRole) {}
 }

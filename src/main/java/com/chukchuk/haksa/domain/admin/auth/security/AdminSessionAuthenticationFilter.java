@@ -16,11 +16,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** ADMIN_SESSION 쿠키를 관리자 principal과 authority로 변환한다. */
+/** 관리자 세션 쿠키를 관리자 principal과 authority로 변환한다. */
 @Component
 @RequiredArgsConstructor
 public class AdminSessionAuthenticationFilter extends OncePerRequestFilter {
-  public static final String COOKIE_NAME = "ADMIN_SESSION";
+  public static final String COOKIE_NAME = "cchaksa_admin_session";
   private final AdminSessionService sessionService;
 
   @Override

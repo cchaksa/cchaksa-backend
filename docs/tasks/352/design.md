@@ -17,7 +17,7 @@
 1. `GET /api/admin/auth/challenge`가 UUID `challengeId`와 난수 `nonce`를 발급한다. 응답은 캐시하지 않으며 `XSRF-TOKEN` 쿠키도 생성한다.
 2. `POST /api/admin/auth/signin`은 `{challengeId, idToken}`과 `X-XSRF-TOKEN`을 받는다. 서버는 DB에 저장한 미사용 nonce를 원자적으로 소모한 뒤 카카오 ID Token을 검증한다.
 3. `provider`와 `socialId`는 요청에서 받지 않는다. 검증된 `sub`로 ACTIVE `admin_accounts`를 조회한다.
-4. 성공 시 불투명 세션 난수를 `ADMIN_SESSION` Secure, HttpOnly, SameSite=Strict 쿠키로 발급하고 DB에는 SHA-256 해시만 저장한다.
+4. 성공 시 불투명 세션 난수를 `cchaksa_admin_session` Secure, HttpOnly, SameSite=Strict 쿠키로 발급하고 DB에는 SHA-256 해시만 저장한다.
 5. `GET /api/admin/auth/me`는 `adminAccountId`, `displayName`, `role`을 반환한다.
 6. `POST /api/admin/auth/signout`은 현재 세션을 폐기하고 세션 쿠키와 CSRF 쿠키를 만료한다.
 
@@ -38,4 +38,3 @@ Host, Origin, CORS는 권한 판단에 사용하지 않는다. CORS는 브라우
 ## 운영과 호환성
 
 V16은 신규 테이블만 추가하므로 이전 Lambda와 호환된다. 기본 수명은 challenge 5분, idle 30분, absolute 8시간이며 환경 변수로 조정한다. 세션·nonce·ID Token 원문과 socialId는 로그나 Sentry tag에 남기지 않는다.
-
