@@ -10,17 +10,19 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AdminKakaoOidcService {
+  private final AdminKakaoTokenClient tokenClient;
   private final KakaoIdTokenVerifier verifier;
   private final AdminAuthProperties properties;
 
   /**
-   * 관리자 앱 audience와 서버 nonce로 ID Token을 검증한다.
+   * Kakao 인가 코드를 교환하고 관리자 JavaScript 앱 audience와 서버 nonce를 검증한다.
    *
-   * @param idToken Kakao ID Token
+   * @param authorizationCode Kakao authorization code
    * @param nonce 서버가 보관한 nonce
    * @return 검증된 claim
    */
-  public Claims verify(String idToken, String nonce) {
-    return verifier.verify(idToken, nonce, Set.of(properties.getKakao().getAppKey()));
+  public Claims exchangeAndVerify(String authorizationCode, String nonce) {
+    String idToken = tokenClient.exchange(authorizationCode);
+    return verifier.verify(idToken, nonce, Set.of(properties.getKakao().getJavascriptAppKey()));
   }
 }

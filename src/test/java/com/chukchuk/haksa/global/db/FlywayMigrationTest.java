@@ -113,6 +113,8 @@ class FlywayMigrationTest {
       assertThat(hasIndex(connection, "reports", "idx_reports_user_created_id_desc")).isTrue();
       assertThat(hasTable(connection, "admin_accounts")).isTrue();
       assertThat(hasTable(connection, "admin_login_challenges")).isTrue();
+      assertThat(hasColumn(connection, "admin_login_challenges", "state")).isTrue();
+      assertThat(hasColumn(connection, "admin_login_challenges", "browser_token_hash")).isTrue();
       assertThat(hasTable(connection, "admin_sessions")).isTrue();
       assertThat(hasIndex(connection, "admin_sessions", "idx_admin_sessions_account_active"))
           .isTrue();

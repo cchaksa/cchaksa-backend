@@ -22,7 +22,11 @@ public class AdminAuthProperties {
   @Getter
   @Setter
   public static class Kakao {
-    private String appKey;
+    private String javascriptAppKey;
+    private String restApiKey;
+    private String clientSecret;
     private String redirectUri;
+    private Duration connectTimeout = Duration.ofSeconds(3);
+    private Duration readTimeout = Duration.ofSeconds(5);
   }
 }

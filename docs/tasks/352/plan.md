@@ -5,10 +5,11 @@
 - V16 migration으로 관리자 계정, challenge, 세션 테이블과 제약·인덱스를 추가한다.
 - 관리자 entity/repository와 난수·해시 컴포넌트를 구현한다.
 - 카카오 JWKS/서명 검증을 중립 컴포넌트로 추출하고 사용자 로그인 회귀를 유지한다.
+- V16 challenge에 OAuth state와 브라우저 결합 token hash를 저장하고 JavaScript/REST API key, client secret, 고정 redirect URI 설정을 분리한다.
 
 ## 2. 인증 흐름
 
-- challenge 발급·소모, 관리자 전용 Kakao 검증, 허용 목록 조회, 세션 생성·폐기 서비스를 구현한다.
+- challenge 발급·state/HttpOnly 브라우저 cookie 검증·소모, timeout이 적용된 서버 측 authorization code 교환, 관리자 전용 Kakao 검증, 허용 목록 조회, 세션 생성·폐기 서비스를 구현한다.
 - challenge, signin, me, signout API와 Springdoc 계약을 추가한다.
 - 관리자 principal과 쿠키 세션 인증 필터를 구현한다.
 
@@ -28,4 +29,3 @@
 ## Wiki
 
 인증, DB, 보안 운영 절차와 관리자 계정 직접 등록 방법의 Wiki 갱신이 필요하다. 저장소 구현 완료 결과에 별도 Wiki 갱신 필요를 기록한다.
-

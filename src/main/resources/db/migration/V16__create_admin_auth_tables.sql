@@ -19,10 +19,13 @@ CREATE TABLE public.admin_accounts (
 CREATE TABLE public.admin_login_challenges (
     id UUID PRIMARY KEY,
     nonce VARCHAR(128) NOT NULL,
+    state VARCHAR(128) NOT NULL,
+    browser_token_hash CHAR(64) NOT NULL,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     used_at TIMESTAMP WITH TIME ZONE NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    CONSTRAINT uq_admin_login_challenges_nonce UNIQUE (nonce)
+    CONSTRAINT uq_admin_login_challenges_nonce UNIQUE (nonce),
+    CONSTRAINT uq_admin_login_challenges_state UNIQUE (state)
 );
 
 CREATE INDEX idx_admin_login_challenges_expires_at
@@ -44,4 +47,3 @@ CREATE TABLE public.admin_sessions (
 
 CREATE INDEX idx_admin_sessions_account_active
     ON public.admin_sessions (admin_account_id, revoked_at, expires_at);
-

@@ -10,7 +10,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 서버가 발급하고 한 번만 소모하는 관리자 OIDC nonce다. */
+/** 서버가 발급하고 한 번만 소모하는 관리자 OIDC challenge다. */
 @Entity
 @Table(name = "admin_login_challenges")
 @Getter
@@ -20,6 +20,12 @@ public class AdminLoginChallenge {
 
   @Column(nullable = false)
   private String nonce;
+
+  @Column(nullable = false)
+  private String state;
+
+  @Column(name = "browser_token_hash", nullable = false, length = 64)
+  private String browserTokenHash;
 
   @Column(name = "expires_at", nullable = false)
   private Instant expiresAt;
@@ -35,12 +41,22 @@ public class AdminLoginChallenge {
    *
    * @param id challenge UUID
    * @param nonce 서버 발급 nonce
+   * @param state OAuth 응답을 로그인 시도에 결합하는 값
+   * @param browserTokenHash 로그인 시작 브라우저를 확인할 token hash
    * @param expiresAt 만료 시각
    * @param createdAt 생성 시각
    */
-  public AdminLoginChallenge(UUID id, String nonce, Instant expiresAt, Instant createdAt) {
+  public AdminLoginChallenge(
+      UUID id,
+      String nonce,
+      String state,
+      String browserTokenHash,
+      Instant expiresAt,
+      Instant createdAt) {
     this.id = id;
     this.nonce = nonce;
+    this.state = state;
+    this.browserTokenHash = browserTokenHash;
     this.expiresAt = expiresAt;
     this.createdAt = createdAt;
   }

@@ -74,6 +74,7 @@ public enum ErrorCode {
   ADMIN_LOGIN_DENIED("A09", "관리자 로그인을 허용할 수 없습니다.", HttpStatus.FORBIDDEN),
   ADMIN_CHALLENGE_INVALID("A10", "관리자 로그인 요청이 만료되었거나 이미 사용되었습니다.", HttpStatus.UNAUTHORIZED),
   ADMIN_SESSION_INVALID("A11", "관리자 세션이 만료되었거나 유효하지 않습니다.", HttpStatus.UNAUTHORIZED),
+  ADMIN_KAKAO_AUTH_FAILED("A12", "카카오 로그인 정보를 확인할 수 없습니다.", HttpStatus.UNAUTHORIZED),
 
   // 졸업 요건 관련
   GRADUATION_REQUIREMENTS_DATA_NOT_FOUND(

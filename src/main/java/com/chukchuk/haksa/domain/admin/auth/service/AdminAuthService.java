@@ -22,16 +22,19 @@ public class AdminAuthService {
   private final Clock clock;
 
   /**
-   * 로그인 challenge와 ID Token을 검증해 관리자 세션을 발급한다.
+   * 로그인 challenge와 authorization code를 검증해 관리자 세션을 발급한다.
    *
    * @param challengeId 서버 challenge 식별자
-   * @param idToken Kakao ID Token
+   * @param authorizationCode Kakao authorization code
+   * @param state Kakao authorization 응답 state
+   * @param browserToken 로그인 시작 브라우저의 일회성 cookie 값
    * @return 로그인한 계정과 새 세션
    */
   @Transactional
-  public SignInResult signIn(UUID challengeId, String idToken) {
-    String nonce = challengeService.consume(challengeId);
-    Claims claims = oidcService.verify(idToken, nonce);
+  public SignInResult signIn(
+      UUID challengeId, String authorizationCode, String state, String browserToken) {
+    String nonce = challengeService.consume(challengeId, state, browserToken);
+    Claims claims = oidcService.exchangeAndVerify(authorizationCode, nonce);
     AdminAccount account =
         accountRepository
             .findByProviderAndSocialId("KAKAO", claims.getSubject())

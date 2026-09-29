@@ -11,6 +11,7 @@ import com.chukchuk.haksa.domain.admin.auth.model.AdminStatus;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminSessionRepository;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminAuthProperties;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminKakaoOidcService;
+import com.chukchuk.haksa.domain.admin.auth.service.AdminKakaoTokenClient;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminSessionService;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminTokenCodec;
 import com.chukchuk.haksa.infrastructure.oidc.kakao.KakaoIdTokenVerifier;
@@ -35,6 +36,7 @@ class AdminSessionServiceUnitTests {
 
   @Mock private AdminSessionRepository repository;
   @Mock private AdminTokenCodec tokenCodec;
+  @Mock private AdminKakaoTokenClient kakaoTokenClient;
   @Mock private KakaoIdTokenVerifier kakaoIdTokenVerifier;
 
   private AdminAuthProperties properties;
@@ -114,14 +116,18 @@ class AdminSessionServiceUnitTests {
   }
 
   @Test
-  void adminKakaoVerificationUsesOnlyAdminAppAudience() {
-    properties.getKakao().setAppKey("admin-kakao-app-key");
+  void adminKakaoCodeExchangeUsesOnlyAdminJavascriptAppAudience() {
+    properties.getKakao().setJavascriptAppKey("admin-kakao-javascript-app-key");
     Claims claims = Jwts.claims().setSubject("admin-subject");
-    when(kakaoIdTokenVerifier.verify("id-token", "server-nonce", Set.of("admin-kakao-app-key")))
+    when(kakaoTokenClient.exchange("authorization-code")).thenReturn("id-token");
+    when(kakaoIdTokenVerifier.verify(
+            "id-token", "server-nonce", Set.of("admin-kakao-javascript-app-key")))
         .thenReturn(claims);
-    AdminKakaoOidcService oidcService = new AdminKakaoOidcService(kakaoIdTokenVerifier, properties);
+    AdminKakaoOidcService oidcService =
+        new AdminKakaoOidcService(kakaoTokenClient, kakaoIdTokenVerifier, properties);
 
-    assertThat(oidcService.verify("id-token", "server-nonce")).isSameAs(claims);
+    assertThat(oidcService.exchangeAndVerify("authorization-code", "server-nonce"))
+        .isSameAs(claims);
   }
 
   private AdminAccount account(AdminStatus status) {

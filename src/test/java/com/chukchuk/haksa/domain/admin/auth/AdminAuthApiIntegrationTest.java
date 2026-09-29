@@ -2,10 +2,12 @@ package com.chukchuk.haksa.domain.admin.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,7 +62,7 @@ class AdminAuthApiIntegrationTest {
             AdminRole.CS_AGENT,
             AdminStatus.ACTIVE,
             "bootstrap"));
-    when(oidcService.verify(anyString(), anyString()))
+    when(oidcService.exchangeAndVerify(anyString(), anyString()))
         .thenReturn(Jwts.claims().setSubject("kakao-cs-1"));
 
     Challenge challenge = issueChallenge();
@@ -68,12 +70,10 @@ class AdminAuthApiIntegrationTest {
         mockMvc
             .perform(
                 post("/api/admin/auth/signin")
-                    .cookie(challenge.csrfCookie())
+                    .cookie(challenge.csrfCookie(), challenge.loginCookie())
                     .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        "{\"challengeId\":\"%s\",\"idToken\":\"id-token\"}"
-                            .formatted(challenge.challengeId())))
+                    .content(signInBody(challenge, challenge.state())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.adminRole").value("CS_AGENT"))
             .andExpect(jsonPath("$.data.role").doesNotExist())
@@ -99,31 +99,27 @@ class AdminAuthApiIntegrationTest {
 
   @Test
   void unregisteredAndInactiveAccountsAreDeniedWithoutAccountDisclosure() throws Exception {
-    when(oidcService.verify(anyString(), anyString()))
+    when(oidcService.exchangeAndVerify(anyString(), anyString()))
         .thenReturn(Jwts.claims().setSubject("not-registered"));
     Challenge challenge = issueChallenge();
 
     mockMvc
         .perform(
             post("/api/admin/auth/signin")
-                .cookie(challenge.csrfCookie())
+                .cookie(challenge.csrfCookie(), challenge.loginCookie())
                 .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"challengeId\":\"%s\",\"idToken\":\"id-token\"}"
-                        .formatted(challenge.challengeId())))
+                .content(signInBody(challenge, challenge.state())))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.code").value("A09"));
 
     mockMvc
         .perform(
             post("/api/admin/auth/signin")
-                .cookie(challenge.csrfCookie())
+                .cookie(challenge.csrfCookie(), challenge.loginCookie())
                 .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"challengeId\":\"%s\",\"idToken\":\"id-token\"}"
-                        .formatted(challenge.challengeId())))
+                .content(signInBody(challenge, challenge.state())))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("A10"));
 
@@ -135,18 +131,16 @@ class AdminAuthApiIntegrationTest {
             AdminRole.ADMIN,
             AdminStatus.INACTIVE,
             "bootstrap"));
-    when(oidcService.verify(anyString(), anyString()))
+    when(oidcService.exchangeAndVerify(anyString(), anyString()))
         .thenReturn(Jwts.claims().setSubject("inactive-admin"));
     Challenge inactiveChallenge = issueChallenge();
     mockMvc
         .perform(
             post("/api/admin/auth/signin")
-                .cookie(inactiveChallenge.csrfCookie())
+                .cookie(inactiveChallenge.csrfCookie(), inactiveChallenge.loginCookie())
                 .header("X-XSRF-TOKEN", inactiveChallenge.csrfCookie().getValue())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    "{\"challengeId\":\"%s\",\"idToken\":\"id-token\"}"
-                        .formatted(inactiveChallenge.challengeId())))
+                .content(signInBody(inactiveChallenge, inactiveChallenge.state())))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.error.code").value("A09"));
   }
@@ -160,14 +154,97 @@ class AdminAuthApiIntegrationTest {
   }
 
   @Test
-  void openApiPublishesAdminAuthenticationContract() throws Exception {
+  void stateMustMatchBeforeAuthorizationCodeIsExchanged() throws Exception {
+    accountRepository.save(
+        new AdminAccount(
+            UUID.randomUUID(),
+            "state-admin",
+            "상태 검증 관리자",
+            AdminRole.ADMIN,
+            AdminStatus.ACTIVE,
+            "bootstrap"));
+    when(oidcService.exchangeAndVerify(anyString(), anyString()))
+        .thenReturn(Jwts.claims().setSubject("state-admin"));
+    Challenge challenge = issueChallenge();
+
     mockMvc
-        .perform(get("/v3/api-docs"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.paths['/api/admin/auth/challenge'].get").exists())
-        .andExpect(jsonPath("$.paths['/api/admin/auth/signin'].post").exists())
-        .andExpect(jsonPath("$.paths['/api/admin/auth/me'].get").exists())
-        .andExpect(jsonPath("$.paths['/api/admin/auth/signout'].post").exists());
+        .perform(
+            post("/api/admin/auth/signin")
+                .cookie(challenge.csrfCookie(), challenge.loginCookie())
+                .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(signInBody(challenge, "wrong-state")))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("A10"));
+    verifyNoInteractions(oidcService);
+
+    mockMvc
+        .perform(
+            post("/api/admin/auth/signin")
+                .cookie(challenge.csrfCookie(), challenge.loginCookie())
+                .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(signInBody(challenge, challenge.state())))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void challengeIsBoundToLoginStartBrowserCookie() throws Exception {
+    accountRepository.save(
+        new AdminAccount(
+            UUID.randomUUID(),
+            "browser-bound-admin",
+            "브라우저 결합 관리자",
+            AdminRole.ADMIN,
+            AdminStatus.ACTIVE,
+            "bootstrap"));
+    when(oidcService.exchangeAndVerify(anyString(), anyString()))
+        .thenReturn(Jwts.claims().setSubject("browser-bound-admin"));
+    Challenge challenge = issueChallenge();
+    Cookie otherBrowser = new Cookie("cchaksa_admin_login", "different-browser-token");
+
+    mockMvc
+        .perform(
+            post("/api/admin/auth/signin")
+                .cookie(challenge.csrfCookie(), otherBrowser)
+                .header("X-XSRF-TOKEN", challenge.csrfCookie().getValue())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(signInBody(challenge, challenge.state())))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("A10"));
+    verifyNoInteractions(oidcService);
+  }
+
+  @Test
+  void openApiPublishesAdminAuthenticationContract() throws Exception {
+    MvcResult result =
+        mockMvc
+            .perform(get("/v3/api-docs"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.paths['/api/admin/auth/challenge'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/admin/auth/signin'].post").exists())
+            .andExpect(jsonPath("$.paths['/api/admin/auth/me'].get").exists())
+            .andExpect(jsonPath("$.paths['/api/admin/auth/signout'].post").exists())
+            .andReturn();
+    JsonNode schemas =
+        objectMapper
+            .readTree(result.getResponse().getContentAsString())
+            .path("components")
+            .path("schemas");
+    JsonNode challenge = schemas.path("AdminAuthChallengeResponse").path("properties");
+    assertThat(challenge.has("challengeId")).isTrue();
+    assertThat(challenge.has("nonce")).isTrue();
+    assertThat(challenge.has("state")).isTrue();
+    assertThat(challenge.has("javascriptAppKey")).isTrue();
+    assertThat(challenge.has("redirectUri")).isTrue();
+    assertThat(challenge.has("restApiKey")).isFalse();
+    assertThat(challenge.has("clientSecret")).isFalse();
+    JsonNode signIn = schemas.path("AdminAuthSignInRequest").path("properties");
+    assertThat(signIn.has("challengeId")).isTrue();
+    assertThat(signIn.has("authorizationCode")).isTrue();
+    assertThat(signIn.has("state")).isTrue();
+    assertThat(signIn.has("idToken")).isFalse();
+    assertThat(signIn.has("redirectUri")).isFalse();
   }
 
   private Challenge issueChallenge() throws Exception {
@@ -175,13 +252,36 @@ class AdminAuthApiIntegrationTest {
         mockMvc
             .perform(get("/api/admin/auth/challenge"))
             .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
             .andExpect(jsonPath("$.data.nonce").isNotEmpty())
+            .andExpect(jsonPath("$.data.state").isNotEmpty())
+            .andExpect(jsonPath("$.data.javascriptAppKey").value("test-admin-javascript-app-key"))
+            .andExpect(jsonPath("$.data.redirectUri").value("http://localhost/login/callback"))
             .andReturn();
-    JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
     Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
+    Cookie loginCookie = result.getResponse().getCookie("cchaksa_admin_login");
     assertThat(csrfCookie.getPath()).isEqualTo("/");
-    return new Challenge(UUID.fromString(body.at("/data/challengeId").asText()), csrfCookie);
+    assertThat(loginCookie.isHttpOnly()).isTrue();
+    assertThat(loginCookie.getPath()).isEqualTo("/api/admin/auth");
+    JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+    return new Challenge(
+        UUID.fromString(body.at("/data/challengeId").asText()),
+        body.at("/data/state").asText(),
+        csrfCookie,
+        loginCookie);
   }
 
-  private record Challenge(UUID challengeId, Cookie csrfCookie) {}
+  private String signInBody(Challenge challenge, String state) {
+    final String body =
+        """
+        {
+          "challengeId": "%s",
+          "authorizationCode": "authorization-code",
+          "state": "%s"
+        }
+        """;
+    return body.formatted(challenge.challengeId(), state);
+  }
+
+  private record Challenge(UUID challengeId, String state, Cookie csrfCookie, Cookie loginCookie) {}
 }
