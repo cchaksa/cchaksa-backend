@@ -34,6 +34,7 @@ class AdminKakaoTokenClientTests {
   @BeforeEach
   void setUp() {
     properties = new AdminAuthProperties();
+    properties.getKakao().setJavascriptAppKey("javascript-app-key");
     properties.getKakao().setRestApiKey("rest-api-key");
     properties.getKakao().setClientSecret("client-secret");
     properties.getKakao().setRedirectUri("https://admin.cchaksa.com/login/callback");

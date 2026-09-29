@@ -41,6 +41,18 @@ Host, Origin, CORS는 권한 판단에 사용하지 않는다. CORS는 브라우
 
 V16은 신규 테이블만 추가하므로 이전 Lambda와 호환된다. 아직 배포되지 않은 V16 challenge 테이블에 state를 포함한다. 기본 수명은 challenge 5분, idle 30분, absolute 8시간이며 환경 변수로 조정한다. authorization code, client secret, 세션·nonce·state·ID Token 원문과 socialId는 로그나 Sentry tag에 남기지 않는다.
 
+dev Lambda 배포는 GitHub Environment `dev`에서 다음 값을 주입한다. 공개 가능한 JavaScript key와 redirect URI는 Actions variable로, REST API key와 client secret은 Actions secret으로 관리한다. 실제 값은 저장소, Actions summary와 배포 metadata에 기록하지 않는다.
+
+- variable `DEV_ADMIN_KAKAO_JAVASCRIPT_APP_KEY` -> Lambda `ADMIN_KAKAO_JAVASCRIPT_APP_KEY`.
+- secret `DEV_ADMIN_KAKAO_REST_API_KEY` -> Lambda `ADMIN_KAKAO_REST_API_KEY`.
+- secret `DEV_ADMIN_KAKAO_CLIENT_SECRET` -> Lambda `ADMIN_KAKAO_CLIENT_SECRET`.
+- variable `DEV_ADMIN_KAKAO_REDIRECT_URI` -> Lambda `ADMIN_KAKAO_REDIRECT_URI`.
+- Lambda `ADMIN_AUTH_COOKIE_SECURE`는 dev 배포 workflow가 `true`로 고정한다.
+
+dev redirect URI는 관리자 웹의 HTTPS origin과 `/login/callback` 경로를 사용한다. 관리자 웹 도메인은 이 저장소에서 확정하지 않으며 `DEV_ADMIN_KAKAO_REDIRECT_URI` 입력과 Kakao Developers 등록값을 동일하게 설정해야 한다. 배포 workflow는 값 누락과 HTTPS `/login/callback` 형식 불일치를 Lambda 변경 전에 거부한다. Lambda 환경 변수 갱신은 기존 DB, JWT와 운영 설정을 보존하도록 현재 변수 map에 관리자 항목만 병합한다.
+
+애플리케이션은 JavaScript key, REST API key 또는 redirect URI가 비어 있으면 challenge를 저장하거나 빈 공개 설정을 응답하지 않고 일반화된 500 서버 오류로 실패한다. client secret은 Kakao 앱에서 client secret 기능을 사용하지 않는 구성을 지원하기 위해 애플리케이션 수준에서는 선택값이지만, 이번 dev 배포 workflow에서는 관리자 앱 운영 설정을 명시적으로 완성하도록 필수 secret으로 검증한다.
+
 ## 오류 계약
 
 - body validation 실패: 400 `C01`.

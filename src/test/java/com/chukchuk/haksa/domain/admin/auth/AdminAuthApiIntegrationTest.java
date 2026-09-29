@@ -17,6 +17,7 @@ import com.chukchuk.haksa.domain.admin.auth.model.AdminStatus;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminAccountRepository;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminLoginChallengeRepository;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminSessionRepository;
+import com.chukchuk.haksa.domain.admin.auth.service.AdminAuthProperties;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminKakaoOidcService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,6 +44,7 @@ class AdminAuthApiIntegrationTest {
   @Autowired private AdminAccountRepository accountRepository;
   @Autowired private AdminLoginChallengeRepository challengeRepository;
   @Autowired private AdminSessionRepository sessionRepository;
+  @Autowired private AdminAuthProperties authProperties;
   @MockBean private AdminKakaoOidcService oidcService;
 
   @BeforeEach
@@ -213,6 +215,23 @@ class AdminAuthApiIntegrationTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.error.code").value("A10"));
     verifyNoInteractions(oidcService);
+  }
+
+  @Test
+  void missingKakaoConfigurationFailsBeforeChallengeIsCreated() throws Exception {
+    String javascriptAppKey = authProperties.getKakao().getJavascriptAppKey();
+    authProperties.getKakao().setJavascriptAppKey(" ");
+
+    try {
+      mockMvc
+          .perform(get("/api/admin/auth/challenge"))
+          .andExpect(status().isInternalServerError())
+          .andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"))
+          .andExpect(jsonPath("$.data").doesNotExist());
+      assertThat(challengeRepository.count()).isZero();
+    } finally {
+      authProperties.getKakao().setJavascriptAppKey(javascriptAppKey);
+    }
   }
 
   @Test

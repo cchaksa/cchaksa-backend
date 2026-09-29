@@ -23,6 +23,7 @@ public class AdminKakaoOidcService {
    */
   public Claims exchangeAndVerify(String authorizationCode, String nonce) {
     String idToken = tokenClient.exchange(authorizationCode);
-    return verifier.verify(idToken, nonce, Set.of(properties.getKakao().getJavascriptAppKey()));
+    AdminAuthProperties.Kakao kakao = properties.requireKakaoLoginConfiguration();
+    return verifier.verify(idToken, nonce, Set.of(kakao.getJavascriptAppKey()));
   }
 }

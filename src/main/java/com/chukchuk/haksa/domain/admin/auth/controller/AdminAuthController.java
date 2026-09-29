@@ -56,6 +56,7 @@ public class AdminAuthController {
   @GetMapping("/challenge")
   public ResponseEntity<SuccessResponse<AdminAuthDto.ChallengeResponse>> challenge(
       CsrfToken csrfToken) {
+    AdminAuthProperties.Kakao kakao = properties.requireKakaoLoginConfiguration();
     csrfToken.getToken();
     AdminChallengeService.IssuedChallenge issued = challengeService.issue();
     AdminLoginChallenge challenge = issued.challenge();
@@ -64,8 +65,8 @@ public class AdminAuthController {
             challenge.getId(),
             challenge.getNonce(),
             challenge.getState(),
-            properties.getKakao().getJavascriptAppKey(),
-            properties.getKakao().getRedirectUri());
+            kakao.getJavascriptAppKey(),
+            kakao.getRedirectUri());
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
         .header(HttpHeaders.SET_COOKIE, loginCookie(issued.browserToken()).toString())

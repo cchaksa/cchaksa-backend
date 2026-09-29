@@ -43,14 +43,11 @@ public class AdminKakaoTokenClient {
    *
    * @param authorizationCode Kakao가 redirect URI에 전달한 일회성 code
    * @return Kakao OIDC ID token
-   * @throws CommonException 설정이 없거나 Kakao token 교환에 실패한 경우
+   * @throws IllegalStateException 필수 설정이 없는 경우
+   * @throws CommonException Kakao token 교환에 실패한 경우
    */
   public String exchange(String authorizationCode) {
-    AdminAuthProperties.Kakao kakao = properties.getKakao();
-    if (!StringUtils.hasText(kakao.getRestApiKey())
-        || !StringUtils.hasText(kakao.getRedirectUri())) {
-      throw new CommonException(ErrorCode.ADMIN_KAKAO_AUTH_FAILED);
-    }
+    AdminAuthProperties.Kakao kakao = properties.requireKakaoLoginConfiguration();
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);

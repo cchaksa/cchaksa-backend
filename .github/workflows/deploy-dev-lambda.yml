@@ -14,11 +14,16 @@ jobs:
   deploy:
     needs: migrate
     runs-on: ubuntu-latest
+    environment: dev
     env:
       AWS_REGION: ${{ vars.DEV_AWS_REGION }}
       LAMBDA_FUNCTION_NAME: ${{ vars.DEV_LAMBDA_FUNCTION_NAME }}
       LAMBDA_ALIAS: ${{ vars.DEV_LAMBDA_ALIAS }}
       LAMBDA_ARTIFACT_BUCKET: ${{ vars.DEV_LAMBDA_ARTIFACT_BUCKET }}
+      ADMIN_KAKAO_JAVASCRIPT_APP_KEY: ${{ vars.DEV_ADMIN_KAKAO_JAVASCRIPT_APP_KEY }}
+      ADMIN_KAKAO_REST_API_KEY: ${{ secrets.DEV_ADMIN_KAKAO_REST_API_KEY }}
+      ADMIN_KAKAO_CLIENT_SECRET: ${{ secrets.DEV_ADMIN_KAKAO_CLIENT_SECRET }}
+      ADMIN_KAKAO_REDIRECT_URI: ${{ vars.DEV_ADMIN_KAKAO_REDIRECT_URI }}
 
     steps:
       - name: Checkout source branch
@@ -57,6 +62,108 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate admin Kakao configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            ADMIN_KAKAO_JAVASCRIPT_APP_KEY
+            ADMIN_KAKAO_REST_API_KEY
+            ADMIN_KAKAO_CLIENT_SECRET
+            ADMIN_KAKAO_REDIRECT_URI
+          )
+          for name in "${required[@]}"; do
+            value="${!name:-}"
+            if [ -z "${value//[[:space:]]/}" ]; then
+              echo "Missing required dev setting: ${name}" >&2
+              exit 1
+            fi
+          done
+
+          python3 - <<'PY'
+          import ipaddress
+          import os
+          import re
+          from urllib.parse import urlsplit
+
+          redirect_uri = urlsplit(os.environ["ADMIN_KAKAO_REDIRECT_URI"])
+          hostname = redirect_uri.hostname
+
+          def valid_hostname(value):
+              if value is None:
+                  return False
+              try:
+                  ipaddress.ip_address(value)
+                  return True
+              except ValueError:
+                  labels = value.split(".")
+                  label_pattern = re.compile(
+                      r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+                  )
+                  return len(value) <= 253 and all(
+                      label_pattern.fullmatch(label) for label in labels
+                  )
+
+          try:
+              redirect_uri.port
+          except ValueError:
+              raise SystemExit(
+                  "DEV_ADMIN_KAKAO_REDIRECT_URI must contain a valid HTTPS port."
+              )
+
+          valid = (
+              redirect_uri.scheme == "https"
+              and valid_hostname(hostname)
+              and redirect_uri.username is None
+              and redirect_uri.password is None
+              and redirect_uri.path == "/login/callback"
+              and not redirect_uri.query
+              and not redirect_uri.fragment
+          )
+          if not valid:
+              raise SystemExit(
+                  "DEV_ADMIN_KAKAO_REDIRECT_URI must be an HTTPS origin with /login/callback."
+              )
+          PY
+
+      - name: Update admin authentication environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          environment_file="${RUNNER_TEMP}/lambda-environment.json"
+          current_variables="${RUNNER_TEMP}/lambda-current-variables.json"
+          updated_variables="${RUNNER_TEMP}/lambda-updated-variables.json"
+          trap 'rm -f "${environment_file}" "${current_variables}" "${updated_variables}"' EXIT
+
+          aws lambda get-function-configuration \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --query 'Environment.Variables' \
+            --output json > "${current_variables}"
+
+          jq \
+            --arg javascriptAppKey "${ADMIN_KAKAO_JAVASCRIPT_APP_KEY}" \
+            --arg restApiKey "${ADMIN_KAKAO_REST_API_KEY}" \
+            --arg clientSecret "${ADMIN_KAKAO_CLIENT_SECRET}" \
+            --arg redirectUri "${ADMIN_KAKAO_REDIRECT_URI}" \
+            '(. // {}) + {
+              ADMIN_KAKAO_JAVASCRIPT_APP_KEY: $javascriptAppKey,
+              ADMIN_KAKAO_REST_API_KEY: $restApiKey,
+              ADMIN_KAKAO_CLIENT_SECRET: $clientSecret,
+              ADMIN_KAKAO_REDIRECT_URI: $redirectUri,
+              ADMIN_AUTH_COOKIE_SECURE: "true"
+            }' \
+            "${current_variables}" > "${updated_variables}"
+          jq -n --slurpfile variables "${updated_variables}" \
+            '{Variables: $variables[0]}' > "${environment_file}"
+
+          aws lambda update-function-configuration \
+            --function-name "${LAMBDA_FUNCTION_NAME}" \
+            --environment "file://${environment_file}" \
+            > /dev/null
+          aws lambda wait function-updated \
+            --function-name "${LAMBDA_FUNCTION_NAME}"
 
       - name: Upload artifact to S3
         run: |

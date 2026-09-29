@@ -118,6 +118,8 @@ class AdminSessionServiceUnitTests {
   @Test
   void adminKakaoCodeExchangeUsesOnlyAdminJavascriptAppAudience() {
     properties.getKakao().setJavascriptAppKey("admin-kakao-javascript-app-key");
+    properties.getKakao().setRestApiKey("admin-kakao-rest-api-key");
+    properties.getKakao().setRedirectUri("https://admin.example.com/login/callback");
     Claims claims = Jwts.claims().setSubject("admin-subject");
     when(kakaoTokenClient.exchange("authorization-code")).thenReturn("id-token");
     when(kakaoIdTokenVerifier.verify(
