@@ -7,6 +7,9 @@ import com.chukchuk.haksa.domain.admin.report.service.AdminReportService;
 import com.chukchuk.haksa.domain.report.model.ReportStatus;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -41,6 +44,7 @@ public class AdminReportController {
    * @return 문의 요약 페이지
    */
   @Operation(summary = "관리자 문의 목록 조회")
+  @SecurityRequirement(name = "adminSession")
   @GetMapping
   public SuccessResponse<AdminReportDto.PageResponse> getReports(
       @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -58,6 +62,7 @@ public class AdminReportController {
    * @return 문의 상세
    */
   @Operation(summary = "관리자 문의 상세 조회")
+  @SecurityRequirement(name = "adminSession")
   @GetMapping("/{reportId}")
   public SuccessResponse<AdminReportDto.DetailResponse> getDetail(@PathVariable UUID reportId) {
     return SuccessResponse.of(adminReportService.getDetail(reportId));
@@ -72,6 +77,12 @@ public class AdminReportController {
    * @return 저장된 답변 감사 정보
    */
   @Operation(summary = "관리자 문의 최초 답변 등록")
+  @SecurityRequirement(name = "adminSession")
+  @Parameter(
+      name = "X-XSRF-TOKEN",
+      in = ParameterIn.HEADER,
+      required = true,
+      description = "관리자 CSRF 쿠키 값")
   @PostMapping("/{reportId}/answer")
   public SuccessResponse<AdminReportDto.AnswerResponse> answer(
       @PathVariable UUID reportId,

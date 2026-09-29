@@ -70,7 +70,10 @@ class OpenApiResponseContractTest {
   private static final List<OperationRef> ADMIN_PROTECTED_OPERATIONS =
       List.of(
           new OperationRef("/api/admin/auth/me", "get"),
-          new OperationRef("/api/admin/auth/signout", "post"));
+          new OperationRef("/api/admin/auth/signout", "post"),
+          new OperationRef("/api/admin/reports", "get"),
+          new OperationRef("/api/admin/reports/{reportId}", "get"),
+          new OperationRef("/api/admin/reports/{reportId}/answer", "post"));
 
   @Test
   void reportApiResponsesUseDedicatedWrappers() throws Exception {
@@ -157,6 +160,7 @@ class OpenApiResponseContractTest {
     assertThat(adminSession.path("name").asText()).isEqualTo("cchaksa_admin_session");
     assertRequiredHeader(apiDocs, "/api/admin/auth/signin", "post", "X-XSRF-TOKEN");
     assertRequiredHeader(apiDocs, "/api/admin/auth/signout", "post", "X-XSRF-TOKEN");
+    assertRequiredHeader(apiDocs, "/api/admin/reports/{reportId}/answer", "post", "X-XSRF-TOKEN");
   }
 
   @Test
