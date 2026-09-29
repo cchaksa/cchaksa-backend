@@ -9,14 +9,16 @@
 ## 2. API와 보안
 
 - Controller 기본 경로와 하위 경로를 `design.md` 계약대로 `/api/test/**`로 변경한다.
-- `SecurityConfig.PUBLIC_ENDPOINTS`에서 `/api/admin/**` 테스트 matcher를 제거하고 공개 `/api/test/**` matcher를 추가한다.
-- `/api/test/me/**`는 공개 목록에 넣지 않아 JWT 인증을 유지한다.
+- `SecurityConfig.PUBLIC_ENDPOINTS`에서 `/api/admin/**` 테스트 matcher를 제거하고 전역 공개 목록에는 `/api/test/**`를 추가하지 않는다.
+- dev/test 전용 보안 체인에서 공개 테스트 경로와 USER JWT가 필요한 `/api/test/me/**`를 분리한다.
+- prod 전용 보안 체인에서 핸들러가 없는 `/api/test/**` 요청을 Spring MVC 404로 전달한다.
 
 ## 3. 호출부와 계약 테스트
 
 - `AdminTestControllerApiIntegrationTest`, `AdminTransferDataHttpIntegrationTest`, `JwtAuthenticationFilterTests`의 URL을 갱신한다.
 - `OpenApiResponseContractTest`의 public/protected operation 경로를 변경한다.
 - prod 프로파일 테스트를 Controller와 네 Service 빈 부재 검증으로 확장한다.
+- prod 프로파일에서 `/api/test/**`가 404인지 HTTP 수준으로 검증한다.
 - 과거 기록인 `docs/specs/**`는 수정하지 않는다.
 
 ## 4. 검증과 커밋

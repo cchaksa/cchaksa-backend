@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.chukchuk.haksa.domain.student.controller.StudentController;
 import com.chukchuk.haksa.domain.student.service.StudentService;
+import com.chukchuk.haksa.domain.testsupport.config.TestSupportSecurityConfig;
 import com.chukchuk.haksa.domain.user.controller.UserController;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.service.UserService;
@@ -54,6 +55,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @AutoConfigureMockMvc(addFilters = true)
 @Import({
   SecurityConfig.class,
+  TestSupportSecurityConfig.class,
   JwtAuthenticationFilter.class,
   CustomAuthenticationEntryPoint.class,
   CustomAccessDeniedHandler.class,

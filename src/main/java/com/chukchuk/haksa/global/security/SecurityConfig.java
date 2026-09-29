@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -41,6 +42,7 @@ public class SecurityConfig {
    * @throws Exception Spring Security 필터 체인을 구성할 수 없는 경우
    */
   @Bean
+  @Order(3)
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
     return http.cors(cors -> cors.configurationSource(corsConfigurationSource))
@@ -75,11 +77,6 @@ public class SecurityConfig {
     "/api/users/signin",
     "/api/users/signin/**",
     "/api/auth/refresh",
-    "/api/test/users",
-    "/api/test/options",
-    "/api/test/departments",
-    "/api/test/course-offerings",
-    "/api/test/lecture-evaluations/**",
     "/internal/scrape-results",
     "/actuator/prometheus",
     "/actuator/health",

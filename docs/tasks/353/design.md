@@ -29,9 +29,9 @@ Controller 기본 경로를 `/api/test`로 바꾸고 기존 하위 경로는 유
 | `/api/admin/me/**` | `/api/test/me/**` | USER Bearer JWT, dev/test 전용. |
 | `/api/admin/test-lecture-evaluations/**` | `/api/test/lecture-evaluations/**` | 공개, dev/test 전용. |
 
-`SecurityConfig`에서는 기존 `/api/admin/...` 공개 matcher를 모두 제거한다. `/api/test/users`, `/api/test/options`, `/api/test/departments`, `/api/test/course-offerings`, `/api/test/lecture-evaluations/**`만 공개한다. `/api/test/me/**`는 기존 JWT 인증을 유지한다.
+전역 `SecurityConfig`에서는 기존 `/api/admin/...` 공개 matcher를 모두 제거하고 테스트 경로도 등록하지 않는다. `dev`, `test` 프로파일에서만 활성화되는 테스트 지원 전용 보안 체인이 `/api/test/users`, `/api/test/options`, `/api/test/departments`, `/api/test/course-offerings`, `/api/test/lecture-evaluations/**`를 공개한다. `/api/test/me/**`는 같은 체인에서 기존 USER JWT 인증을 유지한다.
 
-운영 프로파일에서는 Controller가 없으므로 `/api/test/**` MVC 경로가 존재하지 않는다. 공개 matcher는 존재하지 않는 경로가 Spring MVC의 404로 끝나도록 허용하지만, 실제 처리 빈이나 데이터 조작 기능을 노출하지 않는다.
+운영 프로파일에서는 Controller가 없으므로 `/api/test/**` MVC 경로가 존재하지 않는다. prod 전용 보안 체인은 이 경로를 인증 응답으로 가로채지 않고 핸들러가 없는 Spring MVC 요청으로 전달해 404를 반환한다. 전역 공개 matcher와 실제 처리 빈에는 테스트 경로가 남지 않는다.
 
 ## Springdoc
 
@@ -52,7 +52,7 @@ Controller 기본 경로를 `/api/test`로 바꾸고 기존 하위 경로는 유
 
 - 변경된 모든 HTTP 통합 테스트를 `/api/test/**`로 실행한다.
 - prod 프로파일 ApplicationContext에 TestDataController와 네 Service가 없는지 확인한다.
+- prod 프로파일 HTTP 요청에서 `/api/test/**`가 404인지 확인한다.
 - Security 필터 테스트에서 공개 경로와 `/api/test/me/**` 보호를 검증한다.
 - OpenAPI 계약에서 새 경로와 보안 요구를 검증한다.
 - 적용 후 문제가 있으면 migration이나 데이터 변경이 없으므로 코드 revert로 복구할 수 있다.
-
