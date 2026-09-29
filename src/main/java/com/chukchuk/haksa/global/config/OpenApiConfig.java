@@ -2,6 +2,7 @@ package com.chukchuk.haksa.global.config;
 
 import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.security.SecuritySchemes;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.info.Info;
@@ -19,12 +20,20 @@ import org.springframework.context.annotation.Configuration;
 
 /** API 서버 정보, JWT 보안 스키마 및 공통 응답 계약을 OpenAPI 문서에 구성한다. */
 @Configuration
-@SecurityScheme(
-    name = "bearerAuth",
-    type = SecuritySchemeType.HTTP,
-    scheme = "bearer",
-    bearerFormat = "JWT",
-    description = "JWT 인증 토큰을 입력하세요")
+@SecuritySchemes({
+  @SecurityScheme(
+      name = "bearerAuth",
+      type = SecuritySchemeType.HTTP,
+      scheme = "bearer",
+      bearerFormat = "JWT",
+      description = "JWT 인증 토큰을 입력하세요"),
+  @SecurityScheme(
+      name = "adminSession",
+      type = SecuritySchemeType.APIKEY,
+      in = io.swagger.v3.oas.annotations.enums.SecuritySchemeIn.COOKIE,
+      paramName = "cchaksa_admin_session",
+      description = "관리자 로그인에서 발급한 HttpOnly 세션 쿠키")
+})
 public class OpenApiConfig {
 
   @Value("${swagger.server-url}")
@@ -104,7 +113,7 @@ public class OpenApiConfig {
   }
 
   private void documentAuthenticationFailure(Operation operation) {
-    if (!requiresBearerAuth(operation)) {
+    if (!requiresAuthentication(operation)) {
       return;
     }
 
@@ -120,10 +129,13 @@ public class OpenApiConfig {
             .content(jsonContent("ErrorResponseWrapper")));
   }
 
-  private boolean requiresBearerAuth(Operation operation) {
+  private boolean requiresAuthentication(Operation operation) {
     return operation.getSecurity() != null
         && operation.getSecurity().stream()
-            .anyMatch(requirement -> requirement.containsKey("bearerAuth"));
+            .anyMatch(
+                requirement ->
+                    requirement.containsKey("bearerAuth")
+                        || requirement.containsKey("adminSession"));
   }
 
   private Content jsonContent(String schemaName) {

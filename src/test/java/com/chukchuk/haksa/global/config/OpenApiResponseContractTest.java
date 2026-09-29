@@ -30,6 +30,8 @@ class OpenApiResponseContractTest {
           new OperationRef("/sentry-test", "get"),
           new OperationRef("/api/users/signin", "post"),
           new OperationRef("/api/auth/refresh", "post"),
+          new OperationRef("/api/admin/auth/challenge", "get"),
+          new OperationRef("/api/admin/auth/signin", "post"),
           new OperationRef("/api/test/options", "get"),
           new OperationRef("/api/test/departments", "get"),
           new OperationRef("/api/test/course-offerings", "get"),
@@ -64,6 +66,11 @@ class OpenApiResponseContractTest {
           new OperationRef("/api/reports", "post"),
           new OperationRef("/api/reports", "get"),
           new OperationRef("/api/reports/{reportId}", "get"));
+
+  private static final List<OperationRef> ADMIN_PROTECTED_OPERATIONS =
+      List.of(
+          new OperationRef("/api/admin/auth/me", "get"),
+          new OperationRef("/api/admin/auth/signout", "post"));
 
   @Test
   void reportApiResponsesUseDedicatedWrappers() throws Exception {
@@ -115,6 +122,14 @@ class OpenApiResponseContractTest {
           .isTrue();
       assertThat(security.toString()).contains("bearerAuth");
     }
+
+    for (OperationRef operation : ADMIN_PROTECTED_OPERATIONS) {
+      JsonNode security = operation(apiDocs, operation).path("security");
+      assertThat(security.isArray())
+          .as("%s %s security", operation.method(), operation.path())
+          .isTrue();
+      assertThat(security.toString()).contains("adminSession").doesNotContain("bearerAuth");
+    }
   }
 
   @Test
@@ -125,6 +140,23 @@ class OpenApiResponseContractTest {
       assertJsonResponseRef(
           apiDocs, operation.path(), operation.method(), "401", "ErrorResponseWrapper");
     }
+
+    for (OperationRef operation : ADMIN_PROTECTED_OPERATIONS) {
+      assertJsonResponseRef(
+          apiDocs, operation.path(), operation.method(), "401", "ErrorResponseWrapper");
+    }
+  }
+
+  @Test
+  void adminAuthenticationDocumentsCookieSessionAndCsrfHeader() throws Exception {
+    JsonNode apiDocs = apiDocs();
+    JsonNode adminSession = apiDocs.path("components").path("securitySchemes").path("adminSession");
+
+    assertThat(adminSession.path("type").asText()).isEqualTo("apiKey");
+    assertThat(adminSession.path("in").asText()).isEqualTo("cookie");
+    assertThat(adminSession.path("name").asText()).isEqualTo("cchaksa_admin_session");
+    assertRequiredHeader(apiDocs, "/api/admin/auth/signin", "post", "X-XSRF-TOKEN");
+    assertRequiredHeader(apiDocs, "/api/admin/auth/signout", "post", "X-XSRF-TOKEN");
   }
 
   @Test
@@ -314,6 +346,19 @@ class OpenApiResponseContractTest {
     assertThat(response.path("content").has("text/plain")).isTrue();
     assertThat(response.path("content").path("text/plain").path("schema").path("type").asText())
         .isEqualTo("string");
+  }
+
+  private void assertRequiredHeader(
+      JsonNode apiDocs, String path, String method, String headerName) {
+    JsonNode parameters = apiDocs.path("paths").path(path).path(method).path("parameters");
+    assertThat(parameters.isArray()).isTrue();
+    assertThat(parameters)
+        .anySatisfy(
+            parameter -> {
+              assertThat(parameter.path("name").asText()).isEqualTo(headerName);
+              assertThat(parameter.path("in").asText()).isEqualTo("header");
+              assertThat(parameter.path("required").asBoolean()).isTrue();
+            });
   }
 
   private JsonNode responseSchema(

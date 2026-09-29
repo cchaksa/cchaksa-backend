@@ -10,6 +10,9 @@ import com.chukchuk.haksa.domain.admin.auth.service.AdminChallengeService;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminSessionService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -62,6 +65,11 @@ public class AdminAuthController {
    * @return 관리자 계정과 세션 쿠키
    */
   @Operation(summary = "카카오 ID Token으로 관리자 로그인")
+  @Parameter(
+      name = "X-XSRF-TOKEN",
+      in = ParameterIn.HEADER,
+      required = true,
+      description = "challenge 응답에서 발급된 CSRF 쿠키 값")
   @PostMapping("/signin")
   public ResponseEntity<SuccessResponse<AdminAuthDto.AdminResponse>> signIn(
       @Valid @RequestBody AdminAuthDto.SignInRequest request) {
@@ -84,6 +92,7 @@ public class AdminAuthController {
    * @return 관리자 계정 정보
    */
   @Operation(summary = "현재 관리자 계정 조회")
+  @SecurityRequirement(name = "adminSession")
   @GetMapping("/me")
   public SuccessResponse<AdminAuthDto.AdminResponse> me(
       @AuthenticationPrincipal AdminPrincipal principal) {
@@ -101,6 +110,12 @@ public class AdminAuthController {
    * @return 204 응답
    */
   @Operation(summary = "현재 관리자 세션 로그아웃")
+  @SecurityRequirement(name = "adminSession")
+  @Parameter(
+      name = "X-XSRF-TOKEN",
+      in = ParameterIn.HEADER,
+      required = true,
+      description = "관리자 CSRF 쿠키 값")
   @PostMapping("/signout")
   public ResponseEntity<Void> signOut(
       HttpServletRequest request, HttpServletResponse response, CsrfToken csrfToken) {
