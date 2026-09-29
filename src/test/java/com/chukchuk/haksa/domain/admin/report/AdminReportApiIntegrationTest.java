@@ -21,6 +21,9 @@ import com.chukchuk.haksa.domain.report.model.ReportSubmitterSnapshot;
 import com.chukchuk.haksa.domain.report.repository.ReportRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -35,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.ActiveProfiles;
@@ -52,6 +56,7 @@ class AdminReportApiIntegrationTest {
   @Autowired private ReportRepository reportRepository;
   @Autowired private AdminAccountRepository accountRepository;
   @Autowired private AdminReportService adminReportService;
+  @Autowired private JdbcTemplate jdbcTemplate;
 
   private AdminAccount firstAdmin;
   private AdminAccount secondAdmin;
@@ -126,6 +131,26 @@ class AdminReportApiIntegrationTest {
                 .param("query", "2020"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.items.length()").value(0));
+  }
+
+  @Test
+  void listUsesIdDescendingAsTieBreakerForSameCreatedAt() throws Exception {
+    Instant sameCreatedAt = Instant.parse("2026-09-29T00:00:00Z");
+    Report first = saveReport(UUID.randomUUID(), "첫 문의", "문의 본문", "20201234");
+    Report second = saveReport(UUID.randomUUID(), "둘째 문의", "문의 본문", "20205678");
+    jdbcTemplate.update(
+        "UPDATE reports SET created_at = ? WHERE id IN (?, ?)",
+        Timestamp.from(sameCreatedAt),
+        first.getId(),
+        second.getId());
+    List<UUID> expected =
+        List.of(first.getId(), second.getId()).stream()
+            .sorted(Comparator.comparing(UUID::toString).reversed())
+            .toList();
+
+    assertThat(adminReportService.getReports(0, 20, null, null, null).items())
+        .extracting(item -> item.reportId())
+        .containsExactlyElementsOf(expected);
   }
 
   @Test
@@ -218,6 +243,15 @@ class AdminReportApiIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.adminAccountId").value(firstAdmin.getId().toString()))
         .andExpect(jsonPath("$.data.status").value("ANSWERED"));
+
+    mockMvc
+        .perform(
+            get("/api/admin/reports/{reportId}", report.getId())
+                .with(authentication(authenticationOf(firstAdmin))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.answer.answer").value("답변 내용"))
+        .andExpect(jsonPath("$.data.answer.adminAccountId").value(firstAdmin.getId().toString()))
+        .andExpect(jsonPath("$.data.answer.adminDisplayName").value("첫 관리자"));
 
     mockMvc
         .perform(
