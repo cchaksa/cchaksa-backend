@@ -12,7 +12,7 @@ export function AdminShell() {
   const session = useAdminSession()
   const signOut = useAdminSignOut()
   const displayName = session.data?.displayName ?? '관리자'
-  const roleLabel = session.data?.role === 'ADMIN' ? 'Admin' : 'CS Agent'
+  const roleLabel = session.data?.adminRole === 'ADMIN' ? 'Admin' : 'CS Agent'
   const initials = displayName.slice(0, 2).toUpperCase()
 
   const handleSignOut = () => {

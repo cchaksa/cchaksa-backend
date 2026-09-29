@@ -1,5 +1,5 @@
 export {
-  configureAdminSignInPreparation,
+  configureKakaoIdTokenProvider,
 } from './api/adminSessionApi'
 export {
   useAdminSession,
@@ -8,6 +8,7 @@ export {
 } from './model/queries'
 export type {
   AdminSession,
-  AdminSignInPreparation,
-  AdminSignInPreparationProvider,
+  AdminChallenge,
+  KakaoIdTokenProvider,
+  KakaoIdTokenRequest,
 } from './model/types'

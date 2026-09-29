@@ -1,35 +1,40 @@
 import { requestJson, requestVoid } from '../../../shared/api/http'
 import { useMockApi } from '../../../shared/config/api'
 import type {
+  AdminChallenge,
   AdminSession,
-  AdminSignInPreparationProvider,
+  KakaoIdTokenProvider,
 } from '../model/types'
 
 const mockSession: AdminSession = {
   adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
   displayName: '김척척',
-  role: 'CS_AGENT',
+  adminRole: 'CS_AGENT',
 }
 
-let signInPreparationProvider: AdminSignInPreparationProvider | null = null
+let kakaoIdTokenProvider: KakaoIdTokenProvider | null = null
 
-export function configureAdminSignInPreparation(
-  provider: AdminSignInPreparationProvider,
-) {
-  signInPreparationProvider = provider
+export function configureKakaoIdTokenProvider(provider: KakaoIdTokenProvider) {
+  kakaoIdTokenProvider = provider
 }
 
 async function signIn() {
-  if (useMockApi) return
-  if (!signInPreparationProvider) {
-    throw new Error('관리자 로그인 준비 계약이 연결되지 않았습니다.')
+  if (useMockApi) return mockSession
+  if (!kakaoIdTokenProvider) {
+    throw new Error('카카오 ID token 공급자가 연결되지 않았습니다.')
   }
 
-  const preparation = await signInPreparationProvider()
-  await requestVoid('/api/admin/auth/signin', {
+  const challenge = await requestJson<AdminChallenge>(
+    '/api/admin/auth/challenge',
+    { cache: 'no-store' },
+  )
+  const idToken = await kakaoIdTokenProvider({ nonce: challenge.nonce })
+  return requestJson<AdminSession>('/api/admin/auth/signin', {
     method: 'POST',
-    body: JSON.stringify({ nonce: preparation.nonce }),
-    csrf: preparation.csrf,
+    body: JSON.stringify({
+      challengeId: challenge.challengeId,
+      idToken,
+    }),
   })
 }
 

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   configureCsrfTokenProvider,
+  createCookieCsrfTokenProvider,
   CsrfTokenUnavailableError,
+  requestJson,
   requestVoid,
 } from './http'
 
@@ -28,6 +30,36 @@ describe('admin HTTP CSRF handling', () => {
     const secondHeaders = new Headers(fetchMock.mock.calls[1][1]?.headers)
     expect(firstHeaders.get('X-CSRF-TOKEN')).toBe('first-token')
     expect(secondHeaders.get('X-CSRF-TOKEN')).toBe('rotated-token')
+  })
+
+  it('reads XSRF-TOKEN with the server header name', () => {
+    vi.stubGlobal('document', {
+      cookie: 'other=value; XSRF-TOKEN=encoded%20token',
+    })
+
+    expect(
+      createCookieCsrfTokenProvider('XSRF-TOKEN', 'X-XSRF-TOKEN')(),
+    ).toEqual({
+      name: 'X-XSRF-TOKEN',
+      value: 'encoded token',
+    })
+  })
+
+  it('unwraps the common success response data', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({
+          success: true,
+          data: { value: 'contract-data' },
+          message: '요청 성공',
+        }),
+      ),
+    )
+
+    await expect(
+      requestJson<{ value: string }>('/api/admin/auth/me'),
+    ).resolves.toEqual({ value: 'contract-data' })
   })
 
   it('blocks a state-changing request when no CSRF token is available', async () => {

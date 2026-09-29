@@ -4,39 +4,19 @@
 
 관리자와 CS 담당자가 별도 관리자 인증을 거쳐 문의를 조회하고, 미답변 문의에 한 번만 답변하는 React SPA를 구성한다.
 
-- 이 문서는 #351 프론트엔드 UI와 어댑터 계약을 다룬다.
-- 관리자 인증·인가는 #352, 테스트 데이터 API 경계는 #353, 문의 API는 #354, 검색 쿼리·인덱스 전략은 #355에서 구현한다.
-- 서버의 UUID 식별자와 `reports` 스키마를 정본으로 사용한다.
+- 이 문서는 #351 프론트엔드 UI와 #352·#354 공개 API의 프론트 어댑터 계약을 다룬다.
+- 서버의 `SuccessResponse<T>`, UUID 식별자와 `reports` 스키마를 정본으로 사용한다.
 - #351에서는 백엔드 코드, DB migration과 배포 설정을 변경하지 않는다.
 
 ## 정보 구조
 
 | 경로 | 화면 | 역할 |
 | --- | --- | --- |
-| `/login` | 관리자 로그인 | 관리자 POST 로그인 시작 |
+| `/login` | 관리자 로그인 | challenge와 카카오 ID token을 사용한 관리자 로그인 |
 | `/inquiries` | 문의 목록 | 상태 필터, 정확 일치 검색, 최신 문의 조회 |
 | `/inquiries/:reportId` | 문의 상세 | 문의 확인, 미답변 문의 답변, 완료 답변 조회 |
 
 로그인 뒤 기본 진입점은 `/inquiries`이며, 초기 사이드바에는 `문의`만 노출한다.
-
-## 화면 흐름
-
-1. 인증되지 않은 관리자는 `/login`에서 척척학사 로고와 카카오 로그인 버튼을 본다.
-2. 로그인 버튼은 링크 이동이 아니라 관리자 로그인 mutation을 시작한다.
-3. 별도 준비 단계에서 서버가 발급한 nonce와 CSRF 정보를 얻은 뒤 `POST /api/admin/auth/signin`을 호출한다.
-4. 인증 성공 뒤 `/inquiries`에서 서버가 `createdAt DESC`로 반환한 문의를 본다.
-5. 목록에서는 전체·답변 필요·답변 완료 상태 필터를 사용한다.
-6. 검색은 `USER_ID`의 UUID 또는 `STUDENT_CODE`를 정확히 일치시키는 방식만 제공한다.
-7. 미답변 문의 상세에서는 문의 본문 아래에 답변 작성 영역을 제공한다.
-8. 답변 완료 문의 상세에서는 답변과 답변한 관리자의 UUID·표시 이름을 읽기 전용으로 표시한다.
-
-## 화면 원칙
-
-- 운영 도구답게 검색, 상태 구분, 표 가독성과 반복 작업 효율을 우선한다.
-- 상태는 색상만으로 구분하지 않고 텍스트 라벨을 함께 제공한다.
-- nullable 서버 스냅샷은 값이 없을 때 `-`로 표시한다.
-- 문의 본문, 답변, 학번과 학적 스냅샷을 console 또는 오류 추적 tag에 기록하지 않는다.
-- 답변 관리자 정보는 서버가 인증된 관리자 계정으로 기록해 반환한 값만 표시한다.
 
 ## 프론트엔드 구조
 
@@ -48,64 +28,77 @@ src/
   pages/     # 라우트 단위 화면
   widgets/   # 관리자 셸
   features/  # 로그인, 문의 필터, 문의 답변
-  entities/  # 관리자 세션 및 문의 계약·query
+  entities/  # 관리자 세션 및 문의 wire 계약·query
   shared/    # HTTP 어댑터, 설정, 자산, 공통 스타일
 ```
 
-- 루트 전역 store는 두지 않고 서버 상태는 TanStack Query로 관리한다.
-- feature/page는 `index.ts`를 공개 진입점으로 사용한다.
-- Vite SPA와 S3 배포 형태를 유지하고 React Router 선언형 모드를 사용한다.
+- 서버 상태는 TanStack Query로 관리한다.
+- 운영 API는 `/api/admin/...` 상대 경로와 `credentials: include`를 사용한다.
+- `requestJson<T>`는 공통 `SuccessResponse<T>`의 `data`를 해제해 entity 어댑터에 반환한다.
 - CloudFront는 `/api/admin/*`를 API 동작으로 분리하고 프론트 경로에만 SPA fallback을 적용해야 한다.
 
-## 서버 정본 계약
+## 관리자 인증 계약
 
-### 식별자와 공통 규칙
+로그인 흐름은 다음 세 경계를 유지한다.
 
-- `reportId`, `submittedUserId`, `answeredBy.adminAccountId`는 UUID 문자열이다.
-- 날짜·시각은 ISO 8601 문자열로 수신한다.
-- 문의 상태는 `PENDING` 또는 `ANSWERED`다.
-- `category`, `errorCode`, `universityName`, `grade`, `semester`는 `reports` 스키마에 없으므로 프론트 계약에서도 사용하지 않는다.
+1. 프론트 어댑터가 `GET /api/admin/auth/challenge`를 호출한다.
+2. 서버가 `SuccessResponse<{ challengeId, nonce }>`와 Path `/`의 읽기 가능한 `XSRF-TOKEN` 쿠키를 발급한다.
+3. 카카오 SDK adapter는 서버 nonce를 입력받아 ID token만 반환한다.
+4. 프론트 어댑터가 `POST /api/admin/auth/signin`에 `{ challengeId, idToken }`을 보내고 현재 `XSRF-TOKEN` 값을 `X-XSRF-TOKEN` 헤더에 싣는다.
+5. 성공 응답의 `data`는 `adminAccountId`, `displayName`, `adminRole`을 포함하고, 서버는 HttpOnly `cchaksa_admin_session` 쿠키를 발급한다.
 
-### 문의 목록
+임의 OAuth redirect endpoint는 만들지 않는다. 카카오 SDK 초기화와 ID token 획득 구현은 `configureKakaoIdTokenProvider` 경계에 연결하며, provider는 nonce를 로그·저장소·오류 추적 tag에 남기지 않는다.
 
-- `GET /api/admin/reports`를 사용한다.
-- 기본 요청은 `page=0`, `size=20`이며 서버 정렬은 `createdAt DESC`다.
-- 선택 query parameter는 `status`, `searchField`, `query`다.
-- `searchField`는 `USER_ID` 또는 `STUDENT_CODE`만 허용한다.
-- 검색값은 부분검색이나 통합검색 없이 정확히 일치시킨다.
-- 목록 항목은 `reportId`, `status`, `title`, nullable `submittedUserId`, nullable `studentCode`, `createdAt`을 사용한다.
-- 응답 페이지는 `items`, `page`, `size`, `totalElements`, `totalPages`를 포함한다.
+- `GET /api/admin/auth/me`는 쿠키 세션으로 동일한 관리자 data를 반환한다.
+- `POST /api/admin/auth/signout`은 `X-XSRF-TOKEN`과 쿠키 세션을 사용하고 204를 반환한다.
+- `adminRole`은 `ADMIN` 또는 `CS_AGENT`다.
+- `cchaksa_admin_session`은 HttpOnly이므로 프론트 코드에서 직접 읽지 않는다.
+- HTTP 어댑터는 모든 상태 변경 요청 직전에 `XSRF-TOKEN`을 다시 읽어 회전된 값을 사용한다.
+- CSRF token이 없으면 상태 변경 요청을 네트워크 전송 전에 차단한다.
 
-### 문의 상세와 답변
+## 문의 API 계약
 
-- `GET /api/admin/reports/{reportId}`는 목록 필드에 문의 본문과 nullable 학적 스냅샷, nullable 답변을 더해 반환한다.
-- 학적 스냅샷은 `department`, `primaryMajor`, `secondaryMajor`, `isTransferStudent`, `admissionYear`, `graduationRequirementStatus`를 사용하며 각 값은 nullable이다.
+모든 JSON 성공 응답은 `SuccessResponse<T>`로 감싸진다.
+
+### 목록
+
+- `GET /api/admin/reports?page=0&size=20`을 사용한다.
+- 선택 query parameter는 `status`, `searchType`, `query`다.
+- `searchType`은 `USER_ID` 또는 `STUDENT_CODE`이며 `query`와 함께 전달한다.
+- 정확 일치만 지원하고 통합·부분검색은 사용하지 않는다.
+- 서버 정렬은 `createdAt DESC, id DESC`다.
+- 목록 항목은 `reportId`, `status`, `title`, nullable `userId`, nullable `studentCode`, `createdAt`, nullable `answeredAt`이다.
+- 페이지 data는 `items`, `page`, `size`, `totalElements`, `totalPages`, `hasNext`를 포함한다.
+
+### 상세
+
+- `GET /api/admin/reports/{reportId}`를 사용한다.
+- 상세 data는 `reportId`, `status`, `title`, `content`, nullable `userId`, `createdAt`, `updatedAt`, `submitter`, nullable `answer`를 포함한다.
+- `submitter`는 nullable `submittedUserId`, `departmentId`, `departmentName`, `studentCode`, `primaryMajorId`, `primaryMajorName`, `secondaryMajorId`, `secondaryMajorName`, `transferStudent`, `admissionYear`, `graduationRequirementStatus`를 포함한다.
+- UI는 사용자 UUID, 학번, 학과, 주전공, 복수전공, 편입 여부, 입학 연도와 졸업요건 상태를 표시하고 nullable 값은 `-`로 표시한다.
+- `answer`는 `answer`, `answeredAt`, `adminAccountId`, `adminDisplayName`을 포함한다.
+
+### 답변
+
 - `POST /api/admin/reports/{reportId}/answer`에 `{ "answer": "..." }`를 전송한다.
-- 서버는 클라이언트에서 답변 관리자 값을 받지 않고 인증된 관리자 계정을 감사 정보로 기록한다.
-- 완료 답변은 `content`, `answeredAt`, `answeredBy.adminAccountId`, `answeredBy.displayName`을 포함한다.
-- 이미 답변된 문의의 중복 답변은 서버가 충돌 응답으로 거부하고, 성공 시 갱신된 문의 상세를 반환한다.
+- 요청에는 현재 `XSRF-TOKEN` 값을 `X-XSRF-TOKEN` 헤더로 전달한다.
+- 성공 data는 `reportId`, `status`, `answeredAt`, `adminAccountId`, `adminDisplayName`, `adminRole`을 포함한다.
+- 답변 성공 뒤 상세와 목록 query를 무효화해 서버 정본을 다시 조회한다.
+- 이미 답변된 문의의 중복 답변은 409로 처리하며 답변 수정·삭제 UI는 제공하지 않는다.
 
-### 관리자 인증과 CSRF
+## 개인정보와 오류 처리
 
-- 로그인 제출은 `POST /api/admin/auth/signin`을 사용하며 GET 링크 방식은 사용하지 않는다.
-- 로그인 준비 provider는 서버 발급 nonce와 CSRF header 이름·값을 로그인 mutation에 전달한다.
-- nonce/challenge를 발급하는 endpoint, 응답 DTO, CSRF cookie 이름과 header 이름은 #352에서 확정한다. #351은 이 값을 임의로 고정하지 않는다.
-- 준비 provider가 연결되지 않은 운영 환경에서는 로그인 요청을 전송하지 않고 일반 오류 상태를 표시한다.
-- HTTP 어댑터는 `POST`, `PUT`, `PATCH`, `DELETE`마다 CSRF provider를 다시 호출한다. 따라서 로그인·로그아웃 뒤 쿠키가 회전되면 다음 요청에서 새 값을 읽을 수 있다.
-- cookie 이름과 header 이름이 확정되면 `createCookieCsrfTokenProvider`와 `configureCsrfTokenProvider`를 앱 초기화 시 연결한다.
-- CSRF 값이 없는 상태 변경 요청은 네트워크 전송 전에 차단한다.
-- 관리자 세션 확인과 로그아웃 endpoint의 최종 계약도 #352와 통합할 때 확인한다.
+- 문의 본문, 답변, 학번, 학적 스냅샷, nonce, ID token, CSRF와 세션 값을 console 또는 오류 추적 tag에 기록하지 않는다.
+- API 오류는 상태 코드와 일반 사용자 메시지만 유지하며 응답 본문을 로그로 출력하지 않는다.
+- 답변 관리자 정보는 서버가 인증 principal로 기록해 반환한 값만 표시한다.
 
-## 개발 및 검증
+## 검증
 
-- 개발 환경은 `.env.development`의 `VITE_USE_MOCK_API=true`로 같은 문의 계약의 메모리 어댑터를 사용한다.
-- 운영 빌드는 `/api/admin/...` 상대 경로와 `credentials: include`를 사용한다.
-- `npm run lint`, `npm run test`, `npm run build`를 #351의 필수 검증으로 실행한다.
-
-## 참고 자료
-
-- React, Thinking in React: https://react.dev/learn/thinking-in-react.
-- React Router, Picking a Mode: https://reactrouter.com/start/modes.
-- Feature-Sliced Design: https://feature-sliced.design/.
-- TanStack Query, Queries: https://tanstack.com/query/latest/docs/framework/react/guides/queries.
-- 공식 로고 원본: `cchaksa/cchaksa-app`의 `composeApp/src/androidMain/ic_logo-playstore.png`.
+- `npm ci --no-audit --no-fund`.
+- `npm run lint`.
+- `npm run test`.
+- `npm run typecheck`.
+- `npm run build`.
+- 로그인 challenge→Kakao provider→signin 요청 순서와 CSRF header 계약 테스트.
+- 문의 목록 query parameter, 상세 DTO와 답변 POST 계약 테스트.
+- mock 환경의 데스크톱·모바일 브라우저 화면과 민감 정보 로깅 여부 확인.

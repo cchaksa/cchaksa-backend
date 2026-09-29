@@ -72,41 +72,41 @@ export function InquiryDetailPage() {
         <dl className="inquiry-metadata">
           <div>
             <dt>사용자 UUID</dt>
-            <dd><code>{inquiry.submittedUserId ?? '-'}</code></dd>
+            <dd><code>{inquiry.submitter.submittedUserId ?? '-'}</code></dd>
           </div>
           <div>
             <dt>학번</dt>
-            <dd>{inquiry.studentCode ?? '-'}</dd>
+            <dd>{inquiry.submitter.studentCode ?? '-'}</dd>
           </div>
           <div>
             <dt>소속 학과</dt>
-            <dd>{inquiry.academicSnapshot.department ?? '-'}</dd>
+            <dd>{inquiry.submitter.departmentName ?? '-'}</dd>
           </div>
           <div>
             <dt>주전공</dt>
-            <dd>{inquiry.academicSnapshot.primaryMajor ?? '-'}</dd>
+            <dd>{inquiry.submitter.primaryMajorName ?? '-'}</dd>
           </div>
           <div>
             <dt>복수전공</dt>
-            <dd>{inquiry.academicSnapshot.secondaryMajor ?? '-'}</dd>
+            <dd>{inquiry.submitter.secondaryMajorName ?? '-'}</dd>
           </div>
           <div>
             <dt>편입 여부</dt>
             <dd>
-              {inquiry.academicSnapshot.isTransferStudent === null
+              {inquiry.submitter.transferStudent === null
                 ? '-'
-                : inquiry.academicSnapshot.isTransferStudent
+                : inquiry.submitter.transferStudent
                   ? '편입'
                   : '일반'}
             </dd>
           </div>
           <div>
             <dt>입학 연도</dt>
-            <dd>{inquiry.academicSnapshot.admissionYear ?? '-'}</dd>
+            <dd>{inquiry.submitter.admissionYear ?? '-'}</dd>
           </div>
           <div>
             <dt>졸업요건 상태</dt>
-            <dd>{inquiry.academicSnapshot.graduationRequirementStatus ?? '-'}</dd>
+            <dd>{inquiry.submitter.graduationRequirementStatus ?? '-'}</dd>
           </div>
         </dl>
       </article>

@@ -24,14 +24,14 @@ export function InquiryAnswerPanel({ answer }: InquiryAnswerPanelProps) {
         </div>
         <div className="answer-audit">
           <UserRound aria-hidden="true" size={16} />
-          <span>{answer.answeredBy.displayName}</span>
-          <code>{answer.answeredBy.adminAccountId}</code>
+          <span>{answer.adminDisplayName}</span>
+          <code>{answer.adminAccountId}</code>
           <time dateTime={answer.answeredAt}>
             {dateFormatter.format(new Date(answer.answeredAt))}
           </time>
         </div>
       </header>
-      <p className="registered-answer-content">{answer.content}</p>
+      <p className="registered-answer-content">{answer.answer}</p>
       <footer>답변이 완료된 문의에는 추가 답변을 등록할 수 없습니다.</footer>
     </section>
   )

@@ -3,6 +3,12 @@ export interface CsrfHeader {
   value: string
 }
 
+export interface SuccessResponse<T> {
+  success: true
+  data: T
+  message?: string
+}
+
 export type CsrfTokenProvider = () => CsrfHeader | null
 
 export interface AdminRequestOptions extends RequestInit {
@@ -89,8 +95,8 @@ export async function requestJson<T>(
   options: AdminRequestOptions = {},
 ): Promise<T> {
   const response = await request(path, options)
-  if (response.status === 204) return undefined as T
-  return response.json() as Promise<T>
+  const body = (await response.json()) as SuccessResponse<T>
+  return body.data
 }
 
 export async function requestVoid(

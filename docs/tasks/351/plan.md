@@ -218,3 +218,123 @@ remaining_risks:
 - 테스트 데이터 API 경계 분리: #353.
 - 관리자 문의 목록·상세·답변 API: #354.
 - 관리자 문의 검색 쿼리·인덱스 전략: #355.
+
+## #352·#354 확정 계약 최종 연동
+
+- 공통 `SuccessResponse<T>`에서 `data`를 해제하는 HTTP 경계를 적용한다.
+- `GET /api/admin/auth/challenge`가 반환한 nonce를 카카오 ID token provider에 전달한다.
+- `POST /api/admin/auth/signin`에 `{ challengeId, idToken }`을 제출하고 관리자 `adminRole`을 세션 query에 저장한다.
+- `XSRF-TOKEN`을 매 상태 변경 요청마다 읽어 `X-XSRF-TOKEN` header에 전달한다.
+- HttpOnly `cchaksa_admin_session`은 `credentials: include`로만 사용한다.
+- 문의 검색 parameter를 `searchType`으로 맞추고 목록 `userId`, 상세 `submitter`, 답변 DTO 필드명을 #354 코드와 일치시킨다.
+- 답변 POST의 별도 결과 DTO를 받은 뒤 목록과 상세를 서버에서 다시 조회한다.
+- 백엔드 파일은 변경하지 않는다.
+
+확인된 서버 기준:
+
+- #352 공개 계약 통일 커밋 `79c5ba00`에서 `cchaksa_admin_session`과 `adminRole`을 확인했다.
+- #352 CSRF 경로 보완 커밋 `26a106c4`에서 `XSRF-TOKEN`의 Path `/`와 통합 테스트를 확인했다.
+- 재배치된 `feat/354`에서 #352 인증 계약과 #354 문의 DTO·통합 테스트를 함께 확인했다.
+
+남은 통합 검증:
+
+- 카카오 JavaScript SDK 초기화와 ID token 획득 구현을 `configureKakaoIdTokenProvider`에 연결해야 한다.
+- 실제 API Gateway·CloudFront 환경의 쿠키 전달과 CORS 동작은 배포 환경에서 검증해야 한다.
+
+최종 검증 결과:
+
+- `cd admin-web && npm ci --no-audit --no-fund`: 통과.
+- `cd admin-web && npm run lint`: 통과. 47개 파일을 검사했다.
+- `cd admin-web && npm run test`: 통과. 3개 파일의 12개 테스트가 통과했다.
+- `cd admin-web && npm run typecheck`: 통과.
+- `cd admin-web && npm run build`: 통과.
+- `git diff --check`: 통과.
+- 데스크톱과 390x844 모바일에서 목록·상세·답변 등록·완료 답변·로그인 버튼 흐름을 검증했다.
+- 모바일 페이지 전체에는 가로 넘침이 없고 목록 표 컨테이너만 의도대로 가로 스크롤된다.
+- 답변 입력의 5,000자 제한과 답변 후 읽기 전용 전환을 확인했다.
+- 브라우저 warning/error는 없었다.
+- 소스에 console, 오류 추적 tag, 브라우저 저장소 기록이 없음을 확인했다.
+
+```text
+[PRE-PR-VERIFY]
+verdict: pass
+isolation: current-context
+scope_match: yes
+agents_boundary: pass
+files_reviewed:
+  - admin-web의 변경된 인증, HTTP, 문의, UI, 테스트 파일 전체
+  - docs/tasks/351/design.md
+  - docs/tasks/351/plan.md
+files_not_reviewed:
+  - none
+commands:
+  - npm ci --no-audit --no-fund: pass
+  - npm run lint: pass
+  - npm run test: pass, 12 tests
+  - npm run typecheck: pass
+  - npm run build: pass
+  - git diff --check: pass
+  - browser desktop/mobile and answer/login workflow: pass
+findings:
+  critical:
+    - none
+  important:
+    - none
+  minor:
+    - none
+unsupported_claims:
+  - 사용자 영향과 운영 효과는 측정하지 않았다.
+remaining_risks:
+  - 카카오 SDK adapter와 실제 배포 환경은 이 저장소에서 검증하지 못했다.
+  - 검증은 구현과 같은 문맥에서 수행돼 독립성이 제한된다.
+recommended_next_action: open-pr
+[END-PRE-PR-VERIFY]
+```
+
+```text
+[SECURITY-CHECK]
+verdict: pass
+checked_surfaces:
+  - changed source, tests, task docs, browser logs, command output
+findings:
+  critical:
+    - none
+  important:
+    - none
+  minor:
+    - none
+redactions:
+  - none
+unsupported_security_claims:
+  - 실제 배포 환경의 쿠키와 CORS 보안 동작은 검증하지 않았다.
+required_follow_up:
+  - none
+[END-SECURITY-CHECK]
+```
+
+```text
+[COMPLETION-CHECK]
+request_rechecked: yes
+agents_rechecked: yes
+changed_files_inspected: yes
+unrelated_changes: none
+documentation_consistent: yes
+required_tests:
+  - npm ci --no-audit --no-fund: pass
+  - npm run lint: pass
+  - npm run test: pass, 12 tests
+  - npm run typecheck: pass
+  - npm run build: pass
+  - git diff --check: pass
+  - browser desktop/mobile and answer/login workflow: pass
+pre_pr_verification: pass
+pre_pr_verification_isolation: current-context
+security_check: pass
+task_note_updated: yes
+career_evaluated: yes
+unsupported_claims:
+  - 사용자 영향과 운영 효과는 측정하지 않았다.
+remaining_risks:
+  - 카카오 SDK adapter와 실제 API Gateway·CloudFront 통합은 후속 검증이 필요하다.
+[END-COMPLETION-CHECK]
+```

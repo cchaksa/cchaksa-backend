@@ -30,9 +30,7 @@ export function useAnswerInquiry(reportId: string) {
 
   return useMutation({
     mutationFn: (answer: string) => adminInquiryApi.answer(reportId, answer),
-    onSuccess: (inquiry) => {
-      queryClient.setQueryData(inquiryQueryKeys.detail(reportId), inquiry)
-      void queryClient.invalidateQueries({ queryKey: inquiryQueryKeys.all })
-    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: inquiryQueryKeys.all }),
   })
 }

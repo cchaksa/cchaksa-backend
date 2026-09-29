@@ -1,7 +1,11 @@
 import { requestJson } from '../../../shared/api/http'
 import { useMockApi } from '../../../shared/config/api'
-import { mockInquiryDetails } from '../model/mockInquiries'
+import {
+  mockInquiryDetails,
+  mockInquirySummaries,
+} from '../model/mockInquiries'
 import type {
+  InquiryAnswerResult,
   InquiryDetail,
   InquiryStatus,
   InquirySummary,
@@ -23,6 +27,7 @@ export interface InquiryPage {
   size: number
   totalElements: number
   totalPages: number
+  hasNext: boolean
 }
 
 export function matchesExactQuery(
@@ -31,12 +36,12 @@ export function matchesExactQuery(
   query: string,
 ) {
   return field === 'USER_ID'
-    ? inquiry.submittedUserId === query
+    ? inquiry.userId === query
     : inquiry.studentCode === query
 }
 
 async function getMockInquiryPage(params: InquiryListParams): Promise<InquiryPage> {
-  const filtered = mockInquiryDetails.filter(
+  const filtered = mockInquirySummaries.filter(
     (inquiry) =>
       (!params.status || inquiry.status === params.status) &&
       (!params.query ||
@@ -50,6 +55,7 @@ async function getMockInquiryPage(params: InquiryListParams): Promise<InquiryPag
     size: params.size,
     totalElements: filtered.length,
     totalPages: Math.max(1, Math.ceil(filtered.length / params.size)),
+    hasNext: start + params.size < filtered.length,
   }
 }
 
@@ -60,7 +66,7 @@ export function buildInquiryListUrl(params: InquiryListParams) {
   })
   if (params.status) searchParams.set('status', params.status)
   if (params.searchField && params.query) {
-    searchParams.set('searchField', params.searchField)
+    searchParams.set('searchType', params.searchField)
     searchParams.set('query', params.query)
   }
   return `/api/admin/reports?${searchParams}`
@@ -79,7 +85,7 @@ export const adminInquiryApi = {
       : requestJson<InquiryDetail>(`/api/admin/reports/${reportId}`),
   answer: async (reportId: string, answer: string) => {
     if (!useMockApi) {
-      return requestJson<InquiryDetail>(`/api/admin/reports/${reportId}/answer`, {
+      return requestJson<InquiryAnswerResult>(`/api/admin/reports/${reportId}/answer`, {
         method: 'POST',
         body: JSON.stringify({ answer }),
       })
@@ -90,14 +96,25 @@ export const adminInquiryApi = {
       throw new Error('답변할 수 없는 문의입니다.')
     }
     inquiry.status = 'ANSWERED'
+    const answeredAt = new Date().toISOString()
     inquiry.answer = {
-      content: answer,
-      answeredAt: new Date().toISOString(),
-      answeredBy: {
-        adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
-        displayName: '김척척',
-      },
+      answer,
+      answeredAt,
+      adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
+      adminDisplayName: '김척척',
     }
-    return inquiry
+    const summary = mockInquirySummaries.find((item) => item.reportId === reportId)
+    if (summary) {
+      summary.status = 'ANSWERED'
+      summary.answeredAt = answeredAt
+    }
+    return {
+      reportId,
+      status: 'ANSWERED',
+      answeredAt,
+      adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
+      adminDisplayName: '김척척',
+      adminRole: 'CS_AGENT',
+    }
   },
 }

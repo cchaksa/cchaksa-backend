@@ -3,16 +3,18 @@ export type AdminRole = 'ADMIN' | 'CS_AGENT'
 export interface AdminSession {
   adminAccountId: string
   displayName: string
-  role: AdminRole
+  adminRole: AdminRole
 }
 
-export interface AdminSignInPreparation {
+export interface AdminChallenge {
+  challengeId: string
   nonce: string
-  csrf: {
-    name: string
-    value: string
-  }
 }
 
-export type AdminSignInPreparationProvider =
-  () => Promise<AdminSignInPreparation>
+export interface KakaoIdTokenRequest {
+  nonce: string
+}
+
+export type KakaoIdTokenProvider = (
+  request: KakaoIdTokenRequest,
+) => Promise<string>

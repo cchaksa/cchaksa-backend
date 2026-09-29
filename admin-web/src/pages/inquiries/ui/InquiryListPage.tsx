@@ -136,7 +136,7 @@ export function InquiryListPage() {
                         <span>#{inquiry.reportId}</span>
                       </Link>
                     </td>
-                    <td><code>{inquiry.submittedUserId ?? '-'}</code></td>
+                    <td><code>{inquiry.userId ?? '-'}</code></td>
                     <td>{inquiry.studentCode ?? '-'}</td>
                     <td>{dateFormatter.format(new Date(inquiry.createdAt))}</td>
                   </tr>

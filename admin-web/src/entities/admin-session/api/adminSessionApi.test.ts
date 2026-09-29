@@ -1,32 +1,64 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { configureCsrfTokenProvider } from '../../../shared/api/http'
 import {
   adminSessionApi,
-  configureAdminSignInPreparation,
+  configureKakaoIdTokenProvider,
 } from './adminSessionApi'
 
 afterEach(() => {
+  configureCsrfTokenProvider(() => null)
   vi.unstubAllGlobals()
 })
 
 describe('admin sign-in contract', () => {
-  it('submits the server nonce with POST and the prepared CSRF header', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+  it('uses the challenge nonce for Kakao and submits challengeId with the ID token', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          success: true,
+          data: {
+            challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
+            nonce: 'server-issued-nonce',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          success: true,
+          data: {
+            adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
+            displayName: '김척척',
+            adminRole: 'CS_AGENT',
+          },
+        }),
+      )
+    const idTokenProvider = vi.fn().mockResolvedValue('kakao-id-token')
     vi.stubGlobal('fetch', fetchMock)
-    configureAdminSignInPreparation(async () => ({
-      nonce: 'server-issued-nonce',
-      csrf: {
-        name: 'X-CSRF-TOKEN',
-        value: 'server-issued-csrf-token',
-      },
+    configureCsrfTokenProvider(() => ({
+      name: 'X-XSRF-TOKEN',
+      value: 'server-issued-csrf-token',
     }))
+    configureKakaoIdTokenProvider(idTokenProvider)
 
-    await adminSessionApi.signIn()
+    await expect(adminSessionApi.signIn()).resolves.toMatchObject({
+      adminRole: 'CS_AGENT',
+    })
 
-    const [path, request] = fetchMock.mock.calls[0]
+    expect(idTokenProvider).toHaveBeenCalledWith({ nonce: 'server-issued-nonce' })
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/auth/challenge')
+    expect(fetchMock.mock.calls[0][1]?.cache).toBe('no-store')
+    const [path, request] = fetchMock.mock.calls[1]
     const headers = new Headers(request?.headers)
     expect(path).toBe('/api/admin/auth/signin')
     expect(request?.method).toBe('POST')
-    expect(request?.body).toBe(JSON.stringify({ nonce: 'server-issued-nonce' }))
-    expect(headers.get('X-CSRF-TOKEN')).toBe('server-issued-csrf-token')
+    expect(request?.credentials).toBe('include')
+    expect(request?.body).toBe(
+      JSON.stringify({
+        challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
+        idToken: 'kakao-id-token',
+      }),
+    )
+    expect(headers.get('X-XSRF-TOKEN')).toBe('server-issued-csrf-token')
   })
 })

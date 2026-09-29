@@ -17,8 +17,8 @@ export function useAdminSignIn() {
 
   return useMutation({
     mutationFn: adminSessionApi.signIn,
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: adminSessionQueryKey }),
+    onSuccess: (session) =>
+      queryClient.setQueryData(adminSessionQueryKey, session),
   })
 }
 

@@ -2,7 +2,7 @@ import { Send } from 'lucide-react'
 import { useState } from 'react'
 import './answer-inquiry-form.css'
 
-const MAX_ANSWER_LENGTH = 2000
+const MAX_ANSWER_LENGTH = 5000
 
 interface AnswerInquiryFormProps {
   isSubmitting: boolean
