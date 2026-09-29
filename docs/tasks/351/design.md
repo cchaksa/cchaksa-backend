@@ -42,19 +42,38 @@ src/
 로그인 흐름은 다음 세 경계를 유지한다.
 
 1. 프론트 어댑터가 `GET /api/admin/auth/challenge`를 호출한다.
-2. 서버가 `SuccessResponse<{ challengeId, nonce }>`와 Path `/`의 읽기 가능한 `XSRF-TOKEN` 쿠키를 발급한다.
-3. 카카오 SDK adapter는 서버 nonce를 입력받아 ID token만 반환한다.
-4. 프론트 어댑터가 `POST /api/admin/auth/signin`에 `{ challengeId, idToken }`을 보내고 현재 `XSRF-TOKEN` 값을 `X-XSRF-TOKEN` 헤더에 싣는다.
-5. 성공 응답의 `data`는 `adminAccountId`, `displayName`, `adminRole`을 포함하고, 서버는 HttpOnly `cchaksa_admin_session` 쿠키를 발급한다.
+2. 서버가 `SuccessResponse<{ challengeId, nonce, state, javascriptAppKey, redirectUri }>`와 Path `/`의 읽기 가능한 `XSRF-TOKEN`, HttpOnly `cchaksa_admin_login` 쿠키를 발급한다.
+3. 프론트는 `challengeId`와 `state`만 `sessionStorage`에 보관하고, 서버가 반환한 `javascriptAppKey`, `redirectUri`, `nonce`, `state`를 그대로 `Kakao.Auth.authorize`에 전달한다.
+4. 카카오는 인가 결과를 프론트 라우트 `/login/callback`에 `code`와 `state`로 전달한다.
+5. 프론트는 callback state를 보관값과 대조한 뒤 `POST /api/admin/auth/signin`에 `{ challengeId, authorizationCode, state }`를 보내고 현재 `XSRF-TOKEN` 값을 `X-XSRF-TOKEN` 헤더에 싣는다.
+6. 서버는 고정 redirect URI와 REST API key, 선택적 client secret으로 authorization code를 교환하고 ID token의 서명·audience·nonce를 검증한다. 카카오 token과 client secret은 브라우저에 노출하지 않는다.
+7. 성공 응답의 `data`는 `adminAccountId`, `displayName`, `adminRole`을 포함하고, 서버는 HttpOnly `cchaksa_admin_session` 쿠키를 발급한다.
 
-임의 OAuth redirect endpoint는 만들지 않는다. 카카오 SDK 초기화와 ID token 획득 구현은 `configureKakaoIdTokenProvider` 경계에 연결하며, provider는 nonce를 로그·저장소·오류 추적 tag에 남기지 않는다.
+카카오 JavaScript SDK는 공식 CDN의 2.8.3 파일과 고정 SRI hash를 사용한다. nonce, authorization code와 token은 브라우저 저장소, console, 오류 추적 tag에 남기지 않는다. callback의 challenge 정보는 한 번 읽으면 즉시 제거하며 state 불일치 요청은 서버로 전송하지 않는다.
 
 - `GET /api/admin/auth/me`는 쿠키 세션으로 동일한 관리자 data를 반환한다.
 - `POST /api/admin/auth/signout`은 `X-XSRF-TOKEN`과 쿠키 세션을 사용하고 204를 반환한다.
 - `adminRole`은 `ADMIN` 또는 `CS_AGENT`다.
 - `cchaksa_admin_session`은 HttpOnly이므로 프론트 코드에서 직접 읽지 않는다.
+- `cchaksa_admin_login`도 HttpOnly이므로 프론트에서 읽거나 저장하지 않고 challenge와 signin 요청의 `credentials: include`로만 왕복한다.
 - HTTP 어댑터는 모든 상태 변경 요청 직전에 `XSRF-TOKEN`을 다시 읽어 회전된 값을 사용한다.
 - CSRF token이 없으면 상태 변경 요청을 네트워크 전송 전에 차단한다.
+
+로그인 오류는 서버 코드별로 다음 경계를 유지하되 UI에는 자격 증명이나 계정 존재 여부를 드러내지 않는 공통 메시지를 표시한다.
+
+- `400 C01`: callback 요청 형식 오류.
+- `401 A10`: 만료·사용 challenge, state 또는 브라우저 결합 쿠키 불일치.
+- `401 A12`: Kakao authorization code 교환 실패 또는 ID token 부재.
+- `401 T01`~`T10`: ID token 서명, audience, nonce 또는 만료 검증 실패.
+- `403 A09`: 미등록 또는 비활성 관리자.
+- `403`: CSRF token 누락 또는 불일치.
+
+## 로컬 API 연동
+
+- `npm run dev`는 실제 API 모드이며 Vite가 `/api/admin/*`를 기본 `http://localhost:8080`으로 proxy한다.
+- proxy 대상은 브라우저에 노출되지 않는 `ADMIN_API_PROXY_TARGET`으로 변경할 수 있다.
+- `npm run dev:mock`은 화면 개발이 필요한 경우에만 mock API를 사용한다.
+- 실제 로그인 검증에는 백엔드 #352와 #354가 포함된 서버, 관리자 전용 Kakao 설정, ACTIVE `admin_accounts` 레코드가 필요하다.
 
 ## 문의 API 계약
 
@@ -99,6 +118,6 @@ src/
 - `npm run test`.
 - `npm run typecheck`.
 - `npm run build`.
-- 로그인 challenge→Kakao provider→signin 요청 순서와 CSRF header 계약 테스트.
+- 로그인 challenge→Kakao authorize→callback→signin 요청 순서, state 검증과 CSRF header 계약 테스트.
 - 문의 목록 query parameter, 상세 DTO와 답변 POST 계약 테스트.
 - mock 환경의 데스크톱·모바일 브라우저 화면과 민감 정보 로깅 여부 확인.

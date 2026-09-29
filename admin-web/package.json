@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "lint": "biome lint src vite.config.ts",
     "test": "vitest run",
     "typecheck": "tsc -b",

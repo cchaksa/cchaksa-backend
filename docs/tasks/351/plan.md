@@ -97,6 +97,42 @@
 - `/api/admin/auth/signin` 서버 진입점과 로그인 callback은 실제 카카오 계정으로 검증되지 않았다.
 - CloudFront의 `/api/admin/*` 동작 분리와 SPA fallback은 아직 설정·검증되지 않았다.
 
+## 실제 인증·API 통합 후속
+
+- 기본 개발 모드는 실제 `/api/admin/*` 호출로 변경하고 Vite proxy 대상을 `http://localhost:8080`으로 구성했다.
+- 화면 전용 mock은 `npm run dev:mock`으로 분리했다.
+- 카카오 JavaScript SDK의 redirect 방식에 맞춰 challenge의 `nonce`, `state`, `javascriptAppKey`, `redirectUri`를 authorize 요청에 전달한다.
+- `/login/callback`에서 authorization code와 state를 받고, 브라우저에 보관한 challenge ID 및 state와 대조한 뒤 서버 signin에 제출한다.
+- HttpOnly `cchaksa_admin_login`은 프론트에서 읽지 않고 challenge와 signin 요청의 `credentials: include`로만 전달한다.
+- nonce, authorization code와 token은 브라우저 저장소나 로그에 기록하지 않는다.
+- 백엔드 #352 커밋 `8e9b2e58`의 authorization code 교환, ID token nonce·audience 검증 계약과 프론트 필드명을 맞췄다.
+
+검증 결과:
+
+- `npm run lint`: 성공. Biome가 50개 파일을 검사했다.
+- `npm run test`: 성공. 3개 파일의 14개 테스트가 통과했다.
+- `npm run typecheck`: 성공.
+- `npm run build`: 성공.
+
+남은 통합 검증:
+
+- #352 변경 완료 후 실제 Spring 서버에서 challenge, callback signin, 관리자 세션을 검증해야 한다.
+- 관리자 전용 Kakao 앱의 JavaScript SDK 도메인, redirect URI, OIDC와 client secret 설정이 필요하다.
+- ACTIVE `admin_accounts` 테스트 계정을 등록한 뒤 문의 목록·상세·답변 API까지 실제 브라우저로 검증해야 한다.
+
+독립 교차 검토:
+
+- #352 백엔드 작업 스레드가 커밋 `8e9b2e58`을 기준으로 프론트 diff를 읽기 전용 검토했다.
+- verdict는 `pass`, isolation은 `separate-context`다.
+- challenge DTO, Kakao authorize 인자, callback signin body, CSRF와 HttpOnly cookie 경계가 서버 계약과 일치함을 확인했다.
+- 비차단 테스트 공백은 callback 페이지의 Strict Mode 컴포넌트 테스트와 SDK script loader 단위 테스트다. Strict Mode 동작은 실제 개발 브라우저에서 state 불일치 callback이 단일 오류 상태로 종료되고 console warning/error가 없음을 확인했다.
+
+보안 점검:
+
+- 변경 파일, 테스트 fixture, 문서와 명령 출력에 실제 key, secret, token, cookie 또는 개인정보가 포함되지 않았다.
+- 브라우저 저장소에는 일회성 `challengeId`와 `state`만 기록하고 nonce, authorization code, token과 app key는 기록하지 않는다.
+- 실제 Kakao client secret과 로컬 DB 자격 증명은 Git과 작업 문서 밖의 실행 환경에서만 주입해야 한다.
+
 UI 1단계 검증 결과:
 
 - `npm run typecheck`: 성공.
@@ -209,7 +245,7 @@ remaining_risks:
 
 남은 위험:
 
-- nonce/challenge 응답 DTO와 endpoint, CSRF cookie/header 이름은 #352에서 확정한 뒤 준비 provider와 앱 초기화에 연결해야 한다.
+- nonce/challenge 응답 DTO, CSRF cookie/header와 authorization code 교환 계약은 #352에서 확정했으며 실제 Kakao 앱으로 통합 검증해야 한다.
 - 실제 관리자 세션, 문의 API와 DB 통합 검증은 #352, #354에서 수행해야 한다.
 
 후속 이슈:
@@ -222,8 +258,8 @@ remaining_risks:
 ## #352·#354 확정 계약 최종 연동
 
 - 공통 `SuccessResponse<T>`에서 `data`를 해제하는 HTTP 경계를 적용한다.
-- `GET /api/admin/auth/challenge`가 반환한 nonce를 카카오 ID token provider에 전달한다.
-- `POST /api/admin/auth/signin`에 `{ challengeId, idToken }`을 제출하고 관리자 `adminRole`을 세션 query에 저장한다.
+- `GET /api/admin/auth/challenge`가 반환한 nonce, state, JavaScript app key와 redirect URI를 카카오 authorize adapter에 전달한다.
+- `/login/callback`에서 authorization code와 state를 받은 뒤 `POST /api/admin/auth/signin`에 `{ challengeId, authorizationCode, state }`를 제출하고 관리자 `adminRole`을 세션 query에 저장한다.
 - `XSRF-TOKEN`을 매 상태 변경 요청마다 읽어 `X-XSRF-TOKEN` header에 전달한다.
 - HttpOnly `cchaksa_admin_session`은 `credentials: include`로만 사용한다.
 - 문의 검색 parameter를 `searchType`으로 맞추고 목록 `userId`, 상세 `submitter`, 답변 DTO 필드명을 #354 코드와 일치시킨다.
@@ -238,8 +274,8 @@ remaining_risks:
 
 남은 통합 검증:
 
-- 카카오 JavaScript SDK 초기화와 ID token 획득 구현을 `configureKakaoIdTokenProvider`에 연결해야 한다.
-- 실제 API Gateway·CloudFront 환경의 쿠키 전달과 CORS 동작은 배포 환경에서 검증해야 한다.
+- #352 authorization code 교환 변경을 반영한 실제 Spring 서버와 관리자 Kakao 앱으로 로그인 세션을 검증해야 한다.
+- 실제 API Gateway·CloudFront 환경의 쿠키 전달과 CORS 동작은 별도 운영 준비 작업에서 검증해야 한다.
 
 최종 검증 결과:
 

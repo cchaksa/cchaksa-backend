@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_ADMIN_SIGN_IN_PATH?: string
+  readonly VITE_USE_MOCK_API?: string
 }
 
 interface ImportMeta {

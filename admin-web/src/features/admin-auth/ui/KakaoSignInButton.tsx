@@ -10,7 +10,9 @@ export function KakaoSignInButton() {
 
   const handleSignIn = () => {
     signIn.mutate(undefined, {
-      onSuccess: () => navigate(routes.inquiries, { replace: true }),
+      onSuccess: (session) => {
+        if (session) navigate(routes.inquiries, { replace: true })
+      },
     })
   }
 

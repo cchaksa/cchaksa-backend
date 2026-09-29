@@ -17,6 +17,17 @@ export function useAdminSignIn() {
 
   return useMutation({
     mutationFn: adminSessionApi.signIn,
+    onSuccess: (session) => {
+      if (session) queryClient.setQueryData(adminSessionQueryKey, session)
+    },
+  })
+}
+
+export function useAdminSignInCallback() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: adminSessionApi.completeSignIn,
     onSuccess: (session) =>
       queryClient.setQueryData(adminSessionQueryKey, session),
   })

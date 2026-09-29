@@ -1,7 +1,9 @@
 export {
-  configureKakaoIdTokenProvider,
+  cancelAdminSignIn,
+  configureKakaoAuthorizationProvider,
 } from './api/adminSessionApi'
 export {
+  useAdminSignInCallback,
   useAdminSession,
   useAdminSignIn,
   useAdminSignOut,
@@ -9,6 +11,7 @@ export {
 export type {
   AdminSession,
   AdminChallenge,
-  KakaoIdTokenProvider,
-  KakaoIdTokenRequest,
+  AdminSignInCallback,
+  KakaoAuthorizationProvider,
+  KakaoAuthorizationRequest,
 } from './model/types'
