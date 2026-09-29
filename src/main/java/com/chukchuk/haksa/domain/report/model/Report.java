@@ -3,14 +3,18 @@
 package com.chukchuk.haksa.domain.report.model;
 
 import com.chukchuk.haksa.domain.BaseEntity;
+import com.chukchuk.haksa.domain.admin.auth.model.AdminAccount;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.Objects;
@@ -49,6 +53,10 @@ public class Report extends BaseEntity {
 
   @Column(name = "answered_at")
   private Instant answeredAt;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "answered_by_admin_id")
+  private AdminAccount answeredByAdmin;
 
   @Embedded private ReportSubmitterSnapshot submitterSnapshot;
 
