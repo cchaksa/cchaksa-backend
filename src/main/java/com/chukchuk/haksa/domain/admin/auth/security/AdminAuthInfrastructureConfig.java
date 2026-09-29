@@ -29,7 +29,7 @@ public class AdminAuthInfrastructureConfig {
   @Bean
   public CsrfTokenRepository adminCsrfTokenRepository(AdminAuthProperties properties) {
     CookieCsrfTokenRepository repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
-    repository.setCookiePath("/api/admin");
+    repository.setCookiePath("/");
     repository.setCookieCustomizer(
         cookie -> cookie.secure(properties.isCookieSecure()).sameSite("Strict"));
     return repository;

@@ -14,11 +14,11 @@
 
 ## 로그인 계약
 
-1. `GET /api/admin/auth/challenge`가 UUID `challengeId`와 난수 `nonce`를 발급한다. 응답은 캐시하지 않으며 `XSRF-TOKEN` 쿠키도 생성한다.
+1. `GET /api/admin/auth/challenge`가 UUID `challengeId`와 난수 `nonce`를 발급한다. 응답은 캐시하지 않으며 SPA의 `/login`에서도 읽을 수 있도록 Path가 `/`인 `XSRF-TOKEN` 쿠키도 생성한다.
 2. `POST /api/admin/auth/signin`은 `{challengeId, idToken}`과 `X-XSRF-TOKEN`을 받는다. 서버는 DB에 저장한 미사용 nonce를 원자적으로 소모한 뒤 카카오 ID Token을 검증한다.
 3. `provider`와 `socialId`는 요청에서 받지 않는다. 검증된 `sub`로 ACTIVE `admin_accounts`를 조회한다.
 4. 성공 시 불투명 세션 난수를 `cchaksa_admin_session` Secure, HttpOnly, SameSite=Strict 쿠키로 발급하고 DB에는 SHA-256 해시만 저장한다.
-5. `GET /api/admin/auth/me`는 `adminAccountId`, `displayName`, `role`을 반환한다.
+5. `GET /api/admin/auth/me`는 `adminAccountId`, `displayName`, `adminRole`을 반환한다.
 6. `POST /api/admin/auth/signout`은 현재 세션을 폐기하고 세션 쿠키와 CSRF 쿠키를 만료한다.
 
 challenge는 짧게 만료되고 한 번의 로그인 시도에만 사용할 수 있다. 세션은 idle timeout과 absolute timeout을 모두 검사하며, 매 요청에서 계정 ACTIVE 상태를 재검증해 권한 회수를 즉시 반영한다.

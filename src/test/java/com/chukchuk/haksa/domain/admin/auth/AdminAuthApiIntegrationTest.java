@@ -1,5 +1,6 @@
 package com.chukchuk.haksa.domain.admin.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -177,9 +178,9 @@ class AdminAuthApiIntegrationTest {
             .andExpect(jsonPath("$.data.nonce").isNotEmpty())
             .andReturn();
     JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
-    return new Challenge(
-        UUID.fromString(body.at("/data/challengeId").asText()),
-        result.getResponse().getCookie("XSRF-TOKEN"));
+    Cookie csrfCookie = result.getResponse().getCookie("XSRF-TOKEN");
+    assertThat(csrfCookie.getPath()).isEqualTo("/");
+    return new Challenge(UUID.fromString(body.at("/data/challengeId").asText()), csrfCookie);
   }
 
   private record Challenge(UUID challengeId, Cookie csrfCookie) {}
