@@ -1,6 +1,6 @@
 // 실행 서버에서 편입 테스트 데이터 수정과 실제 졸업진단 및 초기화를 검증한다.
 
-package com.chukchuk.haksa.domain.admin.controller;
+package com.chukchuk.haksa.domain.testsupport.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -56,8 +56,8 @@ import org.springframework.test.context.ActiveProfiles;
     })
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-class AdminTransferDataHttpIntegrationTest {
-  private static final String TRANSFER_PATH = "/api/admin/me/transfer-data";
+class TestTransferDataHttpIntegrationTest {
+  private static final String TRANSFER_PATH = "/api/test/me/transfer-data";
   private final HttpClient http = HttpClient.newHttpClient();
 
   @LocalServerPort private int port;
@@ -102,7 +102,7 @@ class AdminTransferDataHttpIntegrationTest {
                 null));
     ok(
         "PATCH",
-        "/api/admin/me/graduation-courses",
+        "/api/test/me/graduation-courses",
         mapper.writeValueAsString(
             Map.of("area", "일선", "addOfferingIds", List.of(offering.getId()), "grade", "P")),
         account.token());
@@ -145,10 +145,10 @@ class AdminTransferDataHttpIntegrationTest {
     Department other = departments.save(new Department("other349", "다른 전공"));
     ok(
         "PATCH",
-        "/api/admin/me/major",
+        "/api/test/me/major",
         "{\"majorDepartmentId\":" + other.getId() + ",\"dualMajorEnabled\":false}",
         account.token());
-    ok("POST", "/api/admin/me/reset", "{}", account.token());
+    ok("POST", "/api/test/me/reset", "{}", account.token());
     Student reset = student(account);
     assertThat(reset.isTransferStudent()).isFalse();
     assertThat(reset.getAdmissionType()).isEqualTo("신입");
@@ -286,7 +286,7 @@ class AdminTransferDataHttpIntegrationTest {
                 .statusCode())
         .isEqualTo(403);
     records.save(new StudentAcademicRecord(student(ordinary), 10, 7, new BigDecimal("3.0"), null));
-    ok("POST", "/api/admin/me/reset", "{}", ordinary.token());
+    ok("POST", "/api/test/me/reset", "{}", ordinary.token());
     assertThat(records.findByStudentId(ordinary.studentId()).orElseThrow().getTotalEarnedCredits())
         .isEqualTo(7);
     assertThat(student(target).isTransferStudent()).isFalse();
@@ -313,7 +313,7 @@ class AdminTransferDataHttpIntegrationTest {
     state.updateGraduationReview(true);
     graduationProgress.save(state);
     Instant version = student(account).getDesignatedCoursesSnapshotVersion();
-    ok("POST", "/api/admin/me/reset", "{}", account.token());
+    ok("POST", "/api/test/me/reset", "{}", account.token());
     syncDesignatedCourses.sync(
         account.userId(),
         DesignatedCourseSnapshot.received(
@@ -412,7 +412,7 @@ class AdminTransferDataHttpIntegrationTest {
     JsonNode data =
         ok(
                 "POST",
-                "/api/admin/test-users",
+                "/api/test/users",
                 mapper.writeValueAsString(
                     Map.of("departmentId", department.getId(), "admissionYear", 2026)),
                 null)
@@ -428,7 +428,7 @@ class AdminTransferDataHttpIntegrationTest {
       throws Exception {
     return ok(
             "POST",
-            "/api/admin/me/test-courses",
+            "/api/test/me/test-courses",
             mapper.writeValueAsString(
                 Map.of(
                     "courseCode",

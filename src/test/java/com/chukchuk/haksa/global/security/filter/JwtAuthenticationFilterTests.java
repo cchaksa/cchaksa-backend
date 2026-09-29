@@ -193,29 +193,24 @@ class JwtAuthenticationFilterTests {
 
   @Test
   @DisplayName("dev 테스트 옵션 조회 API는 토큰 없이도 인증 오류를 반환하지 않는다")
-  void getAdminTestReadEndpointsWithoutTokenArePublic() throws Exception {
-    mockMvc.perform(get("/api/admin/test-options")).andExpect(status().isOk());
+  void getTestSupportReadEndpointsWithoutTokenArePublic() throws Exception {
+    mockMvc.perform(get("/api/test/options")).andExpect(status().isOk());
 
-    mockMvc.perform(get("/api/admin/departments")).andExpect(status().isOk());
+    mockMvc.perform(get("/api/test/departments")).andExpect(status().isOk());
 
-    mockMvc.perform(get("/api/admin/course-offerings")).andExpect(status().isOk());
+    mockMvc.perform(get("/api/test/course-offerings")).andExpect(status().isOk());
 
-    mockMvc.perform(post("/api/admin/test-lecture-evaluations/pending")).andExpect(status().isOk());
+    mockMvc.perform(post("/api/test/lecture-evaluations/pending")).andExpect(status().isOk());
   }
 
   @RestController
   static class AdminReadEndpointController {
-    @GetMapping({
-      "/api/admin/test-options",
-      "/api/admin/departments",
-      "/api/admin/course-offerings"
-    })
+    @GetMapping({"/api/test/options", "/api/test/departments", "/api/test/course-offerings"})
     String ok() {
       return "ok";
     }
 
-    @org.springframework.web.bind.annotation.PostMapping(
-        "/api/admin/test-lecture-evaluations/pending")
+    @org.springframework.web.bind.annotation.PostMapping("/api/test/lecture-evaluations/pending")
     String postOk() {
       return "ok";
     }

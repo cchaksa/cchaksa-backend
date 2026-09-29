@@ -30,19 +30,19 @@ class OpenApiResponseContractTest {
           new OperationRef("/sentry-test", "get"),
           new OperationRef("/api/users/signin", "post"),
           new OperationRef("/api/auth/refresh", "post"),
-          new OperationRef("/api/admin/test-options", "get"),
-          new OperationRef("/api/admin/departments", "get"),
-          new OperationRef("/api/admin/course-offerings", "get"),
-          new OperationRef("/api/admin/test-lecture-evaluations/empty-semester", "post"),
-          new OperationRef("/api/admin/test-lecture-evaluations/not-released", "post"),
-          new OperationRef("/api/admin/test-lecture-evaluations/pending", "post"),
-          new OperationRef("/api/admin/test-lecture-evaluations/skipped", "post"),
-          new OperationRef("/api/admin/test-lecture-evaluations/completed", "post"),
+          new OperationRef("/api/test/options", "get"),
+          new OperationRef("/api/test/departments", "get"),
+          new OperationRef("/api/test/course-offerings", "get"),
+          new OperationRef("/api/test/lecture-evaluations/empty-semester", "post"),
+          new OperationRef("/api/test/lecture-evaluations/not-released", "post"),
+          new OperationRef("/api/test/lecture-evaluations/pending", "post"),
+          new OperationRef("/api/test/lecture-evaluations/skipped", "post"),
+          new OperationRef("/api/test/lecture-evaluations/completed", "post"),
           new OperationRef("/internal/scrape-results", "post"));
 
   private static final List<OperationRef> PROTECTED_OPERATIONS =
       List.of(
-          new OperationRef("/api/admin/me/transfer-data", "patch"),
+          new OperationRef("/api/test/me/transfer-data", "patch"),
           new OperationRef("/portal/link", "post"),
           new OperationRef("/portal/link/jobs/{jobId}", "get"),
           new OperationRef("/portal/link/jobs/{jobId}/summary", "get"),

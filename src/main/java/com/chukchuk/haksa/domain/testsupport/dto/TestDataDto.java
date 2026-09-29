@@ -1,6 +1,6 @@
 // dev 테스트 어드민 API 요청과 응답 DTO를 정의한다
 
-package com.chukchuk.haksa.domain.admin.dto;
+package com.chukchuk.haksa.domain.testsupport.dto;
 
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** 개발 환경의 관리자 테스트 API에서 사용하는 요청·응답 형식을 묶는다. */
-public class AdminTestDto {
+public class TestDataDto {
 
   /**
    * 고정 테스트 계정 생성에 필요한 학적 조건을 전달한다.

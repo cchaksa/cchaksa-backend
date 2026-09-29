@@ -1,6 +1,6 @@
 // 테스트 계정의 편입 원천 데이터 부분 수정과 지정과목 입력을 검증한다.
 
-package com.chukchuk.haksa.domain.admin.dto;
+package com.chukchuk.haksa.domain.testsupport.dto;
 
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.Nulls;
