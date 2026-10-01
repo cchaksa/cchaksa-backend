@@ -10,8 +10,19 @@ export function RequireAdmin() {
     return <main className="route-status">관리자 세션을 확인하고 있습니다.</main>
   }
 
-  if (session.error instanceof ApiError && [401, 403].includes(session.error.status)) {
-    return <Navigate to={routes.login} replace />
+  if (
+    session.error instanceof ApiError &&
+    [401, 403].includes(session.error.status)
+  ) {
+    return (
+      <Navigate
+        to={routes.login}
+        replace
+        state={
+          session.error.code === 'A05' ? { sessionExpired: true } : undefined
+        }
+      />
+    )
   }
 
   if (session.isError) {

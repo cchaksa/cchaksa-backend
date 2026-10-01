@@ -1,13 +1,15 @@
-import { requestJson, requestVoid } from '../../../shared/api/http'
+import {
+  ApiError,
+  hasCsrfToken,
+  requestJson,
+  requestVoid,
+} from '../../../shared/api/http'
 import { useMockApi } from '../../../shared/config/api'
 import type {
-  AdminChallenge,
+  AdminPasswordChangeInput,
   AdminSession,
-  AdminSignInCallback,
-  KakaoAuthorizationProvider,
+  AdminSignInInput,
 } from '../model/types'
-
-const PENDING_SIGN_IN_KEY = 'cchaksa.admin.pending-sign-in'
 
 const mockSession: AdminSession = {
   adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
@@ -15,109 +17,94 @@ const mockSession: AdminSession = {
   adminRole: 'CS_AGENT',
 }
 
-interface PendingSignIn {
-  challengeId: string
-  state: string
-}
+let mockSignedIn = false
+let csrfBootstrapPromise: Promise<void> | null = null
 
-let kakaoAuthorizationProvider: KakaoAuthorizationProvider | null = null
-
-export class AdminSignInCallbackError extends Error {
-  constructor() {
-    super('카카오 로그인 요청 정보를 확인할 수 없습니다.')
-    this.name = 'AdminSignInCallbackError'
-  }
-}
-
-export function configureKakaoAuthorizationProvider(
-  provider: KakaoAuthorizationProvider,
-) {
-  kakaoAuthorizationProvider = provider
-}
-
-export function cancelAdminSignIn() {
-  takePendingSignIn()
-}
-
-function savePendingSignIn(challenge: AdminChallenge) {
-  const pendingSignIn: PendingSignIn = {
-    challengeId: challenge.challengeId,
-    state: challenge.state,
-  }
-  sessionStorage.setItem(PENDING_SIGN_IN_KEY, JSON.stringify(pendingSignIn))
-}
-
-function takePendingSignIn(): PendingSignIn | null {
-  const value = sessionStorage.getItem(PENDING_SIGN_IN_KEY)
-  sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
-  if (!value) return null
-
-  try {
-    const pendingSignIn = JSON.parse(value) as Partial<PendingSignIn>
-    if (
-      typeof pendingSignIn.challengeId !== 'string' ||
-      typeof pendingSignIn.state !== 'string'
-    ) {
-      return null
-    }
-    return pendingSignIn as PendingSignIn
-  } catch {
-    return null
-  }
-}
-
-async function signIn() {
-  if (useMockApi) return mockSession
-  if (!kakaoAuthorizationProvider) {
-    throw new Error('카카오 인증 공급자가 연결되지 않았습니다.')
-  }
-
-  const challenge = await requestJson<AdminChallenge>(
-    '/api/admin/auth/challenge',
-    { cache: 'no-store' },
-  )
-  savePendingSignIn(challenge)
-
-  try {
-    await kakaoAuthorizationProvider({
-      javascriptAppKey: challenge.javascriptAppKey,
-      redirectUri: challenge.redirectUri,
-      nonce: challenge.nonce,
-      state: challenge.state,
+async function bootstrapCsrf() {
+  if (useMockApi) return
+  if (!csrfBootstrapPromise) {
+    csrfBootstrapPromise = requestVoid('/api/admin/auth/csrf', {
+      cache: 'no-store',
+      notifySessionExpired: false,
+      allowDuringSessionTransition: true,
     })
-  } catch (error) {
-    takePendingSignIn()
-    throw error
+      .then(() => {
+        if (!hasCsrfToken()) {
+          throw new Error('CSRF 쿠키를 확인할 수 없습니다.')
+        }
+      })
+      .finally(() => {
+        csrfBootstrapPromise = null
+      })
   }
-
-  return null
+  return csrfBootstrapPromise
 }
 
-async function completeSignIn(callback: AdminSignInCallback) {
-  const pendingSignIn = takePendingSignIn()
-  if (!pendingSignIn || pendingSignIn.state !== callback.state) {
-    throw new AdminSignInCallbackError()
+async function signIn(input: AdminSignInInput) {
+  if (useMockApi) {
+    mockSignedIn = true
+    return mockSession
   }
-
   return requestJson<AdminSession>('/api/admin/auth/signin', {
     method: 'POST',
-    body: JSON.stringify({
-      challengeId: pendingSignIn.challengeId,
-      authorizationCode: callback.authorizationCode,
-      state: callback.state,
-    }),
+    body: JSON.stringify(input),
+    notifySessionExpired: false,
+    allowDuringSessionTransition: true,
+  })
+}
+
+async function getSession() {
+  if (useMockApi) {
+    if (!mockSignedIn) {
+      throw new ApiError('관리자 로그인이 필요합니다.', 401, 'A05')
+    }
+    return mockSession
+  }
+  return requestJson<AdminSession>('/api/admin/auth/me', {
+    notifySessionExpired: false,
+  })
+}
+
+async function verifySession() {
+  if (useMockApi) return getSession()
+  return requestJson<AdminSession>('/api/admin/auth/me', {
+    allowDuringSessionTransition: true,
+    sessionTransitionRequest: true,
+  })
+}
+
+async function signOut() {
+  if (useMockApi) {
+    mockSignedIn = false
+    return
+  }
+  await requestVoid('/api/admin/auth/signout', {
+    method: 'POST',
+    allowDuringSessionTransition: true,
+    sessionTransitionRequest: true,
+  })
+}
+
+async function changePassword(input: AdminPasswordChangeInput) {
+  if (useMockApi) {
+    if (input.currentPassword === input.newPassword) {
+      throw new ApiError('기존 비밀번호와 다른 값을 입력해 주세요.', 400, 'A15')
+    }
+    return
+  }
+  await requestVoid('/api/admin/auth/password', {
+    method: 'POST',
+    body: JSON.stringify(input),
+    allowDuringSessionTransition: true,
+    sessionTransitionRequest: true,
   })
 }
 
 export const adminSessionApi = {
+  bootstrapCsrf,
   signIn,
-  completeSignIn,
-  getSession: () =>
-    useMockApi
-      ? Promise.resolve(mockSession)
-      : requestJson<AdminSession>('/api/admin/auth/me'),
-  signOut: () =>
-    useMockApi
-      ? Promise.resolve()
-      : requestVoid('/api/admin/auth/signout', { method: 'POST' }),
+  getSession,
+  verifySession,
+  signOut,
+  changePassword,
 }

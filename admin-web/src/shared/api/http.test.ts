@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  ApiError,
+  beginAdminSessionTransition,
   configureCsrfTokenProvider,
+  configureSessionExpiredHandler,
   createCookieCsrfTokenProvider,
   CsrfTokenUnavailableError,
   requestJson,
@@ -9,6 +12,7 @@ import {
 
 afterEach(() => {
   configureCsrfTokenProvider(() => null)
+  configureSessionExpiredHandler(null)
   vi.unstubAllGlobals()
 })
 
@@ -79,5 +83,80 @@ describe('admin HTTP CSRF handling', () => {
     await requestVoid('/api/admin/auth/me')
 
     expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
+  it('retains only the validated error code and status', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            success: false,
+            error: {
+              code: 'A13',
+              message: 'server message',
+              details: { private: 'must not be retained' },
+            },
+          },
+          { status: 401 },
+        ),
+      ),
+    )
+
+    const error = await requestVoid('/api/admin/auth/signin').catch(
+      (caught: unknown) => caught,
+    )
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 401, code: 'A13' })
+    expect(JSON.stringify(error)).not.toContain('server message')
+    expect(JSON.stringify(error)).not.toContain('private')
+  })
+
+  it('notifies session expiry only for current A05 responses', async () => {
+    const expired = vi.fn()
+    configureSessionExpiredHandler(expired)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { success: false, error: { code: 'A05', message: 'expired' } },
+          { status: 401 },
+        ),
+      ),
+    )
+
+    await expect(requestVoid('/api/admin/reports')).rejects.toMatchObject({
+      code: 'A05',
+    })
+    expect(expired).toHaveBeenCalledOnce()
+  })
+
+  it('suppresses stale A05 responses while the session is transitioning', async () => {
+    let resolveResponse: ((response: Response) => void) | undefined
+    const expired = vi.fn()
+    configureSessionExpiredHandler(expired)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveResponse = resolve
+          }),
+      ),
+    )
+
+    const staleRequest = requestVoid('/api/admin/reports')
+    const transition = beginAdminSessionTransition()
+    resolveResponse?.(
+      Response.json(
+        { success: false, error: { code: 'A05', message: 'expired' } },
+        { status: 401 },
+      ),
+    )
+
+    await expect(staleRequest).rejects.toMatchObject({ code: 'A05' })
+    expect(expired).not.toHaveBeenCalled()
+    transition.cancel()
   })
 })

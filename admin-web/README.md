@@ -26,24 +26,17 @@ npm run typecheck
 npm run build
 ```
 
-배포 산출물은 `admin-web/dist`다. 빌드에는 Kakao key나 API origin을 주입하지 않는다.
+배포 산출물은 `admin-web/dist`다. 빌드에는 관리자 자격 증명이나 API origin을 주입하지 않는다.
 
 ## 환경별 관리자 로그인
 
-프론트는 `GET /api/admin/auth/challenge`가 반환한 `javascriptAppKey`와 `redirectUri`로 Kakao JavaScript SDK를 초기화한다. 따라서 동일한 `dist`를 dev와 prod에서 사용할 수 있고, 환경별 Kakao 설정은 백엔드 실행 환경에서 관리한다.
+관리자 로그인은 개발진이 발급한 `loginId`와 비밀번호를 사용한다. 프론트는 환경별 인증 설정을 갖지 않으며 같은 `dist`를 dev와 prod에 배포한다.
 
-백엔드에 필요한 값은 다음과 같다.
+- 로그인 화면은 `GET /api/admin/auth/csrf`로 `XSRF-TOKEN`을 준비한 뒤 `POST /api/admin/auth/signin`을 호출한다.
+- 로그인 성공 뒤 HttpOnly `cchaksa_admin_session` 쿠키로 `/api/admin/*`를 호출한다.
+- 비밀번호 변경은 `POST /api/admin/auth/password`에 기존·신규 비밀번호만 전송한다.
+- 로그아웃은 `POST /api/admin/auth/signout`을 호출하며 재로그인할 때 CSRF를 다시 준비한다.
+- loginId와 비밀번호는 입력 원문 그대로 전송하고 query cache, URL, 브라우저 저장소, console과 analytics에 기록하지 않는다.
+- 관리자 계정 발급·활성화, 비밀번호 hash와 세션 저장은 백엔드가 관리한다.
 
-```text
-ADMIN_KAKAO_JAVASCRIPT_APP_KEY
-ADMIN_KAKAO_REST_API_KEY
-ADMIN_KAKAO_CLIENT_SECRET
-ADMIN_KAKAO_REDIRECT_URI
-ADMIN_AUTH_COOKIE_SECURE=true
-```
-
-- 실제 값과 Client Secret은 Git, Vite 환경변수, 브라우저 저장소에 두지 않는다.
-- `ADMIN_KAKAO_REDIRECT_URI`는 해당 환경의 관리자 웹 origin과 `/login/callback`을 조합한 전체 URI다.
-- Kakao Developers의 JavaScript SDK 도메인과 JavaScript/REST API key의 redirect URI도 같은 환경 주소로 등록한다.
-- dev 검증 전 ACTIVE `admin_accounts`에 테스트 담당자의 Kakao app-scoped social ID를 등록한다.
-- 로그인 nonce, authorization code, ID token과 관리자 cookie는 console 또는 오류 추적 tag에 기록하지 않는다.
+dev 통합 검증 전 로컬 자격 증명이 설정된 ACTIVE `admin_accounts` 테스트 계정이 필요하다. 실제 loginId와 비밀번호는 Git, 문서, mock과 테스트 fixture에 기록하지 않는다.

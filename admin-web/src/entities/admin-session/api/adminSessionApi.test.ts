@@ -1,155 +1,97 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { configureCsrfTokenProvider } from '../../../shared/api/http'
-import {
-  AdminSignInCallbackError,
-  adminSessionApi,
-  configureKakaoAuthorizationProvider,
-} from './adminSessionApi'
-
-function createSessionStorage() {
-  const values = new Map<string, string>()
-
-  return {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value),
-    removeItem: (key: string) => values.delete(key),
-    clear: () => values.clear(),
-    key: (index: number) => [...values.keys()][index] ?? null,
-    get length() {
-      return values.size
-    },
-  } satisfies Storage
-}
-
-beforeEach(() => {
-  vi.stubGlobal('sessionStorage', createSessionStorage())
-})
+import { adminSessionApi } from './adminSessionApi'
 
 afterEach(() => {
   configureCsrfTokenProvider(() => null)
   vi.unstubAllGlobals()
 })
 
-describe('admin sign-in contract', () => {
-  it('passes the server challenge to Kakao without storing nonce or app settings', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      Response.json({
-        success: true,
-        data: {
-          challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
-          nonce: 'server-issued-nonce',
-          state: 'server-issued-state',
-          javascriptAppKey: 'public-javascript-app-key',
-          redirectUri: 'http://localhost:5173/login/callback',
-        },
-      }),
-    )
-    const authorizationProvider = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('fetch', fetchMock)
-    configureKakaoAuthorizationProvider(authorizationProvider)
-
-    await expect(adminSessionApi.signIn()).resolves.toBeNull()
-
-    expect(authorizationProvider).toHaveBeenCalledWith({
-      javascriptAppKey: 'public-javascript-app-key',
-      redirectUri: 'http://localhost:5173/login/callback',
-      nonce: 'server-issued-nonce',
-      state: 'server-issued-state',
-    })
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/auth/challenge')
-    expect(fetchMock.mock.calls[0][1]?.cache).toBe('no-store')
-    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include')
-    expect([...Array(sessionStorage.length)].map((_, index) => sessionStorage.key(index))).toHaveLength(1)
-    const pendingValue = sessionStorage.getItem(
-      'cchaksa.admin.pending-sign-in',
-    )
-    expect(pendingValue).toContain('a483132f-eaa7-43ab-a221-b29f2c80472d')
-    expect(pendingValue).toContain('server-issued-state')
-    expect(pendingValue).not.toContain('server-issued-nonce')
-    expect(pendingValue).not.toContain('public-javascript-app-key')
-  })
-
-  it('submits the callback code with the stored challenge and current CSRF token', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        Response.json({
-          success: true,
-          data: {
-            challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
-            nonce: 'server-issued-nonce',
-            state: 'server-issued-state',
-            javascriptAppKey: 'public-javascript-app-key',
-            redirectUri: 'http://localhost:5173/login/callback',
-          },
+describe('admin credential authentication contract', () => {
+  it('bootstraps CSRF once for concurrent callers and requires a readable cookie', async () => {
+    let resolveResponse: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveResponse = resolve
         }),
-      )
-      .mockResolvedValueOnce(
-        Response.json({
-          success: true,
-          data: {
-            adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
-            displayName: '김척척',
-            adminRole: 'CS_AGENT',
-          },
-        }),
-      )
+    )
     vi.stubGlobal('fetch', fetchMock)
-    configureKakaoAuthorizationProvider(vi.fn().mockResolvedValue(undefined))
     configureCsrfTokenProvider(() => ({
       name: 'X-XSRF-TOKEN',
-      value: 'server-issued-csrf-token',
+      value: 'csrf-token',
     }))
 
-    await adminSessionApi.signIn()
-    await expect(
-      adminSessionApi.completeSignIn({
-        authorizationCode: 'kakao-authorization-code',
-        state: 'server-issued-state',
-      }),
-    ).resolves.toMatchObject({ adminRole: 'CS_AGENT' })
+    const first = adminSessionApi.bootstrapCsrf()
+    const second = adminSessionApi.bootstrapCsrf()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    resolveResponse?.(new Response(null, { status: 204 }))
 
-    const [path, request] = fetchMock.mock.calls[1]
-    const headers = new Headers(request?.headers)
-    expect(path).toBe('/api/admin/auth/signin')
-    expect(request?.method).toBe('POST')
-    expect(request?.credentials).toBe('include')
-    expect(request?.body).toBe(
-      JSON.stringify({
-        challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
-        authorizationCode: 'kakao-authorization-code',
-        state: 'server-issued-state',
-      }),
-    )
-    expect(headers.get('X-XSRF-TOKEN')).toBe('server-issued-csrf-token')
-    expect(sessionStorage.length).toBe(0)
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      undefined,
+      undefined,
+    ])
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/admin/auth/csrf')
+    expect(fetchMock.mock.calls[0][1]?.cache).toBe('no-store')
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include')
   })
 
-  it('rejects a callback whose state does not match without sending it', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(
+  it('submits loginId and password unchanged with the current CSRF token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
         success: true,
         data: {
-          challengeId: 'a483132f-eaa7-43ab-a221-b29f2c80472d',
-          nonce: 'server-issued-nonce',
-          state: 'server-issued-state',
-          javascriptAppKey: 'public-javascript-app-key',
-          redirectUri: 'http://localhost:5173/login/callback',
+          adminAccountId: '2d577d85-53d9-45a2-8b4e-c06be5975710',
+          displayName: '김척척',
+          adminRole: 'CS_AGENT',
         },
       }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    configureKakaoAuthorizationProvider(vi.fn().mockResolvedValue(undefined))
+    configureCsrfTokenProvider(() => ({
+      name: 'X-XSRF-TOKEN',
+      value: 'csrf-token',
+    }))
 
-    await adminSessionApi.signIn()
+    await adminSessionApi.signIn({
+      loginId: ' Case.Sensitive ',
+      password: ' password with spaces ',
+    })
 
-    await expect(
-      adminSessionApi.completeSignIn({
-        authorizationCode: 'kakao-authorization-code',
-        state: 'different-state',
+    const [path, request] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/admin/auth/signin')
+    expect(request?.body).toBe(
+      JSON.stringify({
+        loginId: ' Case.Sensitive ',
+        password: ' password with spaces ',
       }),
-    ).rejects.toBeInstanceOf(AdminSignInCallbackError)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(sessionStorage.length).toBe(0)
+    )
+    expect(new Headers(request?.headers).get('X-XSRF-TOKEN')).toBe(
+      'csrf-token',
+    )
+  })
+
+  it('sends only currentPassword and newPassword for password changes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    configureCsrfTokenProvider(() => ({
+      name: 'X-XSRF-TOKEN',
+      value: 'csrf-token',
+    }))
+
+    await adminSessionApi.changePassword({
+      currentPassword: 'old password',
+      newPassword: 'new password',
+    })
+
+    const [path, request] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/admin/auth/password')
+    expect(request?.body).toBe(
+      JSON.stringify({
+        currentPassword: 'old password',
+        newPassword: 'new password',
+      }),
+    )
+    expect(request?.body).not.toContain('confirmation')
   })
 })

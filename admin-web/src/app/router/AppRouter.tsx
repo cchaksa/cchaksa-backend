@@ -1,21 +1,20 @@
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router'
-import { RequireAdmin } from '../../features/admin-auth'
+import {
+  AdminSessionExpiryCoordinator,
+  RequireAdmin,
+} from '../../features/admin-auth'
 import { InquiryDetailPage } from '../../pages/inquiry-detail'
 import { InquiryListPage } from '../../pages/inquiries'
 import { LoginPage } from '../../pages/login'
-import { KakaoSignInCallbackPage } from '../../pages/login-callback'
 import { routes } from '../../shared/config/routes'
 import { AdminShell } from '../../widgets/admin-shell'
 
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <AdminSessionExpiryCoordinator />
       <Routes>
         <Route path={routes.login} element={<LoginPage />} />
-        <Route
-          path={routes.loginCallback}
-          element={<KakaoSignInCallbackPage />}
-        />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminShell />}>
             <Route index element={<Navigate to={routes.inquiries} replace />} />

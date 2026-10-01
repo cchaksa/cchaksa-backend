@@ -13,15 +13,33 @@ export type CsrfTokenProvider = () => CsrfHeader | null
 
 export interface AdminRequestOptions extends RequestInit {
   csrf?: CsrfHeader
+  allowDuringSessionTransition?: boolean
+  sessionTransitionRequest?: boolean
+  notifySessionExpired?: boolean
+}
+
+interface ErrorResponseBody {
+  success?: unknown
+  error?: {
+    code?: unknown
+  }
 }
 
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code: string | null = null,
   ) {
     super(message)
     this.name = 'ApiError'
+  }
+}
+
+export class AdminSessionTransitionError extends Error {
+  constructor() {
+    super('관리자 세션을 갱신하고 있습니다.')
+    this.name = 'AdminSessionTransitionError'
   }
 }
 
@@ -33,9 +51,35 @@ export class CsrfTokenUnavailableError extends Error {
 }
 
 let csrfTokenProvider: CsrfTokenProvider = () => null
+let sessionExpiredHandler: (() => void) | null = null
+let sessionTransitionInProgress = false
+let sessionGeneration = 0
 
 export function configureCsrfTokenProvider(provider: CsrfTokenProvider) {
   csrfTokenProvider = provider
+}
+
+export function hasCsrfToken() {
+  return csrfTokenProvider() !== null
+}
+
+export function configureSessionExpiredHandler(handler: (() => void) | null) {
+  sessionExpiredHandler = handler
+}
+
+export function beginAdminSessionTransition() {
+  if (sessionTransitionInProgress) throw new AdminSessionTransitionError()
+  sessionTransitionInProgress = true
+
+  return {
+    commit: () => {
+      sessionGeneration += 1
+      sessionTransitionInProgress = false
+    },
+    cancel: () => {
+      sessionTransitionInProgress = false
+    },
+  }
 }
 
 export function createCookieCsrfTokenProvider(
@@ -64,7 +108,18 @@ function requiresCsrf(method: string | undefined) {
 }
 
 async function request(path: string, options: AdminRequestOptions = {}) {
-  const { csrf, ...requestOptions } = options
+  const {
+    csrf,
+    allowDuringSessionTransition = false,
+    sessionTransitionRequest = false,
+    notifySessionExpired = true,
+    ...requestOptions
+  } = options
+  const requestGeneration = sessionGeneration
+
+  if (sessionTransitionInProgress && !allowDuringSessionTransition) {
+    throw new AdminSessionTransitionError()
+  }
   const headers = new Headers(requestOptions.headers)
   headers.set('Accept', 'application/json')
   if (requestOptions.body && !headers.has('Content-Type')) {
@@ -84,7 +139,34 @@ async function request(path: string, options: AdminRequestOptions = {}) {
   })
 
   if (!response.ok) {
-    throw new ApiError('관리자 API 요청을 처리하지 못했습니다.', response.status)
+    let code: string | null = null
+    try {
+      const body = (await response.json()) as ErrorResponseBody
+      if (
+        body.success === false &&
+        typeof body.error?.code === 'string' &&
+        /^[A-Z0-9_-]{1,32}$/.test(body.error.code)
+      ) {
+        code = body.error.code
+      }
+    } catch {
+      // Non-JSON failures still use the HTTP status and a generic message.
+    }
+
+    if (
+      code === 'A05' &&
+      notifySessionExpired &&
+      (sessionTransitionRequest ||
+        (!sessionTransitionInProgress && requestGeneration === sessionGeneration))
+    ) {
+      sessionExpiredHandler?.()
+    }
+
+    throw new ApiError(
+      '관리자 API 요청을 처리하지 못했습니다.',
+      response.status,
+      code,
+    )
   }
 
   return response

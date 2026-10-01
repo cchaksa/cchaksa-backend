@@ -1,0 +1,53 @@
+.admin-sign-in-form {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-sign-in-form label {
+  color: #343c45;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-sign-in-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #cfd5dc;
+  border-radius: 6px;
+  color: #171b20;
+  background: #ffffff;
+}
+
+.admin-sign-in-form input:disabled {
+  background: #f4f5f7;
+}
+
+.admin-sign-in-form button,
+.sign-in-preparation button {
+  min-height: 44px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  background: #30363d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-sign-in-form button:disabled {
+  cursor: wait;
+  opacity: 0.64;
+}
+
+.admin-sign-in-error,
+.sign-in-preparation p {
+  margin: 2px 0 0;
+  color: #b3261e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sign-in-preparation {
+  display: grid;
+}

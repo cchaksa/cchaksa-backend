@@ -135,6 +135,62 @@
   cursor: pointer;
 }
 
+.admin-profile-area {
+  position: relative;
+}
+
+.admin-profile[aria-expanded="true"] {
+  background: #f0f2f5;
+}
+
+.admin-profile[aria-expanded="true"] .admin-profile-chevron {
+  transform: rotate(180deg);
+}
+
+.admin-profile-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 200px;
+  padding: 6px;
+  border: 1px solid #dfe3e8;
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 14px 36px rgba(21, 29, 37, 0.14);
+}
+
+.admin-profile-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  color: #303840;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-profile-menu button:hover,
+.admin-profile-menu button:focus-visible {
+  background: #f0f2f5;
+}
+
+.admin-profile-menu button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.profile-menu-error {
+  margin: 6px 8px;
+  color: #b3261e;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .admin-avatar {
   display: inline-grid;
   width: 36px;
@@ -164,6 +220,15 @@
 
 .admin-content {
   padding: 32px;
+}
+
+.admin-command-error {
+  margin: 0;
+  padding: 10px 28px;
+  border-bottom: 1px solid #f0c5c1;
+  color: #8f1d17;
+  background: #fff4f3;
+  font-size: 13px;
 }
 
 .sidebar-backdrop {
@@ -231,6 +296,14 @@
     margin-left: auto;
   }
 
+  .admin-profile-area {
+    margin-left: auto;
+  }
+
+  .admin-profile-area .admin-profile {
+    margin-left: 0;
+  }
+
   .admin-profile-copy,
   .admin-profile > svg {
     display: none;
@@ -238,5 +311,9 @@
 
   .admin-content {
     padding: 24px 16px;
+  }
+
+  .admin-command-error {
+    padding: 10px 16px;
   }
 }

@@ -6,26 +6,12 @@ export interface AdminSession {
   adminRole: AdminRole
 }
 
-export interface AdminChallenge {
-  challengeId: string
-  nonce: string
-  state: string
-  javascriptAppKey: string
-  redirectUri: string
+export interface AdminSignInInput {
+  loginId: string
+  password: string
 }
 
-export interface KakaoAuthorizationRequest {
-  javascriptAppKey: string
-  redirectUri: string
-  nonce: string
-  state: string
+export interface AdminPasswordChangeInput {
+  currentPassword: string
+  newPassword: string
 }
-
-export interface AdminSignInCallback {
-  authorizationCode: string
-  state: string
-}
-
-export type KakaoAuthorizationProvider = (
-  request: KakaoAuthorizationRequest,
-) => Promise<void>
