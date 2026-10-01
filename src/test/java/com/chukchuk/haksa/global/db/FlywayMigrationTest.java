@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV16() throws Exception {
+  void freshDatabaseMigratesFromV1ToV18() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -72,7 +72,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("13"),
             MigrationVersion.fromVersion("14"),
             MigrationVersion.fromVersion("15"),
-            MigrationVersion.fromVersion("16"));
+            MigrationVersion.fromVersion("16"),
+            MigrationVersion.fromVersion("18"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -112,6 +113,10 @@ class FlywayMigrationTest {
       assertThat(hasColumn(connection, "reports", "graduation_requirement_status")).isTrue();
       assertThat(hasIndex(connection, "reports", "idx_reports_user_created_id_desc")).isTrue();
       assertThat(hasTable(connection, "admin_accounts")).isTrue();
+      assertThat(hasColumn(connection, "admin_accounts", "login_id")).isTrue();
+      assertThat(hasColumn(connection, "admin_accounts", "password_hash")).isTrue();
+      assertThat(isNullable(connection, "admin_accounts", "provider")).isTrue();
+      assertThat(isNullable(connection, "admin_accounts", "social_id")).isTrue();
       assertThat(hasTable(connection, "admin_login_challenges")).isTrue();
       assertThat(hasColumn(connection, "admin_login_challenges", "state")).isTrue();
       assertThat(hasColumn(connection, "admin_login_challenges", "browser_token_hash")).isTrue();
@@ -143,6 +148,83 @@ class FlywayMigrationTest {
         assertThat(resultSet.getString("area_name")).isEqualTo("8영역");
         assertThat(resultSet.getBoolean("is_active")).isTrue();
       }
+    }
+  }
+
+  @Test
+  void v18UpgradesV16WithoutBreakingLegacyAdminRows() throws Exception {
+    String dbName = "flyway-v18-admin-local-auth-" + UUID.randomUUID();
+    String url =
+        "jdbc:h2:mem:"
+            + dbName
+            + ";MODE=PostgreSQL;DATABASE_TO_UPPER=false;NON_KEYWORDS=YEAR;"
+            + "DB_CLOSE_DELAY=-1;"
+            + "INIT=CREATE SCHEMA IF NOT EXISTS public";
+
+    Flyway.configure()
+        .dataSource(url, "sa", "")
+        .schemas("public")
+        .locations("classpath:db/migration")
+        .target(MigrationVersion.fromVersion("16"))
+        .load()
+        .migrate();
+
+    UUID legacyId = UUID.randomUUID();
+    try (var connection = DriverManager.getConnection(url, "sa", "");
+        var statement = connection.createStatement()) {
+      statement.executeUpdate(
+          """
+          INSERT INTO public.admin_accounts (
+              id, provider, social_id, display_name, admin_role, status,
+              created_by, created_at, updated_at
+          ) VALUES (
+              '%s', 'KAKAO', 'legacy-subject', '기존 관리자', 'ADMIN', 'ACTIVE',
+              'bootstrap', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          )
+          """
+              .formatted(legacyId));
+    }
+
+    Flyway.configure()
+        .dataSource(url, "sa", "")
+        .schemas("public")
+        .locations("classpath:db/migration")
+        .load()
+        .migrate();
+
+    try (var connection = DriverManager.getConnection(url, "sa", "");
+        var statement = connection.createStatement()) {
+      assertThat(hasColumn(connection, "admin_accounts", "login_id")).isTrue();
+      assertThat(isNullable(connection, "admin_accounts", "provider")).isTrue();
+      try (var legacy =
+          statement.executeQuery(
+              "SELECT login_id, password_hash FROM public.admin_accounts WHERE id = '"
+                  + legacyId
+                  + "'")) {
+        assertThat(legacy.next()).isTrue();
+        assertThat(legacy.getString("login_id")).isNull();
+        assertThat(legacy.getString("password_hash")).isNull();
+      }
+
+      statement.executeUpdate(localAdminInsert(UUID.randomUUID(), "Case.Sensitive"));
+      statement.executeUpdate(localAdminInsert(UUID.randomUUID(), "case.sensitive"));
+      assertThatThrownBy(
+              () -> statement.executeUpdate(localAdminInsert(UUID.randomUUID(), "Case.Sensitive")))
+          .isInstanceOf(java.sql.SQLException.class);
+      assertThatThrownBy(
+              () ->
+                  statement.executeUpdate(
+                      """
+                      INSERT INTO public.admin_accounts (
+                          id, login_id, display_name, admin_role, status,
+                          created_by, created_at, updated_at
+                      ) VALUES (
+                          '%s', 'missing-hash', '잘못된 관리자', 'ADMIN', 'ACTIVE',
+                          'bootstrap', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                      )
+                      """
+                          .formatted(UUID.randomUUID())))
+          .isInstanceOf(java.sql.SQLException.class);
     }
   }
 
@@ -554,6 +636,16 @@ class FlywayMigrationTest {
       }
     }
     throw new AssertionError("외래 키를 찾을 수 없습니다: " + fkName);
+  }
+
+  private String localAdminInsert(UUID id, String loginId) {
+    return ("INSERT INTO public.admin_accounts ("
+            + "id, login_id, password_hash, display_name, admin_role, status, "
+            + "created_by, created_at, updated_at) VALUES ("
+            + "'%s', '%s', '$2a$12$exampleHashForMigrationContract', "
+            + "'로컬 관리자', 'ADMIN', 'ACTIVE', 'bootstrap', "
+            + "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)")
+        .formatted(id, loginId);
   }
 
   private void assertReportInsertRejected(
