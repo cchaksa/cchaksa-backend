@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV18() throws Exception {
+  void freshDatabaseMigratesFromV1ToV17() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -73,7 +73,7 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("14"),
             MigrationVersion.fromVersion("15"),
             MigrationVersion.fromVersion("16"),
-            MigrationVersion.fromVersion("18"));
+            MigrationVersion.fromVersion("17"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -152,8 +152,8 @@ class FlywayMigrationTest {
   }
 
   @Test
-  void v18UpgradesV16WithoutBreakingLegacyAdminRows() throws Exception {
-    String dbName = "flyway-v18-admin-local-auth-" + UUID.randomUUID();
+  void v17UpgradesV16WithoutBreakingLegacyAdminRows() throws Exception {
+    String dbName = "flyway-v17-admin-local-auth-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
             + dbName

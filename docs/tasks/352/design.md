@@ -31,7 +31,7 @@
 - `login_id`는 입력 그대로 저장하고 대소문자를 구분하는 exact unique 제약을 두며 `login_id/password_hash`는 둘 다 있거나 둘 다 없어야 한다.
 - `admin_sessions`: 기존 UUID PK, 관리자 FK, token hash, idle/absolute expiry와 revoked timestamp를 유지한다.
 
-`origin/dev`의 V15, #352의 V16, 후속 #354의 V17 예약을 모두 고려해 이 변경은 V18을 사용한다. V18은 `login_id/password_hash`를 nullable로 추가하고 legacy `provider/social_id`의 NOT NULL만 완화한다. 기존 컬럼, unique/check 제약과 `admin_login_challenges` 테이블은 삭제하지 않는다. 따라서 migration이 먼저 적용되고 이전 Lambda Alias가 계속 요청을 처리해도 기존 Kakao 관리자 행과 challenge 흐름은 동작한다. 새 코드는 local credential 행만 로그인에 사용한다.
+`origin/dev`의 최신은 V15이고 #352가 관리자 기본 테이블 V16을 추가하므로 이 변경은 순차적인 V17을 사용한다. 후속 #354에 아직 미병합·미적용 상태로 예약된 문의 migration은 V18로 이동해야 한다. #352가 V18을 먼저 사용하면 dev에 선행 배포된 뒤 V17이 추가될 때 Flyway out-of-order가 발생하므로 사용할 수 없다. V17은 `login_id/password_hash`를 nullable로 추가하고 legacy `provider/social_id`의 NOT NULL만 완화한다. 기존 컬럼, unique/check 제약과 `admin_login_challenges` 테이블은 삭제하지 않는다. 따라서 migration이 먼저 적용되고 이전 Lambda Alias가 계속 요청을 처리해도 기존 Kakao 관리자 행과 challenge 흐름은 동작한다. 새 코드는 local credential 행만 로그인에 사용한다.
 
 ## 계정 초기 발급
 

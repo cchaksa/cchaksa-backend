@@ -3,7 +3,7 @@
 ## 1. 계약과 migration
 
 - FE에 `/csrf`, `signin`, `me`, `signout`, `password`와 공통 오류 shape를 전달하고 차단 여부를 확인한다.
-- 스택에서 예약된 V16·V17과 충돌하지 않는 V18 additive migration으로 `login_id/password_hash`를 추가하고 legacy Kakao 컬럼을 nullable로 완화한다.
+- V16 다음의 V17 additive migration으로 `login_id/password_hash`를 추가하고 legacy Kakao 컬럼을 nullable로 완화한다.
 - fresh/upgrade, unique, nullable과 credential pair 제약을 migration 테스트로 검증한다.
 
 ## 2. 인증 구현
@@ -31,7 +31,7 @@
 
 - 문서·migration과 인증 구현을 논리 커밋으로 나눈다.
 - 기존 #352 커밋을 rewrite하지 않고 `feat/352` 위에 피벗 커밋을 누적한다.
-- 후속 스택에는 merge 방식으로 새 #352를 반영해 기존 커밋 히스토리와 migration 번호를 보존한다.
+- 후속 #354의 미적용 문의 migration은 V18로 이동하고 merge 방식으로 새 #352를 반영해 기존 커밋 히스토리와 순차 migration 번호를 보존한다.
 - Draft PR #358 본문에 최종 계약, 검증, Wiki 갱신 필요와 WAF rate limit 위험을 기록한다.
 
 ## Wiki
