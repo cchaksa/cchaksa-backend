@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV17() throws Exception {
+  void freshDatabaseMigratesFromV1ToV18() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -73,7 +73,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("14"),
             MigrationVersion.fromVersion("15"),
             MigrationVersion.fromVersion("16"),
-            MigrationVersion.fromVersion("17"));
+            MigrationVersion.fromVersion("17"),
+            MigrationVersion.fromVersion("18"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();

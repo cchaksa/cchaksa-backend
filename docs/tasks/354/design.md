@@ -14,7 +14,7 @@
 
 목록 항목은 `reportId`, `status`, `title`, 현재 `userId`, 스냅샷 `studentCode`, `createdAt`, `answeredAt`만 반환한다. 기본 size는 20이며 허용 범위는 1~100이다.
 
-V17에 다음 B-tree를 추가한다.
+V18에 다음 B-tree를 추가한다.
 
 - 전체 최신순: `(created_at DESC, id DESC)`.
 - 상태별 최신순: `(status, created_at DESC, id DESC)`.
@@ -37,4 +37,3 @@ V17에 다음 B-tree를 추가한다.
 갱신 수가 1이면 최초 작성자가 성공한다. 0이면 문의 존재 여부를 확인해 없으면 404 `R01`, 이미 답변됐으면 409 `R02`를 반환한다. 답변 수정·삭제는 제공하지 않는다. 향후 수정과 append-only 감사 이력은 `report_answers` 또는 `report_actions` 테이블을 추가해 확장하며 현재 reports 컬럼을 덮어쓰는 API는 만들지 않는다.
 
 본문, 답변, 학번과 학적 스냅샷은 로그, 예외 메시지, Sentry tag에 기록하지 않는다.
-

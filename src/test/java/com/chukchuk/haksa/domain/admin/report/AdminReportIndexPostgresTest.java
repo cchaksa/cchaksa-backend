@@ -34,7 +34,7 @@ class AdminReportIndexPostgresTest {
           )
           """);
       ClassPathResource migration =
-          new ClassPathResource("db/migration/V17__add_admin_report_management.sql");
+          new ClassPathResource("db/migration/V18__add_admin_report_management.sql");
       String migrationSql =
           new String(migration.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
       statement.execute(migrationSql);

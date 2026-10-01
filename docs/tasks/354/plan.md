@@ -2,7 +2,7 @@
 
 ## 1. DB와 모델
 
-- V17에 `answered_by_admin_id` FK와 최신순·상태·학번 인덱스를 추가한다.
+- V18에 `answered_by_admin_id` FK와 최신순·상태·학번 인덱스를 추가한다.
 - Report에 답변 관리자 연관을 읽기 전용으로 매핑한다.
 - Flyway fresh/upgrade, FK와 인덱스 순서를 검증한다.
 
@@ -29,4 +29,3 @@
 ## Wiki
 
 관리자 문의 API, DB 스키마, 상태 전이와 개인정보 취급 Wiki 갱신이 필요하다. 저장소 구현 완료 결과에 별도 Wiki 갱신 필요를 기록한다.
-
