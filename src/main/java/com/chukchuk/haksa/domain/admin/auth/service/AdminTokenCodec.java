@@ -8,7 +8,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import org.springframework.stereotype.Component;
 
-/** 관리자 challenge와 세션에 사용할 난수 생성과 SHA-256 해시를 제공한다. */
+/** 관리자 세션에 사용할 난수 생성과 SHA-256 해시를 제공한다. */
 @Component
 public class AdminTokenCodec {
   private final SecureRandom secureRandom = new SecureRandom();

@@ -81,6 +81,7 @@ class AdminReportApiIntegrationTest {
             new AdminAccount(
                 UUID.randomUUID(),
                 "admin-1",
+                "test-password-hash",
                 "첫 관리자",
                 AdminRole.CS_AGENT,
                 AdminStatus.ACTIVE,
@@ -90,6 +91,7 @@ class AdminReportApiIntegrationTest {
             new AdminAccount(
                 UUID.randomUUID(),
                 "admin-2",
+                "test-password-hash",
                 "둘째 관리자",
                 AdminRole.ADMIN,
                 AdminStatus.ACTIVE,
