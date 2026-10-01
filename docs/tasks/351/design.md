@@ -6,7 +6,7 @@
 
 - 이 문서는 #351 프론트엔드 UI와 #352·#354 공개 API의 프론트 어댑터 계약을 다룬다.
 - 서버의 `SuccessResponse<T>`, UUID 식별자와 `reports` 스키마를 정본으로 사용한다.
-- #351에서는 백엔드 코드, DB migration과 배포 설정을 변경하지 않는다.
+- #351에서는 백엔드 코드와 DB migration을 변경하지 않으며 관리자 웹 CI·배포 workflow만 함께 관리한다.
 
 ## 정보 구조
 
@@ -128,3 +128,15 @@ src/
 - 프로필 메뉴와 비밀번호 변경 dialog의 키보드 탐색, Escape, focus 복귀와 상태 안내 확인.
 - 문의 목록 query parameter, 상세 DTO와 답변 POST 계약 테스트.
 - mock 환경의 데스크톱·모바일 브라우저 화면과 민감 정보 로깅 여부 확인.
+
+## Dev 배포 계약
+
+- `.github/workflows/deploy-dev-admin-web.yml`은 수동 dispatch만 허용하고 GitHub Environment `dev`를 사용한다.
+- dispatch에서 선택한 ref의 정확한 `github.sha`를 checkout하며 prod workflow나 repo-level `ADMIN_WEB_S3_BUCKET`을 재사용하지 않는다.
+- dev 전용 변수는 `DEV_ADMIN_WEB_S3_BUCKET`, `DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID`, `DEV_ADMIN_WEB_BASE_URL`과 기존 `DEV_AWS_REGION`이다.
+- AWS 자격 증명 이름은 기존 dev Lambda workflow와 같은 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`를 사용하며 값은 코드·문서·로그에 기록하지 않는다.
+- 해시된 `assets/`를 immutable cache로 먼저 보존 업로드하고, 비버전 파일을 `assets/*`와 `index.html` 제외 후 `--delete`로 동기화한다.
+- `index.html`은 `no-cache,no-store,must-revalidate`로 마지막에 교체하고 `/*` invalidation 완료를 기다린 뒤 dev SPA/API 분리를 검증한다.
+- AWS 업로드 전에 CloudFront alias가 `dev.admin.cchaksa.com`이고 origin이 지정된 dev S3 버킷인지 확인해 prod distribution 오입력을 차단한다.
+- dev 검증 wrapper는 `https://dev.admin.cchaksa.com` 외 URL을 거부한다. `/api/admin/auth/csrf`의 204·비HTML·`Cache-Control: no-store`, extensionless SPA route의 HTML 200과 `/api/admin/auth/me`의 비HTML 401 또는 403을 확인한다.
+- 실제 dispatch와 S3 업로드는 dev IAM 연결, 백엔드 signin throttle, `feat/355` 배포, V18과 alias 검증 및 ACTIVE 관리자 계정 준비 뒤 오케스트레이터 승인으로 수행한다.

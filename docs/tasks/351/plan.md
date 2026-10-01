@@ -76,7 +76,7 @@
 ## 작업 기록
 
 - `admin-web` 독립 React/Vite/TypeScript 패키지와 `package-lock.json`을 생성했다.
-- 관리자 UI와 프론트엔드 API 어댑터를 구현했으며 서버 API/DB/배포 설정은 변경하지 않았다.
+- 관리자 UI와 프론트엔드 API 어댑터를 구현했으며 서버 API와 DB는 변경하지 않았다.
 - Wiki 갱신: 이번 단계에는 공개 API, 인증, DB 스키마, 배포 변경이 없어 갱신하지 않았다.
 
 검증 결과:
@@ -93,7 +93,7 @@
 
 - 확정한 프론트 계약은 #352·#354가 포함된 실제 서버와 통합 검증해야 한다.
 - ACTIVE `admin_accounts` 로컬 계정과 실제 관리자 세션으로 로그인·비밀번호 변경·로그아웃을 확인해야 한다.
-- CloudFront의 `/api/admin/*` 동작 분리와 SPA fallback은 아직 설정·검증되지 않았다.
+- dev CloudFront의 `/api/admin/*` JSON 오류 분리는 검증됐으며 SPA object 배포 뒤 extensionless fallback을 재검증해야 한다.
 
 ## 관리자 로컬 인증 피벗
 
@@ -188,3 +188,27 @@
 - 별도 문맥에서 변경 파일과 인증 계약을 재검토했다.
 - 초기 `/me` A05 안내, 세션 전환 중 일반 조회 차단, 프로필 disclosure semantics와 command 회귀 테스트 지적을 반영했다.
 - 재검토 결과 `pass`이며 critical, important와 minor finding은 없다.
+
+## Dev 배포 workflow 준비
+
+- 운영 workflow와 분리된 수동 `deploy-dev-admin-web.yml`을 추가한다.
+- dev 전용 변수 이름과 `dev.admin.cchaksa.com`을 검증해 repo-level prod bucket 변수의 fallback 사용을 차단한다.
+- CloudFront distribution의 alias와 S3 origin을 dev 도메인·버킷과 대조한 뒤에만 업로드한다.
+- 실행한 branch의 `github.sha`를 checkout하고 npm 전체 검증 뒤 `admin-web/dist`만 배포한다.
+- 배포 순서는 immutable assets, 비버전 파일, no-cache `index.html`, CloudFront invalidation, SPA/API 검증으로 고정한다. dev 검증은 `/csrf` 204와 `no-store`를 확인해 새 인증 백엔드 readiness도 함께 판별한다.
+- workflow YAML, shell mock, npm 전체 검증, 민감정보 검사와 독립 검토를 완료한 뒤 논리 커밋으로 PR #356을 갱신한다.
+- 실제 workflow dispatch는 수행하지 않는다. `dev-admin-web-deploy` IAM 연결, API Gateway signin throttle, 백엔드 `feat/355` 배포·V18·alias 확인과 ACTIVE 관리자 계정 발급을 기다린다.
+
+검증 결과:
+
+- workflow YAML parse와 배포·검증 shell의 `bash -n`: 성공.
+- shell mock: dev CloudFront alias·S3 origin 통과, prod alias 거부, 업로드·invalidation 순서 확인.
+- dev routing mock: `/csrf` 204·`no-store`, SPA HTML fallback, API 비HTML 오류 통과. `/csrf` 401·`no-store` 누락과 prod URL 거부.
+- `npm ci --no-audit --no-fund`, lint, 8개 파일의 26개 테스트, typecheck, build: 성공.
+- 민감정보 정규식 검사와 `git diff --check`: 성공.
+- 별도 문맥 재검토: critical, important와 minor finding 없이 `pass`.
+
+남은 위험:
+
+- workflow dispatch와 실제 AWS 업로드·권한 검증은 수행하지 않았다. dev IAM policy 연결과 백엔드 readiness 완료 뒤 최초 승인 dispatch에서 확인한다.
+- 공개 dev 배포 전 API Gateway signin route throttle, 백엔드 `feat/355` 배포, V18·alias 검증과 ACTIVE 관리자 계정 준비가 필요하다.

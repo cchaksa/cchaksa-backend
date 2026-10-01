@@ -1,0 +1,172 @@
+name: Deploy Admin Web to Dev
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dev-admin-web-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-dev-admin-web
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.DEV_AWS_REGION }}
+      DEV_ADMIN_WEB_S3_BUCKET: ${{ vars.DEV_ADMIN_WEB_S3_BUCKET }}
+      DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID }}
+      DEV_ADMIN_WEB_BASE_URL: ${{ vars.DEV_ADMIN_WEB_BASE_URL }}
+
+    steps:
+      - name: Validate deployment variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AWS_REGION}"
+          test -n "${DEV_ADMIN_WEB_S3_BUCKET}"
+          test -n "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}"
+          test -n "${DEV_ADMIN_WEB_BASE_URL}"
+
+          if [ "${AWS_REGION}" != "ap-northeast-2" ]; then
+            echo "Dev deployment region must be ap-northeast-2." >&2
+            exit 1
+          fi
+
+          if [[ ! "${DEV_ADMIN_WEB_S3_BUCKET}" =~ ^cck-admin-web-dev-[a-z0-9.-]+$ ]]; then
+            echo "Dev deployment requires a dev admin web bucket." >&2
+            exit 1
+          fi
+
+          if [[ ! "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" =~ ^E[A-Z0-9]+$ ]]; then
+            echo "Dev CloudFront distribution ID is invalid." >&2
+            exit 1
+          fi
+
+          if [ "${DEV_ADMIN_WEB_BASE_URL}" != "https://dev.admin.cchaksa.com" ]; then
+            echo "Dev deployment base URL must be https://dev.admin.cchaksa.com." >&2
+            exit 1
+          fi
+
+      - name: Checkout dispatched commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.12.0'
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: admin-web
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify admin web
+        working-directory: admin-web
+        run: |
+          npm run lint
+          npm run test
+          npm run typecheck
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate dev CloudFront target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aliases=$(aws cloudfront get-distribution-config \
+            --id "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --query 'DistributionConfig.Aliases.Items' \
+            --output text)
+          origins=$(aws cloudfront get-distribution-config \
+            --id "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --query 'DistributionConfig.Origins.Items[].DomainName' \
+            --output text)
+
+          alias_matches=false
+          for alias in ${aliases}; do
+            if [ "${alias}" = "dev.admin.cchaksa.com" ]; then
+              alias_matches=true
+            fi
+          done
+
+          origin_matches=false
+          for origin in ${origins}; do
+            case "${origin}" in
+              "${DEV_ADMIN_WEB_S3_BUCKET}.s3.amazonaws.com"|\
+              "${DEV_ADMIN_WEB_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com"|\
+              "${DEV_ADMIN_WEB_S3_BUCKET}.s3-website.${AWS_REGION}.amazonaws.com"|\
+              "${DEV_ADMIN_WEB_S3_BUCKET}.s3-website-${AWS_REGION}.amazonaws.com")
+                origin_matches=true
+                ;;
+            esac
+          done
+
+          if [ "${alias_matches}" != "true" ] || [ "${origin_matches}" != "true" ]; then
+            echo "CloudFront distribution does not match the dev admin web alias and bucket." >&2
+            exit 1
+          fi
+
+      - name: Upload versioned assets
+        run: |
+          aws s3 sync admin-web/dist/assets "s3://${DEV_ADMIN_WEB_S3_BUCKET}/assets" \
+            --cache-control "public,max-age=31536000,immutable"
+
+      - name: Upload non-versioned files
+        run: |
+          aws s3 sync admin-web/dist "s3://${DEV_ADMIN_WEB_S3_BUCKET}" \
+            --delete \
+            --exclude "assets/*" \
+            --exclude "index.html" \
+            --cache-control "public,max-age=3600"
+
+      - name: Upload index last
+        run: |
+          aws s3 cp admin-web/dist/index.html "s3://${DEV_ADMIN_WEB_S3_BUCKET}/index.html" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache,no-store,must-revalidate"
+
+      - name: Invalidate CloudFront
+        id: invalidation
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}" \
+            --id "${INVALIDATION_ID}"
+
+          echo "id=${INVALIDATION_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify SPA and API routing
+        run: ./scripts/verify_admin_web_development.sh "${DEV_ADMIN_WEB_BASE_URL}"
+
+      - name: Publish deployment summary
+        if: ${{ always() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Admin Web Dev Deployment"
+            echo "- Status: ${JOB_STATUS}"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Bucket: ${DEV_ADMIN_WEB_S3_BUCKET}"
+            echo "- Distribution: ${DEV_ADMIN_WEB_CLOUDFRONT_DISTRIBUTION_ID}"
+            echo "- Invalidation: ${{ steps.invalidation.outputs.id }}"
+          } >> "$GITHUB_STEP_SUMMARY"
