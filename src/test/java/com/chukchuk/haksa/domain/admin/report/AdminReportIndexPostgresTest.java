@@ -38,7 +38,7 @@ class AdminReportIndexPostgresTest {
           "CREATE INDEX idx_reports_user_created_id_desc "
               + "ON reports (user_id, created_at DESC, id DESC)");
       ClassPathResource migration =
-          new ClassPathResource("db/migration/V17__add_admin_report_management.sql");
+          new ClassPathResource("db/migration/V18__add_admin_report_management.sql");
       String migrationSql =
           new String(migration.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
       statement.execute(migrationSql);

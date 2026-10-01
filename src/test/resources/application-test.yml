@@ -16,11 +16,6 @@ security:
   appKey: test-app-key
   nativeAppKey: test-native-key
   admin:
-    kakao:
-      javascript-app-key: test-admin-javascript-app-key
-      rest-api-key: test-admin-rest-api-key
-      client-secret: test-admin-client-secret
-      redirect-uri: http://localhost/login/callback
     cookie-secure: false
 
 crawler:

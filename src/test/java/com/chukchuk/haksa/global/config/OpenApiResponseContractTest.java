@@ -30,7 +30,7 @@ class OpenApiResponseContractTest {
           new OperationRef("/sentry-test", "get"),
           new OperationRef("/api/users/signin", "post"),
           new OperationRef("/api/auth/refresh", "post"),
-          new OperationRef("/api/admin/auth/challenge", "get"),
+          new OperationRef("/api/admin/auth/csrf", "get"),
           new OperationRef("/api/admin/auth/signin", "post"),
           new OperationRef("/api/test/options", "get"),
           new OperationRef("/api/test/departments", "get"),
@@ -70,6 +70,7 @@ class OpenApiResponseContractTest {
   private static final List<OperationRef> ADMIN_PROTECTED_OPERATIONS =
       List.of(
           new OperationRef("/api/admin/auth/me", "get"),
+          new OperationRef("/api/admin/auth/password", "post"),
           new OperationRef("/api/admin/auth/signout", "post"),
           new OperationRef("/api/admin/reports", "get"),
           new OperationRef("/api/admin/reports/{reportId}", "get"),
@@ -159,6 +160,7 @@ class OpenApiResponseContractTest {
     assertThat(adminSession.path("in").asText()).isEqualTo("cookie");
     assertThat(adminSession.path("name").asText()).isEqualTo("cchaksa_admin_session");
     assertRequiredHeader(apiDocs, "/api/admin/auth/signin", "post", "X-XSRF-TOKEN");
+    assertRequiredHeader(apiDocs, "/api/admin/auth/password", "post", "X-XSRF-TOKEN");
     assertRequiredHeader(apiDocs, "/api/admin/auth/signout", "post", "X-XSRF-TOKEN");
     assertRequiredHeader(apiDocs, "/api/admin/reports/{reportId}/answer", "post", "X-XSRF-TOKEN");
   }

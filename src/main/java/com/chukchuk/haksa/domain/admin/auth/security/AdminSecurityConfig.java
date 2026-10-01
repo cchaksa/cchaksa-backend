@@ -8,9 +8,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
@@ -42,11 +42,15 @@ public class AdminSecurityConfig {
             csrf ->
                 csrf.csrfTokenRepository(adminCsrfTokenRepository)
                     .csrfTokenRequestHandler(requestHandler))
-        .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .securityContext(
+            context ->
+                context
+                    .securityContextRepository(new RequestAttributeSecurityContextRepository())
+                    .requireExplicitSave(true))
+        .requestCache(cache -> cache.disable())
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/api/admin/auth/challenge", "/api/admin/auth/signin")
+                auth.requestMatchers("/api/admin/auth/csrf", "/api/admin/auth/signin")
                     .permitAll()
                     .anyRequest()
                     .hasAnyRole("ADMIN", "CS_AGENT"))

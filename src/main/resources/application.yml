@@ -53,14 +53,6 @@ security:
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
     keys-url: ${APPLE_KEYS_URL:https://appleid.apple.com/auth/keys}
   admin:
-    kakao:
-      javascript-app-key: ${ADMIN_KAKAO_JAVASCRIPT_APP_KEY:}
-      rest-api-key: ${ADMIN_KAKAO_REST_API_KEY:}
-      client-secret: ${ADMIN_KAKAO_CLIENT_SECRET:}
-      redirect-uri: ${ADMIN_KAKAO_REDIRECT_URI:}
-      connect-timeout: ${ADMIN_KAKAO_CONNECT_TIMEOUT:3s}
-      read-timeout: ${ADMIN_KAKAO_READ_TIMEOUT:5s}
-    challenge-ttl: ${ADMIN_AUTH_CHALLENGE_TTL:5m}
     idle-timeout: ${ADMIN_AUTH_IDLE_TIMEOUT:30m}
     absolute-timeout: ${ADMIN_AUTH_ABSOLUTE_TIMEOUT:8h}
     cookie-secure: ${ADMIN_AUTH_COOKIE_SECURE:true}
