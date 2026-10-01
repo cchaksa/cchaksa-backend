@@ -1,12 +1,10 @@
 package com.chukchuk.haksa.domain.admin.auth.controller;
 
 import com.chukchuk.haksa.domain.admin.auth.dto.AdminAuthDto;
-import com.chukchuk.haksa.domain.admin.auth.model.AdminLoginChallenge;
 import com.chukchuk.haksa.domain.admin.auth.security.AdminPrincipal;
 import com.chukchuk.haksa.domain.admin.auth.security.AdminSessionAuthenticationFilter;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminAuthProperties;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminAuthService;
-import com.chukchuk.haksa.domain.admin.auth.service.AdminChallengeService;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminSessionService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,78 +31,49 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 관리자 challenge, 로그인, 현재 계정, 로그아웃 API를 제공한다. */
+/** 관리자 CSRF, 로그인, 현재 계정, 로그아웃과 비밀번호 변경 API를 제공한다. */
 @RestController
 @RequestMapping("/api/admin/auth")
 @RequiredArgsConstructor
 public class AdminAuthController {
-  static final String LOGIN_COOKIE_NAME = "cchaksa_admin_login";
-
-  private final AdminChallengeService challengeService;
   private final AdminAuthService authService;
   private final AdminSessionService sessionService;
   private final AdminAuthProperties properties;
   private final CsrfTokenRepository adminCsrfTokenRepository;
 
   /**
-   * 로그인 nonce와 CSRF 쿠키를 발급한다.
+   * 관리자 SPA가 POST 요청에 사용할 CSRF 쿠키를 준비한다.
    *
    * @param csrfToken 지연 생성할 CSRF token
-   * @return 로그인 challenge
+   * @return body가 없는 204 응답
    */
-  @Operation(summary = "관리자 로그인 challenge 발급")
-  @GetMapping("/challenge")
-  public ResponseEntity<SuccessResponse<AdminAuthDto.ChallengeResponse>> challenge(
-      CsrfToken csrfToken) {
-    AdminAuthProperties.Kakao kakao = properties.requireKakaoLoginConfiguration();
+  @Operation(summary = "관리자 CSRF 쿠키 준비")
+  @GetMapping("/csrf")
+  public ResponseEntity<Void> csrf(CsrfToken csrfToken) {
     csrfToken.getToken();
-    AdminChallengeService.IssuedChallenge issued = challengeService.issue();
-    AdminLoginChallenge challenge = issued.challenge();
-    AdminAuthDto.ChallengeResponse body =
-        new AdminAuthDto.ChallengeResponse(
-            challenge.getId(),
-            challenge.getNonce(),
-            challenge.getState(),
-            kakao.getJavascriptAppKey(),
-            kakao.getRedirectUri());
-    return ResponseEntity.ok()
-        .cacheControl(CacheControl.noStore())
-        .header(HttpHeaders.SET_COOKIE, loginCookie(issued.browserToken()).toString())
-        .body(SuccessResponse.of(body));
+    return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
   }
 
   /**
-   * 검증된 Kakao 계정에 관리자 세션을 발급한다.
+   * 로컬 자격증명을 검증해 관리자 세션을 발급한다.
    *
-   * @param request challenge와 authorization code
-   * @param servletRequest 로그인 시작 브라우저 결합 쿠키를 포함한 요청
+   * @param request login ID와 비밀번호
    * @return 관리자 계정과 세션 쿠키
    */
-  @Operation(summary = "카카오 authorization code로 관리자 로그인")
+  @Operation(summary = "관리자 로컬 로그인")
   @Parameter(
       name = "X-XSRF-TOKEN",
       in = ParameterIn.HEADER,
       required = true,
-      description = "challenge 응답에서 발급된 CSRF 쿠키 값")
+      description = "CSRF 쿠키 값")
   @PostMapping("/signin")
   public ResponseEntity<SuccessResponse<AdminAuthDto.AdminResponse>> signIn(
-      @Valid @RequestBody AdminAuthDto.SignInRequest request, HttpServletRequest servletRequest) {
+      @Valid @RequestBody AdminAuthDto.SignInRequest request) {
     AdminAuthService.SignInResult result =
-        authService.signIn(
-            request.challengeId(),
-            request.authorizationCode(),
-            request.state(),
-            findCookie(servletRequest, LOGIN_COOKIE_NAME).orElse(null));
-    AdminAuthDto.AdminResponse body =
-        new AdminAuthDto.AdminResponse(
-            result.account().getId(),
-            result.account().getDisplayName(),
-            result.account().getAdminRole());
+        authService.signIn(request.loginId(), request.password());
+    AdminAuthDto.AdminResponse body = toResponse(result.account());
     return ResponseEntity.ok()
-        .header(
-            HttpHeaders.SET_COOKIE,
-            sessionCookie(result.session()).toString(),
-            expiredLoginCookie().toString())
+        .header(HttpHeaders.SET_COOKIE, sessionCookie(result.session()).toString())
         .body(SuccessResponse.of(body));
   }
 
@@ -112,7 +81,7 @@ public class AdminAuthController {
    * 현재 세션의 관리자 정보를 반환한다.
    *
    * @param principal 인증된 관리자
-   * @return 관리자 계정 정보
+   * @return 관리자 계정 응답
    */
   @Operation(summary = "현재 관리자 계정 조회")
   @SecurityRequirement(name = "adminSession")
@@ -125,12 +94,38 @@ public class AdminAuthController {
   }
 
   /**
-   * 현재 관리자 세션을 폐기하고 쿠키를 만료한다.
+   * 현재 비밀번호를 검증하고 다른 세션을 폐기한 뒤 현재 세션을 회전한다.
    *
-   * @param request 현재 요청
-   * @param response CSRF 쿠키를 만료할 응답
+   * @param request 현재 비밀번호와 새 비밀번호
+   * @param principal 인증된 관리자
+   * @return 새 세션 쿠키를 포함한 204 응답
+   */
+  @Operation(summary = "관리자 비밀번호 변경")
+  @SecurityRequirement(name = "adminSession")
+  @Parameter(
+      name = "X-XSRF-TOKEN",
+      in = ParameterIn.HEADER,
+      required = true,
+      description = "관리자 CSRF 쿠키 값")
+  @PostMapping("/password")
+  public ResponseEntity<Void> changePassword(
+      @Valid @RequestBody AdminAuthDto.PasswordChangeRequest request,
+      @AuthenticationPrincipal AdminPrincipal principal) {
+    AdminSessionService.CreatedSession session =
+        authService.changePassword(
+            principal.adminAccountId(), request.currentPassword(), request.newPassword());
+    return ResponseEntity.noContent()
+        .header(HttpHeaders.SET_COOKIE, sessionCookie(session).toString())
+        .build();
+  }
+
+  /**
+   * 현재 관리자 세션을 폐기하고 session과 CSRF 쿠키를 만료한다.
+   *
+   * @param request 현재 session cookie를 포함한 요청
+   * @param response CSRF cookie를 만료할 응답
    * @param csrfToken 검증된 CSRF token
-   * @return 204 응답
+   * @return body가 없는 204 응답
    */
   @Operation(summary = "현재 관리자 세션 로그아웃")
   @SecurityRequirement(name = "adminSession")
@@ -146,11 +141,14 @@ public class AdminAuthController {
         .ifPresent(sessionService::revoke);
     adminCsrfTokenRepository.saveToken(null, request, response);
     return ResponseEntity.noContent()
-        .header(
-            HttpHeaders.SET_COOKIE,
-            expiredSessionCookie().toString(),
-            expiredLoginCookie().toString())
+        .header(HttpHeaders.SET_COOKIE, expiredSessionCookie().toString())
         .build();
+  }
+
+  private AdminAuthDto.AdminResponse toResponse(
+      com.chukchuk.haksa.domain.admin.auth.model.AdminAccount account) {
+    return new AdminAuthDto.AdminResponse(
+        account.getId(), account.getDisplayName(), account.getAdminRole());
   }
 
   private ResponseCookie sessionCookie(AdminSessionService.CreatedSession session) {
@@ -163,32 +161,12 @@ public class AdminAuthController {
         .build();
   }
 
-  private ResponseCookie loginCookie(String token) {
-    return ResponseCookie.from(LOGIN_COOKIE_NAME, token)
-        .httpOnly(true)
-        .secure(properties.isCookieSecure())
-        .sameSite("Strict")
-        .path("/api/admin/auth")
-        .maxAge(properties.getChallengeTtl())
-        .build();
-  }
-
   private ResponseCookie expiredSessionCookie() {
     return ResponseCookie.from(AdminSessionAuthenticationFilter.COOKIE_NAME, "")
         .httpOnly(true)
         .secure(properties.isCookieSecure())
         .sameSite("Strict")
         .path("/api/admin")
-        .maxAge(Duration.ZERO)
-        .build();
-  }
-
-  private ResponseCookie expiredLoginCookie() {
-    return ResponseCookie.from(LOGIN_COOKIE_NAME, "")
-        .httpOnly(true)
-        .secure(properties.isCookieSecure())
-        .sameSite("Strict")
-        .path("/api/admin/auth")
         .maxAge(Duration.ZERO)
         .build();
   }

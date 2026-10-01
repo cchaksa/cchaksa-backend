@@ -10,19 +10,13 @@ import com.chukchuk.haksa.domain.admin.auth.model.AdminSession;
 import com.chukchuk.haksa.domain.admin.auth.model.AdminStatus;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminSessionRepository;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminAuthProperties;
-import com.chukchuk.haksa.domain.admin.auth.service.AdminKakaoOidcService;
-import com.chukchuk.haksa.domain.admin.auth.service.AdminKakaoTokenClient;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminSessionService;
 import com.chukchuk.haksa.domain.admin.auth.service.AdminTokenCodec;
-import com.chukchuk.haksa.infrastructure.oidc.kakao.KakaoIdTokenVerifier;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +30,6 @@ class AdminSessionServiceUnitTests {
 
   @Mock private AdminSessionRepository repository;
   @Mock private AdminTokenCodec tokenCodec;
-  @Mock private AdminKakaoTokenClient kakaoTokenClient;
-  @Mock private KakaoIdTokenVerifier kakaoIdTokenVerifier;
 
   private AdminAuthProperties properties;
   private AdminSessionService sessionService;
@@ -115,25 +107,14 @@ class AdminSessionServiceUnitTests {
     verify(repository).revokeAllByAdminAccountId(adminAccountId, NOW);
   }
 
-  @Test
-  void adminKakaoCodeExchangeUsesOnlyAdminJavascriptAppAudience() {
-    properties.getKakao().setJavascriptAppKey("admin-kakao-javascript-app-key");
-    properties.getKakao().setRestApiKey("admin-kakao-rest-api-key");
-    properties.getKakao().setRedirectUri("https://admin.example.com/login/callback");
-    Claims claims = Jwts.claims().setSubject("admin-subject");
-    when(kakaoTokenClient.exchange("authorization-code")).thenReturn("id-token");
-    when(kakaoIdTokenVerifier.verify(
-            "id-token", "server-nonce", Set.of("admin-kakao-javascript-app-key")))
-        .thenReturn(claims);
-    AdminKakaoOidcService oidcService =
-        new AdminKakaoOidcService(kakaoTokenClient, kakaoIdTokenVerifier, properties);
-
-    assertThat(oidcService.exchangeAndVerify("authorization-code", "server-nonce"))
-        .isSameAs(claims);
-  }
-
   private AdminAccount account(AdminStatus status) {
     return new AdminAccount(
-        UUID.randomUUID(), "social-id", "CS 담당자", AdminRole.CS_AGENT, status, "bootstrap");
+        UUID.randomUUID(),
+        "cs.agent",
+        "password-hash",
+        "CS 담당자",
+        AdminRole.CS_AGENT,
+        status,
+        "bootstrap");
   }
 }

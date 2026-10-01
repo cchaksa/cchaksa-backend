@@ -13,7 +13,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 개발진이 직접 등록하는 관리자 허용 목록 계정이다. */
+/** 개발진이 직접 등록하는 관리자 로컬 계정이다. */
 @Entity
 @Table(name = "admin_accounts")
 @Getter
@@ -21,11 +21,16 @@ import lombok.NoArgsConstructor;
 public class AdminAccount extends BaseEntity {
   @Id private UUID id;
 
-  @Column(nullable = false)
-  private String provider;
+  @Column private String provider;
 
-  @Column(name = "social_id", nullable = false)
+  @Column(name = "social_id")
   private String socialId;
+
+  @Column(name = "login_id", unique = true)
+  private String loginId;
+
+  @Column(name = "password_hash")
+  private String passwordHash;
 
   @Column(name = "display_name", nullable = false)
   private String displayName;
@@ -48,7 +53,8 @@ public class AdminAccount extends BaseEntity {
    * 직접 등록할 관리자 계정을 생성한다.
    *
    * @param id 관리자 UUID
-   * @param socialId Kakao subject
+   * @param loginId 대소문자를 구분하는 로그인 ID 원문
+   * @param passwordHash BCrypt 비밀번호 hash
    * @param displayName 표시 이름
    * @param adminRole 관리자 역할
    * @param status 계정 상태
@@ -56,14 +62,15 @@ public class AdminAccount extends BaseEntity {
    */
   public AdminAccount(
       UUID id,
-      String socialId,
+      String loginId,
+      String passwordHash,
       String displayName,
       AdminRole adminRole,
       AdminStatus status,
       String createdBy) {
     this.id = id;
-    this.provider = "KAKAO";
-    this.socialId = socialId;
+    this.loginId = loginId;
+    this.passwordHash = passwordHash;
     this.displayName = displayName;
     this.adminRole = adminRole;
     this.status = status;
@@ -86,6 +93,15 @@ public class AdminAccount extends BaseEntity {
    */
   public void recordLogin(Instant now) {
     lastLoginAt = now;
+  }
+
+  /**
+   * 검증을 마친 새 비밀번호 hash로 교체한다.
+   *
+   * @param passwordHash 새 BCrypt hash
+   */
+  public void changePasswordHash(String passwordHash) {
+    this.passwordHash = passwordHash;
   }
 
   /** 계정을 비활성화한다. */
