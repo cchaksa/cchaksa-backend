@@ -91,127 +91,64 @@
 
 남은 위험:
 
-- 관리자 인증, `admin_accounts`, 문의 API와 답변 감사 정보의 서버 구현이 필요하다.
-- 확정한 프론트 계약은 서버 구현 과정에서 응답 DTO와 오류 상태를 맞춰 통합 검증해야 한다.
-- CI와 배포 파이프라인에는 아직 `admin-web` npm 검증 및 S3 배포 단계가 연결되지 않았다.
-- `/api/admin/auth/signin` 서버 진입점과 로그인 callback은 실제 카카오 계정으로 검증되지 않았다.
+- 확정한 프론트 계약은 #352·#354가 포함된 실제 서버와 통합 검증해야 한다.
+- ACTIVE `admin_accounts` 로컬 계정과 실제 관리자 세션으로 로그인·비밀번호 변경·로그아웃을 확인해야 한다.
 - CloudFront의 `/api/admin/*` 동작 분리와 SPA fallback은 아직 설정·검증되지 않았다.
 
-## 실제 인증·API 통합 후속
+## 관리자 로컬 인증 피벗
 
-- 기본 개발 모드는 실제 `/api/admin/*` 호출로 변경하고 Vite proxy 대상을 `http://localhost:8080`으로 구성했다.
-- 화면 전용 mock은 `npm run dev:mock`으로 분리했다.
-- 카카오 JavaScript SDK의 redirect 방식에 맞춰 challenge의 `nonce`, `state`, `javascriptAppKey`, `redirectUri`를 authorize 요청에 전달한다.
-- `/login/callback`에서 authorization code와 state를 받고, 브라우저에 보관한 challenge ID 및 state와 대조한 뒤 서버 signin에 제출한다.
-- HttpOnly `cchaksa_admin_login`은 프론트에서 읽지 않고 challenge와 signin 요청의 `credentials: include`로만 전달한다.
-- nonce, authorization code와 token은 브라우저 저장소나 로그에 기록하지 않는다.
-- 백엔드 #352 커밋 `8e9b2e58`의 authorization code 교환, ID token nonce·audience 검증 계약과 프론트 필드명을 맞췄다.
+이 절은 앞선 Kakao challenge/callback 인증 계획을 대체한다. 일반 사용자 Kakao 인증은 변경하지 않는다.
 
-검증 결과:
+### 계약
 
-- `npm run lint`: 성공. Biome가 50개 파일을 검사했다.
-- `npm run test`: 성공. 3개 파일의 14개 테스트가 통과했다.
-- `npm run typecheck`: 성공.
-- `npm run build`: 성공.
+- `GET /api/admin/auth/csrf`: 비인증 허용, 204, `Cache-Control: no-store`, `XSRF-TOKEN` 준비.
+- `POST /api/admin/auth/signin`: `{ loginId, password }`, 200 `SuccessResponse<AdminSession>`.
+- `GET /api/admin/auth/me`: 200 `SuccessResponse<AdminSession>`.
+- `POST /api/admin/auth/signout`: 204, session/CSRF cookie 만료.
+- `POST /api/admin/auth/password`: `{ currentPassword, newPassword }`, 204, 현재 session cookie 회전.
+- 오류 응답은 `success=false`, `error.code`, `error.message` 구조이며 FE는 검증된 status와 code만 오류 객체에 남긴다.
+- loginId와 password는 case-sensitive 원문 그대로 전송한다. 공백-only를 포함한 빈 값만 차단하고 기술적 상한은 각각 255자와 256자다.
 
-남은 통합 검증:
+### 구현 단계
 
-- #352 변경 완료 후 실제 Spring 서버에서 challenge, callback signin, 관리자 세션을 검증해야 한다.
-- 관리자 전용 Kakao 앱의 JavaScript SDK 도메인, redirect URI, OIDC와 client secret 설정이 필요하다.
-- ACTIVE `admin_accounts` 테스트 계정을 등록한 뒤 문의 목록·상세·답변 API까지 실제 브라우저로 검증해야 한다.
+1. callback route/page, Kakao button/CSS, SDK loader, provider 초기화, challenge/callback 타입과 sessionStorage 사용을 제거한다.
+2. HTTP 어댑터가 실패 응답의 `error.code`만 안전하게 파싱하고 A05 세션 만료 listener를 지원하게 한다.
+3. CSRF bootstrap 완료 전 제출이 비활성화되는 loginId/password 폼을 구현한다. bootstrap은 진행 중인 호출만 module single-flight로 합치고 성공·실패 정착 뒤 promise를 해제해 다음 로그인 화면 진입이 새 `/csrf` 요청을 실행하게 한다. 204 뒤 읽기 가능한 쿠키가 없으면 POST를 허용하지 않는다.
+4. 로그인과 비밀번호 변경은 TanStack mutation cache를 사용하지 않는 즉시 실행 command로 구현한다.
+5. 프로필 버튼에 `aria-expanded`와 연결된 메뉴를 만들고 비밀번호 변경 dialog 진입점을 추가한다.
+6. dialog는 기존·신규·재확인 비밀번호를 받고 빈 값·공백-only·불일치를 로컬 검증한다. 서버에는 기존·신규 값만 원문 그대로 보낸다.
+7. 비밀번호 변경 시 신규 보호 요청을 차단하고 기존 보호 query를 취소한다. 전환 전에 시작한 요청의 A05는 억제하되 password POST 자체의 A05는 세션 만료로 처리한다. 204 뒤에만 세대를 전진시키고 `/me`를 재조회한 다음 차단을 해제한다. 실패 시 기존 세대를 유지한다.
+8. 보호 API의 A05만 단일 세션 만료 흐름으로 합쳐 query/mutation cache를 비우고 `/login`으로 이동한다. C04는 권한/요청 보호 오류로 유지한다.
+9. 정상 signout도 신규 보호 요청을 차단하고 진행 중인 요청을 취소한 뒤 session·문의 query와 mutation cache 및 CSRF 준비 상태를 모두 제거하고 로그인 화면으로 이동한다.
+10. mock은 초기 signed-out, signin, session, password change와 signout 상태를 모델링한다.
 
-독립 교차 검토:
+### 접근성
 
-- #352 백엔드 작업 스레드가 커밋 `8e9b2e58`을 기준으로 프론트 diff를 읽기 전용 검토했다.
-- verdict는 `pass`, isolation은 `separate-context`다.
-- challenge DTO, Kakao authorize 인자, callback signin body, CSRF와 HttpOnly cookie 경계가 서버 계약과 일치함을 확인했다.
-- 비차단 테스트 공백은 callback 페이지의 Strict Mode 컴포넌트 테스트와 SDK script loader 단위 테스트다. Strict Mode 동작은 실제 개발 브라우저에서 state 불일치 callback이 단일 오류 상태로 종료되고 console warning/error가 없음을 확인했다.
+- 로그인 입력에는 연결된 label과 `username`, `current-password` autocomplete를 사용한다.
+- 프로필 메뉴는 키보드 열기·Escape·외부 클릭 닫기와 focus 복귀를 지원한다.
+- 비밀번호 dialog는 이름·설명, visible close, 초기 focus, focus containment, Escape와 opener focus 복귀를 제공한다.
+- loading, 오류, 성공과 세션 만료 상태는 `aria-live` 또는 alert로 전달한다.
 
-보안 점검:
+### 보안
 
-- 변경 파일, 테스트 fixture, 문서와 명령 출력에 실제 key, secret, token, cookie 또는 개인정보가 포함되지 않았다.
-- 브라우저 저장소에는 일회성 `challengeId`와 `state`만 기록하고 nonce, authorization code, token과 app key는 기록하지 않는다.
-- 실제 Kakao client secret과 로컬 DB 자격 증명은 Git과 작업 문서 밖의 실행 환경에서만 주입해야 한다.
+- loginId와 비밀번호를 URL, query key/data, mutation variables, local/session storage, console, analytics와 오류 객체에 저장하지 않는다.
+- loginId, password와 confirmation은 trim·정규화하지 않는다. 공백 검사는 제출 차단에만 사용한다.
+- 로그인 성공·실패, dialog 닫기·성공, unmount와 세션 만료 시 민감 입력 상태를 초기화한다.
+- 이전 session 요청의 A05가 회전된 session을 무효화하지 않도록 요청 시작 세대를 비교한다.
 
-UI 1단계 검증 결과:
+### 검증
 
-- `npm run typecheck`: 성공.
-- `npm run build`: 성공.
-- 데스크톱 1440x900 로그인 화면 렌더링: 성공.
-- 모바일 390x844 로그인 화면 렌더링: 성공.
-- 브라우저 console warning/error: 없음.
-- 카카오 로그인 링크: `/api/admin/auth/signin` 확인. 서버 API 미구현으로 실제 인증 이동은 실행하지 않았다.
+- API 테스트: CSRF 선행, 정확한 signin/password body, confirmation 미전송, 204, A13/A14/A15/C01/A05/C04.
+- jsdom과 DOM testing 도구를 추가하고 `npm run test`에서 로그인 검증·중복 제출 방지, 메뉴/dialog focus·Escape·복귀, 비밀번호 일치, 세션 세대 race와 A05 단일 처리를 자동 검증한다.
+- 브라우저 검증: mock 로그인·비밀번호 변경·로그아웃, 데스크톱·모바일 레이아웃과 console 오류.
+- mock 데스크톱·모바일: 로그인, 문의 접근, 비밀번호 변경, 로그아웃.
+- `npm ci --no-audit --no-fund`, `npm run lint`, `npm run test`, `npm run typecheck`, `npm run build`, `git diff --check`.
+- `rg`로 관리자 Kakao/challenge/callback/브라우저 저장소 잔존과 민감 정보 로깅을 검사한다.
+- Wiki 갱신은 #352가 관리자 인증 API·DB 정본을 반영하는 단계에서 수행하며, #351은 FE 동작 문서와 PR 위험을 갱신한다.
 
-UI 2단계 검증 결과:
+### 계획 효력
 
-- 답변 상태 필터를 URL 검색 매개변수와 동기화하고 `PENDING` 문의 3건 표시를 확인했다.
-- 오류 코드 `PORTAL_ACCOUNT_LOCKED` 검색 결과가 1건으로 좁혀지는 것을 확인했다.
-- 데스크톱 1440x900 문의 목록 화면 렌더링: 성공.
-- 모바일 390x844 관리자 메뉴 및 문의 목록 렌더링: 성공.
-- 현재 데이터는 후속 API 연동 전까지 프론트엔드 mock을 사용한다.
-
-UI 3단계 검증 결과:
-
-- 미답변 문의 상세에서 문의 본문, 사용자 및 학적 스냅샷, 오류 코드를 확인했다.
-- 답변 입력의 공백 검증, 2,000자 제한과 글자 수 표시를 확인했다.
-- 유효한 답변 입력 시 답변 등록 버튼이 활성화되는 것을 확인했다.
-- 답변 전송은 후속 API 어댑터 단계에서 연결한다.
-
-UI 4단계 검증 결과:
-
-- 답변 완료 문의에서 등록된 답변, 처리 시각과 CS 담당자 이름을 확인했다.
-- 답변 완료 문의에는 답변 입력란과 추가 답변 버튼이 렌더링되지 않음을 확인했다.
-- 담당자 식별자는 화면 선택값이 아니라 API 응답의 감사 정보만 표시하는 계약으로 제한한다.
-
-UI 5단계 검증 결과:
-
-- TanStack Query 기반 관리자 세션, 문의 목록, 상세, 답변 mutation 상태를 연결했다.
-- 개발용 mock과 운영용 `/api/admin/...` HTTP 어댑터가 같은 화면 계약을 사용한다.
-- 목록 6건 조회 후 미답변 문의에 답변을 등록하고 읽기 전용 완료 상태로 전환되는 흐름을 확인했다.
-- 답변 완료 후 입력란이 제거되고 API 응답의 CS 담당자 이름과 처리 시각이 표시되는 것을 확인했다.
-- 운영 API와 DB는 이번 작업 범위에서 구현하지 않았다.
-
-## 완료 점검
-
-- 요청 재확인: 완료.
-- 저장소 규칙 재확인: 완료.
-- 변경 파일 검사: 완료.
-- 무관한 변경: 없음.
-- 문서와 구현 일치: 확인.
-- 보안 민감정보 검사: 통과. 이슈 본문, 작업 문서, 소스와 명령 출력에 자격 증명이나 개인정보를 기록하지 않았다.
-- 사전 PR 검증: 현재 작업 문맥에서 프론트 빌드와 저장소 전체 검사를 완료했다. 독립 리뷰는 PR 생성 전 별도로 수행할 수 있다.
-
-## PR 준비 요약
-
-- 독립 React/Vite 관리자 SPA에 카카오 로그인 진입점과 보호 라우팅을 구성했다.
-- 문의 목록 필터·검색·페이지네이션, 문의 상세, 단일 답변 등록과 완료 답변 감사 정보 UI를 구현했다.
-- TanStack Query와 mock/HTTP 어댑터를 분리하고 `/api/admin/...` 서버 계약을 `design.md`에 기록했다.
-- Wiki 갱신: 서버 API, 인증, DB, 배포 구현이 없어 갱신하지 않았다. 후속 서버 단계에서 관련 Wiki 갱신이 필요하다.
-
-```text
-[COMPLETION-CHECK]
-request_rechecked: yes
-agents_rechecked: yes
-changed_files_inspected: yes
-unrelated_changes: none
-documentation_consistent: yes
-required_tests:
-  - cd admin-web && npm ci --no-audit --no-fund: pass
-  - cd admin-web && npm run build: pass
-  - JAVA_HOME=<corretto-17> ./gradlew check --stacktrace --no-daemon: pass
-  - git diff --check: pass
-  - browser desktop/mobile and answer workflow: pass
-pre_pr_verification: pass
-pre_pr_verification_isolation: current-context
-security_check: pass
-task_note_updated: yes
-career_evaluated: yes
-unsupported_claims:
-  - 사용자 영향, 운영 효과와 배포 성과는 측정하지 않았다.
-remaining_risks:
-  - 관리자 인증, API, DB, CloudFront와 실제 카카오 로그인 통합은 아직 구현·검증되지 않았다.
-[END-COMPLETION-CHECK]
-```
+이 피벗 절이 이 문서의 관리자 인증 정본이다. 폐기된 관리자 Kakao 인증 구현은 Git 이력에서 확인하며 현재 파일의 계약으로 사용하지 않는다. 일반 사용자 Kakao 인증은 변경하지 않는다.
 
 ## Career Extraction
 
@@ -221,156 +158,33 @@ remaining_risks:
 - action: skipped.
 - unsupported metrics/outcomes: 사용자 영향, 운영 효과, 배포 성과는 아직 측정하지 않았다.
 
-## 서버 정본 계약 후속 정합화
-
-- `reportId`, 사용자 식별자와 답변 관리자 식별자를 UUID 문자열로 변경한다.
-- 서버에 없는 분류·오류 코드·학교·학년·학기 필드를 제거한다.
-- 상세 화면을 nullable 학적 스냅샷 필드로 교체한다.
-- 검색을 사용자 UUID·학번 정확 일치로 제한하고 `page=0`, `size=20`, `createdAt DESC` 계약을 기록한다.
-- 로그인 GET 링크를 제거하고 nonce·CSRF 준비 provider를 통한 POST 제출 경계를 둔다.
-- 미확정 challenge endpoint와 CSRF cookie/header 이름은 #352 연동 지점으로 남긴다.
-- 상태 변경 요청에서 매번 CSRF provider를 읽고 토큰 누락 시 전송 전에 차단한다.
-- 백엔드 코드는 변경하지 않는다.
-
-후속 정합화 검증 결과:
-
-- `cd admin-web && npm ci --no-audit --no-fund`: 통과.
-- `cd admin-web && npm run lint`: 통과. Biome가 47개 파일을 검사했다.
-- `cd admin-web && npm run test`: 통과. 3개 파일의 8개 테스트가 통과했다.
-- `cd admin-web && npm run build`: 통과. TypeScript 검사와 Vite 운영 빌드가 완료됐다.
-- `git diff --check`: 통과.
-- 데스크톱과 모바일 브라우저에서 목록, 정확 일치 검색, 미답변 답변 입력, 완료 답변의 관리자 UUID·표시 이름, POST 로그인 버튼 경계를 확인했다.
-- 브라우저 warning/error가 없으며 소스에 console, 오류 추적 tag, 브라우저 저장소 기록이 없음을 확인했다.
-- 변경 범위는 `admin-web/`과 `docs/tasks/351/`에 한정되며 백엔드 코드는 변경하지 않았다.
-
-남은 위험:
-
-- nonce/challenge 응답 DTO, CSRF cookie/header와 authorization code 교환 계약은 #352에서 확정했으며 실제 Kakao 앱으로 통합 검증해야 한다.
-- 실제 관리자 세션, 문의 API와 DB 통합 검증은 #352, #354에서 수행해야 한다.
-
-후속 이슈:
+## 후속 이슈
 
 - 관리자 인증·인가 및 세션: #352.
 - 테스트 데이터 API 경계 분리: #353.
 - 관리자 문의 목록·상세·답변 API: #354.
 - 관리자 문의 검색 쿼리·인덱스 전략: #355.
 
-## #352·#354 확정 계약 최종 연동
+## 피벗 검증 결과
 
-- 공통 `SuccessResponse<T>`에서 `data`를 해제하는 HTTP 경계를 적용한다.
-- `GET /api/admin/auth/challenge`가 반환한 nonce, state, JavaScript app key와 redirect URI를 카카오 authorize adapter에 전달한다.
-- `/login/callback`에서 authorization code와 state를 받은 뒤 `POST /api/admin/auth/signin`에 `{ challengeId, authorizationCode, state }`를 제출하고 관리자 `adminRole`을 세션 query에 저장한다.
-- `XSRF-TOKEN`을 매 상태 변경 요청마다 읽어 `X-XSRF-TOKEN` header에 전달한다.
-- HttpOnly `cchaksa_admin_session`은 `credentials: include`로만 사용한다.
-- 문의 검색 parameter를 `searchType`으로 맞추고 목록 `userId`, 상세 `submitter`, 답변 DTO 필드명을 #354 코드와 일치시킨다.
-- 답변 POST의 별도 결과 DTO를 받은 뒤 목록과 상세를 서버에서 다시 조회한다.
-- 백엔드 파일은 변경하지 않는다.
+- `npm ci --no-audit --no-fund`: 성공.
+- `npm run lint`: 성공. 56개 파일을 검사했다.
+- `npm test -- --run`: 성공. 8개 파일의 26개 테스트가 통과했다.
+- `npm run typecheck`: 성공.
+- `npm run build`: 성공.
+- `git diff --check`: 성공.
+- mock 브라우저에서 로그인, 프로필 메뉴, 변경 비밀번호 불일치, 비밀번호 변경 성공과 포커스 복귀를 확인했다.
+- 1280px 데스크톱과 390x844 모바일에서 화면 가로 넘침이 없고 모바일 dialog가 viewport 안에 표시됨을 확인했다.
+- 브라우저 warning/error가 없고, 관리자 자격 증명을 URL·브라우저 저장소·console·query/mutation cache에 기록하는 코드가 없음을 확인했다.
 
-확인된 서버 기준:
+## 남은 위험
 
-- #352 공개 계약 통일 커밋 `79c5ba00`에서 `cchaksa_admin_session`과 `adminRole`을 확인했다.
-- #352 CSRF 경로 보완 커밋 `26a106c4`에서 `XSRF-TOKEN`의 Path `/`와 통합 테스트를 확인했다.
-- 재배치된 `feat/354`에서 #352 인증 계약과 #354 문의 DTO·통합 테스트를 함께 확인했다.
+- #352·#354가 포함된 실제 Spring 서버와 ACTIVE 관리자 계정으로 로그인, session cookie, CSRF, 비밀번호 변경 session 회전과 로그아웃을 통합 검증해야 한다.
+- 실제 API Gateway·CloudFront 환경의 cookie 전달, `/api/admin/*` 분기와 SPA fallback은 운영 준비 단계에서 검증해야 한다.
+- Wiki 갱신은 #352의 관리자 인증 API·DB 정본 반영 범위이며 #351에서는 FE 작업 문서만 갱신했다.
 
-남은 통합 검증:
+## 독립 사전 PR 검토
 
-- #352 authorization code 교환 변경을 반영한 실제 Spring 서버와 관리자 Kakao 앱으로 로그인 세션을 검증해야 한다.
-- 실제 API Gateway·CloudFront 환경의 쿠키 전달과 CORS 동작은 별도 운영 준비 작업에서 검증해야 한다.
-
-최종 검증 결과:
-
-- `cd admin-web && npm ci --no-audit --no-fund`: 통과.
-- `cd admin-web && npm run lint`: 통과. 47개 파일을 검사했다.
-- `cd admin-web && npm run test`: 통과. 3개 파일의 12개 테스트가 통과했다.
-- `cd admin-web && npm run typecheck`: 통과.
-- `cd admin-web && npm run build`: 통과.
-- `git diff --check`: 통과.
-- 데스크톱과 390x844 모바일에서 목록·상세·답변 등록·완료 답변·로그인 버튼 흐름을 검증했다.
-- 모바일 페이지 전체에는 가로 넘침이 없고 목록 표 컨테이너만 의도대로 가로 스크롤된다.
-- 답변 입력의 5,000자 제한과 답변 후 읽기 전용 전환을 확인했다.
-- 브라우저 warning/error는 없었다.
-- 소스에 console, 오류 추적 tag, 브라우저 저장소 기록이 없음을 확인했다.
-
-```text
-[PRE-PR-VERIFY]
-verdict: pass
-isolation: current-context
-scope_match: yes
-agents_boundary: pass
-files_reviewed:
-  - admin-web의 변경된 인증, HTTP, 문의, UI, 테스트 파일 전체
-  - docs/tasks/351/design.md
-  - docs/tasks/351/plan.md
-files_not_reviewed:
-  - none
-commands:
-  - npm ci --no-audit --no-fund: pass
-  - npm run lint: pass
-  - npm run test: pass, 12 tests
-  - npm run typecheck: pass
-  - npm run build: pass
-  - git diff --check: pass
-  - browser desktop/mobile and answer/login workflow: pass
-findings:
-  critical:
-    - none
-  important:
-    - none
-  minor:
-    - none
-unsupported_claims:
-  - 사용자 영향과 운영 효과는 측정하지 않았다.
-remaining_risks:
-  - 카카오 SDK adapter와 실제 배포 환경은 이 저장소에서 검증하지 못했다.
-  - 검증은 구현과 같은 문맥에서 수행돼 독립성이 제한된다.
-recommended_next_action: open-pr
-[END-PRE-PR-VERIFY]
-```
-
-```text
-[SECURITY-CHECK]
-verdict: pass
-checked_surfaces:
-  - changed source, tests, task docs, browser logs, command output
-findings:
-  critical:
-    - none
-  important:
-    - none
-  minor:
-    - none
-redactions:
-  - none
-unsupported_security_claims:
-  - 실제 배포 환경의 쿠키와 CORS 보안 동작은 검증하지 않았다.
-required_follow_up:
-  - none
-[END-SECURITY-CHECK]
-```
-
-```text
-[COMPLETION-CHECK]
-request_rechecked: yes
-agents_rechecked: yes
-changed_files_inspected: yes
-unrelated_changes: none
-documentation_consistent: yes
-required_tests:
-  - npm ci --no-audit --no-fund: pass
-  - npm run lint: pass
-  - npm run test: pass, 12 tests
-  - npm run typecheck: pass
-  - npm run build: pass
-  - git diff --check: pass
-  - browser desktop/mobile and answer/login workflow: pass
-pre_pr_verification: pass
-pre_pr_verification_isolation: current-context
-security_check: pass
-task_note_updated: yes
-career_evaluated: yes
-unsupported_claims:
-  - 사용자 영향과 운영 효과는 측정하지 않았다.
-remaining_risks:
-  - 카카오 SDK adapter와 실제 API Gateway·CloudFront 통합은 후속 검증이 필요하다.
-[END-COMPLETION-CHECK]
-```
+- 별도 문맥에서 변경 파일과 인증 계약을 재검토했다.
+- 초기 `/me` A05 안내, 세션 전환 중 일반 조회 차단, 프로필 disclosure semantics와 command 회귀 테스트 지적을 반영했다.
+- 재검토 결과 `pass`이며 critical, important와 minor finding은 없다.
