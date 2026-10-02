@@ -1,0 +1,37 @@
+{
+  "name": "@cchaksa/admin-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:mock": "vite --mode mock",
+    "lint": "biome lint src vite.config.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "build": "npm run typecheck && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "5.90.2",
+    "lucide-react": "1.48.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "7.18.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "jsdom": "^29.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.1",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
