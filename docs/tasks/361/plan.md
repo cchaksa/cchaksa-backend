@@ -9,7 +9,7 @@
 - [x] V20에서 `admin_login_challenges` 테이블을 제거한다.
 - [x] H2 migration 및 실제 PostgreSQL V19→V20 schema validation 테스트를 갱신한다.
 - [x] 관리자 로그인·세션 회귀와 `./gradlew check --stacktrace --no-daemon`을 실행한다.
-- [ ] 커밋·push 후 `feat/355` 대상 Draft PR을 만들고 검증과 Wiki 후속을 기록한다.
+- [x] 커밋·push 후 `feat/355` 대상 Draft PR #362를 만들고 검증과 Wiki 후속을 기록한다.
 - [ ] 오케스트레이터에 Phase A SHA를 보고하고 dev 배포를 기다린다.
 
 ## Phase B
@@ -38,3 +38,11 @@ recommended_changes:
   - PostgreSQL V19 fixture에서 V20 적용과 전체 Hibernate schema validation을 함께 실행한다.
   - Phase B 직전에 실제 dev constraint 이름을 read-back하고 drift를 숨기지 않는 DDL을 확정한다.
 [END-PLAN-REVIEW]
+
+## Phase A PR-ready 요약
+
+- `AdminAccount`의 관리자 Kakao 컬럼 매핑을 제거하고 V20에서 미사용 challenge 테이블만 삭제했다.
+- provider/social 컬럼과 제약, `admin_sessions`, 일반 사용자 OIDC는 Phase A에서 유지한다.
+- H2 전체 migration, PostgreSQL V19→V20 schema validation, 관리자 인증·세션 회귀와 전체 `check`가 통과했다.
+- Draft PR은 #362이며 #360의 `feat/355`를 base로 한다.
+- Phase A가 dev `live`로 전환되기 전에는 Phase B V21을 추가하지 않는다.
