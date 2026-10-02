@@ -68,7 +68,7 @@ export function InquiryFilterBar({
             setDraftField(event.target.value as InquirySearchField)
           }
         >
-          <option value="USER_ID">사용자 UUID</option>
+          <option value="USER_ID">사용자 ID</option>
           <option value="STUDENT_CODE">학번</option>
         </select>
 
@@ -83,7 +83,7 @@ export function InquiryFilterBar({
             value={draftQuery}
             placeholder={
               draftField === 'USER_ID'
-                ? '사용자 UUID 정확히 입력'
+                ? '사용자 ID 정확히 입력'
                 : '학번 정확히 입력'
             }
             onChange={(event) => setDraftQuery(event.target.value)}
