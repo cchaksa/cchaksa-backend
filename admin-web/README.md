@@ -9,7 +9,7 @@ npm ci --no-audit --no-fund
 npm run dev
 ```
 
-`npm run dev`는 실제 API 모드이며 `/api/admin/*`를 기본 `http://localhost:8080`으로 proxy한다. 다른 로컬 백엔드를 사용할 때는 커밋하지 않는 `.env.development.local`에 다음 값을 둔다.
+`npm run dev`는 실제 API 모드이며 `/api/admin/*`를 기본 `https://dev.admin.cchaksa.com`으로 proxy한다. 브라우저 요청은 localhost와 같은 출처를 유지하므로 별도 CORS 설정 없이 dev의 CSRF·session cookie를 사용한다. Spring 백엔드를 로컬에서 실행할 때는 커밋하지 않는 `.env.development.local`에 다음 값을 둔다.
 
 ```text
 ADMIN_API_PROXY_TARGET=http://localhost:8080

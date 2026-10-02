@@ -75,8 +75,10 @@ src/
 
 ## 로컬 API 연동
 
-- `npm run dev`는 실제 API 모드이며 Vite가 `/api/admin/*`를 기본 `http://localhost:8080`으로 proxy한다.
-- proxy 대상은 브라우저에 노출되지 않는 `ADMIN_API_PROXY_TARGET`으로 변경할 수 있다.
+- `npm run dev`는 실제 API 모드이며 Vite가 `/api/admin/*`를 기본 `https://dev.admin.cchaksa.com`으로 proxy한다.
+- 로컬 Spring 서버를 사용할 때는 브라우저에 노출되지 않는 `ADMIN_API_PROXY_TARGET`을 `.env.development.local`에서 `http://localhost:8080`으로 변경한다.
+- 최초 `/api/admin/auth/me`의 401 A05는 정상 비인증 상태로 취급해 만료 안내 없이 `/login`으로 이동한다. 로그인 이후 보호 API의 A05만 session expiry coordinator가 만료 안내를 표시한다.
+- proxy 연결 실패와 5xx는 정상 비인증 응답과 구분해 서버 연결 오류로 표시한다.
 - `npm run dev:mock`은 화면 개발이 필요한 경우에만 mock API를 사용한다.
 - 실제 로그인 검증에는 백엔드 #352와 #354가 포함된 서버와 로컬 자격 증명이 활성화된 `admin_accounts` 레코드가 필요하다.
 

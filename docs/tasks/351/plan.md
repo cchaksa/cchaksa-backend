@@ -212,3 +212,12 @@
 
 - workflow dispatch와 실제 AWS 업로드·권한 검증은 수행하지 않았다. dev IAM policy 연결과 백엔드 readiness 완료 뒤 최초 승인 dispatch에서 확인한다.
 - 공개 dev 배포 전 API Gateway signin route throttle, 백엔드 `feat/355` 배포, V18·alias 검증과 ACTIVE 관리자 계정 준비가 필요하다.
+
+## Localhost 인증 초기 진입 보정
+
+- 원인: 개발 기본 proxy가 실행되지 않은 `http://localhost:8080`을 바라봐 `/me`와 `/csrf`가 502를 반환했다. 루트의 보호 경로 진입은 이 응답을 일반 세션 확인 오류로 표시했다.
+- 개발 기본 proxy를 준비된 `https://dev.admin.cchaksa.com`으로 변경하고, 로컬 Spring 서버 사용 시 `.env.development.local`에서만 `http://localhost:8080`으로 덮어쓰도록 문서화했다.
+- 최초 `/me`의 A05는 정상 비인증 상태이므로 만료 안내 없이 `/login`으로 이동한다. 로그인 이후 보호 API에서 발생한 A05만 기존 coordinator가 만료 안내를 표시한다.
+- proxy 5xx와 네트워크 실패는 정상 401과 구분해 관리자 서버 연결 오류로 표시한다.
+- 격리 Vite 서버에서 dev proxy의 `/csrf` 204·Secure XSRF cookie 전달과 `/me` 401 A05 JSON을 확인했다.
+- localhost 브라우저에서 루트가 `/login`으로 이동하고 로그인 버튼이 활성화되며 alert가 없음을 확인했다. 390×844와 1280×800에서 가로 넘침 및 console warning/error가 없었다.

@@ -26,7 +26,7 @@ function LoginProbe() {
 }
 
 describe('RequireAdmin', () => {
-  it('marks an A05 redirect as an expired session', async () => {
+  it('redirects an initial A05 response without a session expiry notice', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -56,7 +56,35 @@ describe('RequireAdmin', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('세션 만료 안내')).toBeTruthy()
+      expect(screen.getByText('일반 로그인')).toBeTruthy()
     })
+  })
+
+  it('distinguishes an unavailable server from an unauthenticated response', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 502 })),
+    )
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/inquiries']}>
+          <Routes>
+            <Route path="/login" element={<LoginProbe />} />
+            <Route element={<RequireAdmin />}>
+              <Route path="/inquiries" element={<p>문의</p>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(
+      await screen.findByText('관리자 서버에 연결하지 못했습니다.'),
+    ).toBeTruthy()
+    expect(screen.queryByText('세션 만료 안내')).toBeNull()
   })
 })
