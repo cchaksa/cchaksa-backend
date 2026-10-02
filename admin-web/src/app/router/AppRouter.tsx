@@ -14,10 +14,10 @@ export function AppRouter() {
     <BrowserRouter>
       <AdminSessionExpiryCoordinator />
       <Routes>
+        <Route index element={<Navigate to={routes.login} replace />} />
         <Route path={routes.login} element={<LoginPage />} />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminShell />}>
-            <Route index element={<Navigate to={routes.inquiries} replace />} />
             <Route path={routes.inquiries} element={<InquiryListPage />} />
             <Route
               path={`${routes.inquiries}/:reportId`}
@@ -25,7 +25,7 @@ export function AppRouter() {
             />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to={routes.inquiries} replace />} />
+        <Route path="*" element={<Navigate to={routes.login} replace />} />
       </Routes>
     </BrowserRouter>
   )

@@ -18,6 +18,10 @@
 
 로그인 뒤 기본 진입점은 `/inquiries`이며, 초기 사이드바에는 `문의`만 노출한다.
 
+- `/`과 `/login`은 관리자 session 조회 없이 로그인 화면에 접근하는 public route다.
+- 알 수 없는 경로는 보호 경로 여부를 추측하거나 session 조회를 시작하지 않고 `/login`으로 복구한다.
+- `/inquiries`와 `/inquiries/:reportId`에서만 보호 route가 관리자 session을 조회한다.
+
 ## 프론트엔드 구조
 
 현재 화면 수에 맞춰 Feature-Sliced Design의 일부 계층만 사용한다.

@@ -221,3 +221,4 @@
 - proxy 5xx와 네트워크 실패는 정상 401과 구분해 관리자 서버 연결 오류로 표시한다.
 - 격리 Vite 서버에서 dev proxy의 `/csrf` 204·Secure XSRF cookie 전달과 `/me` 401 A05 JSON을 확인했다.
 - localhost 브라우저에서 루트가 `/login`으로 이동하고 로그인 버튼이 활성화되며 alert가 없음을 확인했다. 390×844와 1280×800에서 가로 넘침 및 console warning/error가 없었다.
+- public root index와 unknown route를 보호 route 바깥의 `/login` redirect로 이동해 최초 진입에서 `/me`를 호출하지 않는다. `/inquiries` 계열에서만 session query가 실행된다.
