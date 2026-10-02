@@ -34,6 +34,12 @@
 - 후속 #354의 미적용 문의 migration은 V18로 이동하고 merge 방식으로 새 #352를 반영해 기존 커밋 히스토리와 순차 migration 번호를 보존한다.
 - Draft PR #358 본문에 최종 계약, 검증, Wiki 갱신 필요와 WAF rate limit 위험을 기록한다.
 
+## 6. Dev 배포 schema 보정
+
+- 적용된 V16~V18은 유지하고 V19에서 `admin_sessions.token_hash`를 `VARCHAR(64)`로 forward 변환한다.
+- 엔티티 hash 길이를 64로 명시하고 실제 PostgreSQL V18 fixture의 기존 값 보존과 Hibernate schema validation을 검증한다.
+- Lambda publish 실패 시 workflow가 `StateReasonCode`와 `StateReason`을 출력하도록 보강한다.
+
 ## Wiki
 
 인증, DB, 보안 운영 절차, 관리자 계정 발급과 비밀번호 재설정 절차의 Wiki 갱신이 필요하다. 별도 Wiki 저장소는 이번 코드 변경에서 수정하지 않고 최종 결과에 후속 필요를 기록한다.

@@ -7,6 +7,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
 
 security:
   jwt:

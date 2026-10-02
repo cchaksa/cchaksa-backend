@@ -21,6 +21,7 @@ spring:
       add-mappings: false
   jpa:
     properties:
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
       hibernate:
         jdbc:
           batch_size: 100

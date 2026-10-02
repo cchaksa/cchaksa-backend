@@ -13,6 +13,8 @@ import com.chukchuk.haksa.domain.admin.auth.model.AdminRole;
 import com.chukchuk.haksa.domain.admin.auth.model.AdminStatus;
 import com.chukchuk.haksa.domain.admin.auth.repository.AdminAccountRepository;
 import com.chukchuk.haksa.domain.admin.auth.security.AdminPrincipal;
+import com.chukchuk.haksa.domain.admin.report.dto.AdminReportDto;
+import com.chukchuk.haksa.domain.admin.report.dto.AdminReportSearchType;
 import com.chukchuk.haksa.domain.admin.report.service.AdminReportService;
 import com.chukchuk.haksa.domain.report.model.GraduationRequirementSnapshotStatus;
 import com.chukchuk.haksa.domain.report.model.Report;
@@ -24,6 +26,7 @@ import com.chukchuk.haksa.global.exception.type.CommonException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -156,6 +159,31 @@ class AdminReportApiIntegrationTest {
   }
 
   @Test
+  void exactSearchKeepsTwentyItemPageBoundaryWithoutDuplicates() {
+    UUID selectedUser = UUID.randomUUID();
+    for (int index = 0; index < 21; index++) {
+      saveReport(selectedUser, "페이지 문의 " + index, "문의 본문", "20201234");
+    }
+
+    AdminReportDto.PageResponse firstPage =
+        adminReportService.getReports(
+            0, 20, null, AdminReportSearchType.USER_ID, selectedUser.toString());
+    AdminReportDto.PageResponse secondPage =
+        adminReportService.getReports(
+            1, 20, null, AdminReportSearchType.USER_ID, selectedUser.toString());
+
+    assertThat(firstPage.items()).hasSize(20);
+    assertThat(firstPage.totalElements()).isEqualTo(21);
+    assertThat(firstPage.hasNext()).isTrue();
+    assertThat(secondPage.items()).hasSize(1);
+    assertThat(secondPage.hasNext()).isFalse();
+    HashSet<UUID> reportIds = new HashSet<>();
+    firstPage.items().forEach(item -> reportIds.add(item.reportId()));
+    secondPage.items().forEach(item -> reportIds.add(item.reportId()));
+    assertThat(reportIds).hasSize(21);
+  }
+
+  @Test
   void detailUsesServerSnapshotAndDoesNotInventUiOnlyFields() throws Exception {
     Report report = saveReport(UUID.randomUUID(), "상세 문의", "문의 본문", "20201234");
 
@@ -199,6 +227,30 @@ class AdminReportApiIntegrationTest {
             get("/api/admin/reports")
                 .with(authentication(authenticationOf(firstAdmin)))
                 .param("size", "101"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("C01"));
+    mockMvc
+        .perform(
+            get("/api/admin/reports")
+                .with(authentication(authenticationOf(firstAdmin)))
+                .param("searchType", "USER_ID")
+                .param("query", "not-a-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("C01"));
+    mockMvc
+        .perform(
+            get("/api/admin/reports")
+                .with(authentication(authenticationOf(firstAdmin)))
+                .param("searchType", "STUDENT_CODE")
+                .param("query", " "))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("C01"));
+    mockMvc
+        .perform(
+            get("/api/admin/reports")
+                .with(authentication(authenticationOf(firstAdmin)))
+                .param("searchType", "STUDENT_CODE")
+                .param("query", "1".repeat(256)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("C01"));
     mockMvc
@@ -270,10 +322,17 @@ class AdminReportApiIntegrationTest {
 
   @Test
   void openApiPublishesAdminReportContract() throws Exception {
+    String listParameters = "$.paths['/api/admin/reports'].get.parameters";
     mockMvc
         .perform(get("/v3/api-docs"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.paths['/api/admin/reports'].get").exists())
+        .andExpect(jsonPath(listParameters + "[?(@.name == 'query')].schema.maxLength").value(255))
+        .andExpect(
+            jsonPath(listParameters + "[?(@.name == 'searchType')].schema.enum")
+                .value(
+                    org.hamcrest.Matchers.contains(
+                        org.hamcrest.Matchers.containsInAnyOrder("USER_ID", "STUDENT_CODE"))))
         .andExpect(jsonPath("$.paths['/api/admin/reports/{reportId}'].get").exists())
         .andExpect(jsonPath("$.paths['/api/admin/reports/{reportId}/answer'].post").exists());
   }

@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,7 +52,7 @@ public class AdminReportController {
       @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size,
       @RequestParam(required = false) ReportStatus status,
       @RequestParam(required = false) AdminReportSearchType searchType,
-      @RequestParam(required = false) String query) {
+      @RequestParam(required = false) @Size(max = 255) String query) {
     return SuccessResponse.of(adminReportService.getReports(page, size, status, searchType, query));
   }
 
