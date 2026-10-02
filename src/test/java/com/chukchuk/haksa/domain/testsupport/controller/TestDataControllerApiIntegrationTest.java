@@ -1,6 +1,6 @@
 // dev 테스트 어드민 API 컨트롤러 동작을 검증하는 테스트
 
-package com.chukchuk.haksa.domain.admin.controller;
+package com.chukchuk.haksa.domain.testsupport.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,12 +13,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
-import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
+import com.chukchuk.haksa.domain.testsupport.service.TestAccountService;
+import com.chukchuk.haksa.domain.testsupport.service.TestLectureEvaluationService;
+import com.chukchuk.haksa.domain.testsupport.service.TestMutationService;
+import com.chukchuk.haksa.domain.testsupport.service.TestOptionService;
 import com.chukchuk.haksa.support.ApiControllerWebMvcTestSupport;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -34,29 +34,29 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 @ActiveProfiles("test")
-@WebMvcTest(AdminTestController.class)
+@WebMvcTest(TestDataController.class)
 @AutoConfigureMockMvc(addFilters = false)
-class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport {
+class TestDataControllerApiIntegrationTest extends ApiControllerWebMvcTestSupport {
 
   @Autowired private MockMvc mockMvc;
 
   @Autowired private ObjectMapper objectMapper;
 
-  @MockBean private AdminTestAccountService accountService;
+  @MockBean private TestAccountService accountService;
 
-  @MockBean private AdminTestOptionService optionService;
+  @MockBean private TestOptionService optionService;
 
-  @MockBean private AdminTestMutationService mutationService;
+  @MockBean private TestMutationService mutationService;
 
-  @MockBean private AdminTestLectureEvaluationService lectureEvaluationService;
+  @MockBean private TestLectureEvaluationService lectureEvaluationService;
 
   @Test
   @DisplayName("테스트 계정 생성 성공 시 토큰과 테스트 식별자를 반환한다")
   void createTestUserSuccess() throws Exception {
     UUID userId = UUID.randomUUID();
     UUID studentId = UUID.randomUUID();
-    AdminTestDto.TestUserResponse response =
-        new AdminTestDto.TestUserResponse(
+    TestDataDto.TestUserResponse response =
+        new TestDataDto.TestUserResponse(
             userId,
             studentId,
             "test_202606231430@example.com",
@@ -67,7 +67,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     mockMvc
         .perform(
-            post("/api/admin/test-users")
+            post("/api/test/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -91,14 +91,14 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @Test
   @DisplayName("테스트 옵션 조회 성공 시 학과와 졸업요건 영역 목록을 반환한다")
   void getTestOptionsSuccess() throws Exception {
-    AdminTestDto.TestOptionsResponse response =
-        new AdminTestDto.TestOptionsResponse(
-            List.of(new AdminTestDto.DepartmentOption(1L, "CSE", "컴퓨터학과")),
-            List.of(new AdminTestDto.GraduationAreaOption("전핵", "전핵")));
+    TestDataDto.TestOptionsResponse response =
+        new TestDataDto.TestOptionsResponse(
+            List.of(new TestDataDto.DepartmentOption(1L, "CSE", "컴퓨터학과")),
+            List.of(new TestDataDto.GraduationAreaOption("전핵", "전핵")));
     when(optionService.getTestOptions()).thenReturn(response);
 
     mockMvc
-        .perform(get("/api/admin/test-options"))
+        .perform(get("/api/test/options"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.departments[0].id").value(1))
@@ -110,10 +110,10 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("학과 공개 검색 성공 시 검색 결과를 반환한다")
   void searchDepartmentsSuccess() throws Exception {
     when(optionService.searchDepartments("컴퓨터"))
-        .thenReturn(List.of(new AdminTestDto.DepartmentOption(1L, "CSE", "컴퓨터학과")));
+        .thenReturn(List.of(new TestDataDto.DepartmentOption(1L, "CSE", "컴퓨터학과")));
 
     mockMvc
-        .perform(get("/api/admin/departments").param("keyword", "컴퓨터"))
+        .perform(get("/api/test/departments").param("keyword", "컴퓨터"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data[0].id").value(1))
@@ -124,14 +124,14 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @Test
   @DisplayName("강의 후보 조회 성공 시 검색 결과를 반환한다")
   void searchCourseOfferingsSuccess() throws Exception {
-    AdminTestDto.CourseOfferingOption option =
-        new AdminTestDto.CourseOfferingOption(
+    TestDataDto.CourseOfferingOption option =
+        new TestDataDto.CourseOfferingOption(
             10L, "CSE101", "자료구조", 2024, 10, 3, FacultyDivision.전핵, null, "컴퓨터학과");
     when(optionService.searchCourseOfferings(any())).thenReturn(List.of(option));
 
     mockMvc
         .perform(
-            get("/api/admin/course-offerings")
+            get("/api/test/course-offerings")
                 .param("keyword", "자료")
                 .param("area", "전핵")
                 .param("year", "2024")
@@ -154,7 +154,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     mockMvc
         .perform(
-            patch("/api/admin/me/graduation-courses")
+            patch("/api/test/me/graduation-courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -180,7 +180,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
 
     mockMvc
         .perform(
-            patch("/api/admin/me/major")
+            patch("/api/test/me/major")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -203,7 +203,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
     doNothing().when(mutationService).resetCurrentAccount(userId);
 
     mockMvc
-        .perform(post("/api/admin/me/reset"))
+        .perform(post("/api/test/me/reset"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("테스트 데이터가 초기화되었습니다."));
@@ -214,14 +214,14 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   void createTestCourseSuccess() throws Exception {
     UUID userId = UUID.randomUUID();
     authenticate(userId);
-    AdminTestDto.TestCourseResponse response =
-        new AdminTestDto.TestCourseResponse(
+    TestDataDto.TestCourseResponse response =
+        new TestDataDto.TestCourseResponse(
             40L, 30L, "test_CSE101", "프론트 테스트 강의", FacultyDivision.전선);
     when(mutationService.createTestCourse(eq(userId), any())).thenReturn(response);
 
     mockMvc
         .perform(
-            post("/api/admin/me/test-courses")
+            post("/api/test/me/test-courses")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -249,7 +249,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("강의평가 empty-semester 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
   void setLectureEvaluationEmptySemesterSuccess() throws Exception {
     mockMvc
-        .perform(post("/api/admin/test-lecture-evaluations/empty-semester"))
+        .perform(post("/api/test/lecture-evaluations/empty-semester"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 empty-semester로 변경되었습니다."));
@@ -261,7 +261,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("강의평가 NOT_RELEASED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
   void setLectureEvaluationNotReleasedSuccess() throws Exception {
     mockMvc
-        .perform(post("/api/admin/test-lecture-evaluations/not-released"))
+        .perform(post("/api/test/lecture-evaluations/not-released"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 NOT_RELEASED로 변경되었습니다."));
@@ -273,7 +273,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("강의평가 PENDING 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
   void setLectureEvaluationPendingSuccess() throws Exception {
     mockMvc
-        .perform(post("/api/admin/test-lecture-evaluations/pending"))
+        .perform(post("/api/test/lecture-evaluations/pending"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 PENDING으로 변경되었습니다."));
@@ -285,7 +285,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("강의평가 SKIPPED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
   void setLectureEvaluationSkippedSuccess() throws Exception {
     mockMvc
-        .perform(post("/api/admin/test-lecture-evaluations/skipped"))
+        .perform(post("/api/test/lecture-evaluations/skipped"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 SKIPPED로 변경되었습니다."));
@@ -297,7 +297,7 @@ class AdminTestControllerApiIntegrationTest extends ApiControllerWebMvcTestSuppo
   @DisplayName("강의평가 COMPLETED 테스트 상태 세팅 성공 시 성공 메시지를 반환한다")
   void setLectureEvaluationCompletedSuccess() throws Exception {
     mockMvc
-        .perform(post("/api/admin/test-lecture-evaluations/completed"))
+        .perform(post("/api/test/lecture-evaluations/completed"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.message").value("강의평가 테스트 상태가 COMPLETED로 변경되었습니다."));

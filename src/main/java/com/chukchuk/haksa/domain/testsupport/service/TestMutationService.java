@@ -1,14 +1,12 @@
 // dev 테스트 데이터 수정을 현재 인증 계정 범위로 처리한다
 
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import com.chukchuk.haksa.application.portal.SyncDesignatedCourseService;
 import com.chukchuk.haksa.domain.academic.record.model.StudentAcademicRecord;
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentAcademicRecordRepository;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
-import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -25,6 +23,8 @@ import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentDesignatedCourseRepository;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
+import com.chukchuk.haksa.domain.testsupport.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
@@ -40,14 +40,16 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 개발 환경 테스트 계정의 전공과 수강 데이터를 변경한다. */
 @Service
+@Profile({"dev", "test"})
 @RequiredArgsConstructor
 @Transactional
-public class AdminTestMutationService {
+public class TestMutationService {
 
   private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
@@ -123,7 +125,7 @@ public class AdminTestMutationService {
    * @param request 추가·삭제할 졸업 판정용 수강 과목 목록
    */
   public void updateGraduationCourses(
-      UUID userId, AdminTestDto.UpdateGraduationCoursesRequest request) {
+      UUID userId, TestDataDto.UpdateGraduationCoursesRequest request) {
     Student student = getRequiredStudent(userId);
 
     List<Long> addOfferingIds = nonNullList(request.addOfferingIds());
@@ -159,7 +161,7 @@ public class AdminTestMutationService {
    * @param request 변경할 주전공과 복수전공 식별정보
    * @throws CommonException 복수전공 학과가 없거나 주전공과 같은 학과인 경우
    */
-  public void updateMajor(UUID userId, AdminTestDto.UpdateMajorRequest request) {
+  public void updateMajor(UUID userId, TestDataDto.UpdateMajorRequest request) {
     Student student = getRequiredStudent(userId);
     Department major =
         request.majorDepartmentId() != null
@@ -243,8 +245,8 @@ public class AdminTestMutationService {
    * @return 생성되어 수강 내역에 추가된 테스트 과목
    * @throws CommonException 요청 또는 졸업 요건 영역이 없는 경우
    */
-  public AdminTestDto.TestCourseResponse createTestCourse(
-      UUID userId, AdminTestDto.CreateTestCourseRequest request) {
+  public TestDataDto.TestCourseResponse createTestCourse(
+      UUID userId, TestDataDto.CreateTestCourseRequest request) {
     if (request == null || request.area() == null) {
       throw new CommonException(ErrorCode.INVALID_ARGUMENT);
     }
@@ -292,7 +294,7 @@ public class AdminTestMutationService {
                 false));
 
     academicCache.deleteAllByStudentId(student.getId());
-    return new AdminTestDto.TestCourseResponse(
+    return new TestDataDto.TestCourseResponse(
         studentCourse.getId(),
         offering.getId(),
         course.getCourseCode(),
@@ -319,7 +321,7 @@ public class AdminTestMutationService {
   }
 
   private void validateArea(
-      AdminTestDto.UpdateGraduationCoursesRequest request, CourseOffering offering) {
+      TestDataDto.UpdateGraduationCoursesRequest request, CourseOffering offering) {
     if (request.area() == null || offering.getFacultyDivisionName() == null) {
       return;
     }

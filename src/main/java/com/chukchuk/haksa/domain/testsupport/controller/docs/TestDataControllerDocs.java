@@ -1,9 +1,9 @@
 // dev 테스트 어드민 API 문서 인터페이스를 정의한다
 
-package com.chukchuk.haksa.domain.admin.controller.docs;
+package com.chukchuk.haksa.domain.testsupport.controller.docs;
 
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
-import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
+import com.chukchuk.haksa.domain.testsupport.dto.UpdateTransferDataRequest;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.common.response.wrapper.ErrorResponseWrapper;
@@ -19,7 +19,7 @@ import org.springframework.http.ResponseEntity;
 
 /** 개발 환경에서 테스트 계정과 학사·강의평가 데이터를 구성하는 API 계약을 정의한다. */
 @Tag(name = "Admin Test", description = "dev 전용 프론트 테스트 데이터 조작 API")
-public interface AdminTestControllerDocs {
+public interface TestDataControllerDocs {
 
   /**
    * 개발 환경에서 요청 조건의 테스트 사용자와 인증 토큰을 생성한다.
@@ -28,8 +28,8 @@ public interface AdminTestControllerDocs {
    * @return 생성된 테스트 사용자와 인증 토큰
    */
   @Operation(summary = "테스트 계정 생성", description = "dev 환경에서 테스트 계정을 생성하고 JWT 토큰을 발급합니다.")
-  ResponseEntity<SuccessResponse<AdminTestDto.TestUserResponse>> createTestUser(
-      AdminTestDto.CreateTestUserRequest request);
+  ResponseEntity<SuccessResponse<TestDataDto.TestUserResponse>> createTestUser(
+      TestDataDto.CreateTestUserRequest request);
 
   /**
    * 테스트 데이터 구성에 사용할 기본 선택지를 반환한다.
@@ -37,7 +37,7 @@ public interface AdminTestControllerDocs {
    * @return 학과와 졸업 영역 등 테스트 구성 선택지
    */
   @Operation(summary = "테스트 조작 옵션 조회", description = "dev 환경에서 토큰 없이 학과와 졸업요건 영역 선택지를 조회합니다.")
-  ResponseEntity<SuccessResponse<AdminTestDto.TestOptionsResponse>> getTestOptions();
+  ResponseEntity<SuccessResponse<TestDataDto.TestOptionsResponse>> getTestOptions();
 
   /**
    * 학과 코드 또는 이름에 검색어가 포함된 학과를 반환한다.
@@ -46,7 +46,7 @@ public interface AdminTestControllerDocs {
    * @return 조건에 일치하는 개발 환경 테스트 데이터 목록
    */
   @Operation(summary = "학과 검색", description = "dev 환경에서 토큰 없이 학과 코드와 학과명으로 학과 선택지를 검색합니다.")
-  ResponseEntity<SuccessResponse<List<AdminTestDto.DepartmentOption>>> searchDepartments(
+  ResponseEntity<SuccessResponse<List<TestDataDto.DepartmentOption>>> searchDepartments(
       String keyword);
 
   /**
@@ -60,7 +60,7 @@ public interface AdminTestControllerDocs {
    * @return 조건에 일치하는 개발 환경 테스트 데이터 목록
    */
   @Operation(summary = "강의 후보 조회", description = "dev 환경에서 토큰 없이 테스트 데이터에 추가할 개설강의 후보를 검색합니다.")
-  ResponseEntity<SuccessResponse<List<AdminTestDto.CourseOfferingOption>>> searchCourseOfferings(
+  ResponseEntity<SuccessResponse<List<TestDataDto.CourseOfferingOption>>> searchCourseOfferings(
       String keyword,
       com.chukchuk.haksa.domain.course.model.FacultyDivision area,
       Integer year,
@@ -77,7 +77,7 @@ public interface AdminTestControllerDocs {
   @Operation(summary = "현재 계정 강의 데이터 수정", description = "현재 인증 계정의 졸업요건 강의 데이터를 추가하거나 삭제합니다.")
   @SecurityRequirement(name = "bearerAuth")
   ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateGraduationCourses(
-      CustomUserDetails userDetails, AdminTestDto.UpdateGraduationCoursesRequest request);
+      CustomUserDetails userDetails, TestDataDto.UpdateGraduationCoursesRequest request);
 
   /**
    * 테스트 계정의 주전공과 복수전공을 요청 값으로 변경한다.
@@ -89,7 +89,7 @@ public interface AdminTestControllerDocs {
   @Operation(summary = "현재 계정 전공 상태 수정", description = "현재 인증 계정의 주전공과 복수전공 상태를 수정합니다.")
   @SecurityRequirement(name = "bearerAuth")
   ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateMajor(
-      CustomUserDetails userDetails, AdminTestDto.UpdateMajorRequest request);
+      CustomUserDetails userDetails, TestDataDto.UpdateMajorRequest request);
 
   /**
    * 인증된 테스트 계정의 편입 진단용 원천 데이터를 부분 수정한다.
@@ -142,8 +142,8 @@ public interface AdminTestControllerDocs {
       summary = "현재 계정 테스트 강의 생성",
       description = "테스트 강의와 개설강의를 만들고 현재 인증 계정의 수강 데이터에 바로 추가합니다.")
   @SecurityRequirement(name = "bearerAuth")
-  ResponseEntity<SuccessResponse<AdminTestDto.TestCourseResponse>> createTestCourse(
-      CustomUserDetails userDetails, AdminTestDto.CreateTestCourseRequest request);
+  ResponseEntity<SuccessResponse<TestDataDto.TestCourseResponse>> createTestCourse(
+      CustomUserDetails userDetails, TestDataDto.CreateTestCourseRequest request);
 
   /**
    * 고정 테스트 계정의 대상 학기 평가·수강·성적 기록을 제거한다.

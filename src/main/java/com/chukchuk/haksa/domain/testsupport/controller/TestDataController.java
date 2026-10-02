@@ -1,15 +1,15 @@
-// dev 테스트 어드민 API 엔드포인트를 제공한다
+// dev/test 환경의 테스트 데이터 API 엔드포인트를 제공한다
 
-package com.chukchuk.haksa.domain.admin.controller;
+package com.chukchuk.haksa.domain.testsupport.controller;
 
-import com.chukchuk.haksa.domain.admin.controller.docs.AdminTestControllerDocs;
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
-import com.chukchuk.haksa.domain.admin.dto.UpdateTransferDataRequest;
-import com.chukchuk.haksa.domain.admin.service.AdminTestAccountService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestLectureEvaluationService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestMutationService;
-import com.chukchuk.haksa.domain.admin.service.AdminTestOptionService;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
+import com.chukchuk.haksa.domain.testsupport.controller.docs.TestDataControllerDocs;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
+import com.chukchuk.haksa.domain.testsupport.dto.UpdateTransferDataRequest;
+import com.chukchuk.haksa.domain.testsupport.service.TestAccountService;
+import com.chukchuk.haksa.domain.testsupport.service.TestLectureEvaluationService;
+import com.chukchuk.haksa.domain.testsupport.service.TestMutationService;
+import com.chukchuk.haksa.domain.testsupport.service.TestOptionService;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
@@ -31,45 +31,45 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @Profile({"dev", "test"})
-@RequestMapping("/api/admin")
-public class AdminTestController implements AdminTestControllerDocs {
+@RequestMapping("/api/test")
+public class TestDataController implements TestDataControllerDocs {
 
-  private final AdminTestAccountService accountService;
-  private final AdminTestOptionService optionService;
-  private final AdminTestMutationService mutationService;
-  private final AdminTestLectureEvaluationService lectureEvaluationService;
+  private final TestAccountService accountService;
+  private final TestOptionService optionService;
+  private final TestMutationService mutationService;
+  private final TestLectureEvaluationService lectureEvaluationService;
 
   @Override
-  @PostMapping("/test-users")
-  public ResponseEntity<SuccessResponse<AdminTestDto.TestUserResponse>> createTestUser(
-      @Valid @RequestBody AdminTestDto.CreateTestUserRequest request) {
+  @PostMapping("/users")
+  public ResponseEntity<SuccessResponse<TestDataDto.TestUserResponse>> createTestUser(
+      @Valid @RequestBody TestDataDto.CreateTestUserRequest request) {
     return ResponseEntity.ok(SuccessResponse.of(accountService.createTestUser(request)));
   }
 
   @Override
-  @GetMapping("/test-options")
-  public ResponseEntity<SuccessResponse<AdminTestDto.TestOptionsResponse>> getTestOptions() {
+  @GetMapping("/options")
+  public ResponseEntity<SuccessResponse<TestDataDto.TestOptionsResponse>> getTestOptions() {
     return ResponseEntity.ok(SuccessResponse.of(optionService.getTestOptions()));
   }
 
   @Override
   @GetMapping("/departments")
-  public ResponseEntity<SuccessResponse<List<AdminTestDto.DepartmentOption>>> searchDepartments(
+  public ResponseEntity<SuccessResponse<List<TestDataDto.DepartmentOption>>> searchDepartments(
       @RequestParam(required = false) String keyword) {
     return ResponseEntity.ok(SuccessResponse.of(optionService.searchDepartments(keyword)));
   }
 
   @Override
   @GetMapping("/course-offerings")
-  public ResponseEntity<SuccessResponse<List<AdminTestDto.CourseOfferingOption>>>
+  public ResponseEntity<SuccessResponse<List<TestDataDto.CourseOfferingOption>>>
       searchCourseOfferings(
           @RequestParam(required = false) String keyword,
           @RequestParam(required = false) FacultyDivision area,
           @RequestParam(required = false) Integer year,
           @RequestParam(required = false) Integer semester,
           @RequestParam(required = false) Long departmentId) {
-    AdminTestDto.CourseOfferingSearchRequest request =
-        new AdminTestDto.CourseOfferingSearchRequest(keyword, area, year, semester, departmentId);
+    TestDataDto.CourseOfferingSearchRequest request =
+        new TestDataDto.CourseOfferingSearchRequest(keyword, area, year, semester, departmentId);
     return ResponseEntity.ok(SuccessResponse.of(optionService.searchCourseOfferings(request)));
   }
 
@@ -77,7 +77,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   @PatchMapping("/me/graduation-courses")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateGraduationCourses(
       @AuthenticationPrincipal CustomUserDetails userDetails,
-      @Valid @RequestBody AdminTestDto.UpdateGraduationCoursesRequest request) {
+      @Valid @RequestBody TestDataDto.UpdateGraduationCoursesRequest request) {
     mutationService.updateGraduationCourses(userDetails.getId(), request);
     return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의 데이터가 수정되었습니다.")));
   }
@@ -86,7 +86,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   @PatchMapping("/me/major")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> updateMajor(
       @AuthenticationPrincipal CustomUserDetails userDetails,
-      @Valid @RequestBody AdminTestDto.UpdateMajorRequest request) {
+      @Valid @RequestBody TestDataDto.UpdateMajorRequest request) {
     mutationService.updateMajor(userDetails.getId(), request);
     return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("전공 상태가 수정되었습니다.")));
   }
@@ -110,15 +110,15 @@ public class AdminTestController implements AdminTestControllerDocs {
 
   @Override
   @PostMapping("/me/test-courses")
-  public ResponseEntity<SuccessResponse<AdminTestDto.TestCourseResponse>> createTestCourse(
+  public ResponseEntity<SuccessResponse<TestDataDto.TestCourseResponse>> createTestCourse(
       @AuthenticationPrincipal CustomUserDetails userDetails,
-      @Valid @RequestBody AdminTestDto.CreateTestCourseRequest request) {
+      @Valid @RequestBody TestDataDto.CreateTestCourseRequest request) {
     return ResponseEntity.ok(
         SuccessResponse.of(mutationService.createTestCourse(userDetails.getId(), request)));
   }
 
   @Override
-  @PostMapping("/test-lecture-evaluations/empty-semester")
+  @PostMapping("/lecture-evaluations/empty-semester")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationEmptySemester() {
     lectureEvaluationService.setEmptySemester();
     return ResponseEntity.ok(
@@ -126,7 +126,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   }
 
   @Override
-  @PostMapping("/test-lecture-evaluations/not-released")
+  @PostMapping("/lecture-evaluations/not-released")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationNotReleased() {
     lectureEvaluationService.setNotReleased();
     return ResponseEntity.ok(
@@ -134,7 +134,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   }
 
   @Override
-  @PostMapping("/test-lecture-evaluations/pending")
+  @PostMapping("/lecture-evaluations/pending")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationPending() {
     lectureEvaluationService.setPending();
     return ResponseEntity.ok(
@@ -142,7 +142,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   }
 
   @Override
-  @PostMapping("/test-lecture-evaluations/skipped")
+  @PostMapping("/lecture-evaluations/skipped")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationSkipped() {
     lectureEvaluationService.setSkipped();
     return ResponseEntity.ok(
@@ -150,7 +150,7 @@ public class AdminTestController implements AdminTestControllerDocs {
   }
 
   @Override
-  @PostMapping("/test-lecture-evaluations/completed")
+  @PostMapping("/lecture-evaluations/completed")
   public ResponseEntity<SuccessResponse<MessageOnlyResponse>> setLectureEvaluationCompleted() {
     lectureEvaluationService.setCompleted();
     return ResponseEntity.ok(

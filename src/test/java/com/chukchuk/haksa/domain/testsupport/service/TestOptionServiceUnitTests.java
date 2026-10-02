@@ -1,6 +1,6 @@
 // dev 테스트 옵션 조회 서비스 동작을 검증하는 테스트
 
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -8,13 +8,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
 import com.chukchuk.haksa.domain.course.repository.CourseOfferingRepository;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -25,25 +25,25 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class AdminTestOptionServiceUnitTests {
+class TestOptionServiceUnitTests {
 
   @Mock private DepartmentRepository departmentRepository;
 
   @Mock private CourseOfferingRepository courseOfferingRepository;
 
-  @InjectMocks private AdminTestOptionService optionService;
+  @InjectMocks private TestOptionService optionService;
 
   @Test
   @DisplayName("테스트 옵션 조회 시 학과와 졸업요건 영역을 반환한다")
   void getTestOptionsReturnsDepartmentsAndAreas() {
     when(departmentRepository.findAll()).thenReturn(List.of(new Department("CSE", "컴퓨터학과")));
 
-    AdminTestDto.TestOptionsResponse response = optionService.getTestOptions();
+    TestDataDto.TestOptionsResponse response = optionService.getTestOptions();
 
     assertThat(response.departments()).hasSize(1);
     assertThat(response.departments().get(0).name()).isEqualTo("컴퓨터학과");
     assertThat(response.graduationAreas())
-        .extracting(AdminTestDto.GraduationAreaOption::code)
+        .extracting(TestDataDto.GraduationAreaOption::code)
         .contains("전핵", "전선", "복핵", "복선");
   }
 
@@ -53,7 +53,7 @@ class AdminTestOptionServiceUnitTests {
     Department department = new Department("CSE", "컴퓨터학과");
     when(departmentRepository.searchAdminDepartments("컴퓨터")).thenReturn(List.of(department));
 
-    List<AdminTestDto.DepartmentOption> response = optionService.searchDepartments(" 컴퓨터 ");
+    List<TestDataDto.DepartmentOption> response = optionService.searchDepartments(" 컴퓨터 ");
 
     assertThat(response).hasSize(1);
     assertThat(response.get(0).code()).isEqualTo("CSE");
@@ -66,7 +66,7 @@ class AdminTestOptionServiceUnitTests {
     Department department = new Department("BUS", "경영학과");
     when(departmentRepository.findAll()).thenReturn(List.of(department));
 
-    List<AdminTestDto.DepartmentOption> response = optionService.searchDepartments(" ");
+    List<TestDataDto.DepartmentOption> response = optionService.searchDepartments(" ");
 
     assertThat(response).hasSize(1);
     assertThat(response.get(0).code()).isEqualTo("BUS");
@@ -92,9 +92,9 @@ class AdminTestOptionServiceUnitTests {
             "자료", FacultyDivision.전핵, 2024, 10, "컴퓨터학과"))
         .thenReturn(List.of(offering));
 
-    List<AdminTestDto.CourseOfferingOption> response =
+    List<TestDataDto.CourseOfferingOption> response =
         optionService.searchCourseOfferings(
-            new AdminTestDto.CourseOfferingSearchRequest("자료", FacultyDivision.전핵, 2024, 10, 1L));
+            new TestDataDto.CourseOfferingSearchRequest("자료", FacultyDivision.전핵, 2024, 10, 1L));
 
     assertThat(response).hasSize(1);
     assertThat(response.get(0).offeringId()).isEqualTo(10L);
@@ -113,7 +113,7 @@ class AdminTestOptionServiceUnitTests {
         .thenReturn(List.of());
 
     optionService.searchCourseOfferings(
-        new AdminTestDto.CourseOfferingSearchRequest(" ", FacultyDivision.선교, null, null, null));
+        new TestDataDto.CourseOfferingSearchRequest(" ", FacultyDivision.선교, null, null, null));
 
     verify(courseOfferingRepository)
         .searchAdminCandidates(null, FacultyDivision.선교, null, null, null);
@@ -127,7 +127,7 @@ class AdminTestOptionServiceUnitTests {
     assertThatThrownBy(
             () ->
                 optionService.searchCourseOfferings(
-                    new AdminTestDto.CourseOfferingSearchRequest(null, null, null, null, 999L)))
+                    new TestDataDto.CourseOfferingSearchRequest(null, null, null, null, 999L)))
         .hasMessage("잘못된 요청입니다.");
   }
 }

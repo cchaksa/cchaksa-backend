@@ -1,6 +1,6 @@
 // dev 테스트 데이터 수정 서비스 동작을 검증하는 테스트
 
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 
 import com.chukchuk.haksa.domain.academic.record.model.StudentCourse;
 import com.chukchuk.haksa.domain.academic.record.repository.StudentCourseRepository;
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.cache.AcademicCache;
 import com.chukchuk.haksa.domain.course.model.Course;
 import com.chukchuk.haksa.domain.course.model.CourseOffering;
@@ -25,6 +24,7 @@ import com.chukchuk.haksa.domain.student.model.GradeType;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.model.StudentStatus;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import java.util.List;
@@ -40,7 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class AdminTestMutationServiceUnitTests {
+class TestMutationServiceUnitTests {
 
   @Mock private UserRepository userRepository;
 
@@ -56,7 +56,7 @@ class AdminTestMutationServiceUnitTests {
 
   @Mock private AcademicCache academicCache;
 
-  @InjectMocks private AdminTestMutationService mutationService;
+  @InjectMocks private TestMutationService mutationService;
 
   @Test
   @DisplayName("현재 인증 계정의 강의 데이터를 추가하고 삭제한다")
@@ -66,8 +66,8 @@ class AdminTestMutationServiceUnitTests {
     Student student = student(user);
     user.setStudent(student);
     CourseOffering offering = offering();
-    AdminTestDto.UpdateGraduationCoursesRequest request =
-        new AdminTestDto.UpdateGraduationCoursesRequest(
+    TestDataDto.UpdateGraduationCoursesRequest request =
+        new TestDataDto.UpdateGraduationCoursesRequest(
             FacultyDivision.전핵, List.of(10L), List.of(20L), "A+", 3, false, null);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(courseOfferingRepository.findAllById(List.of(10L))).thenReturn(List.of(offering));
@@ -91,8 +91,8 @@ class AdminTestMutationServiceUnitTests {
     Student student = student(user);
     user.setStudent(student);
     CourseOffering offering = offering();
-    AdminTestDto.UpdateGraduationCoursesRequest request =
-        new AdminTestDto.UpdateGraduationCoursesRequest(
+    TestDataDto.UpdateGraduationCoursesRequest request =
+        new TestDataDto.UpdateGraduationCoursesRequest(
             FacultyDivision.전핵, List.of(10L), List.of(), " ", 3, false, null);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(courseOfferingRepository.findAllById(List.of(10L))).thenReturn(List.of(offering));
@@ -113,8 +113,7 @@ class AdminTestMutationServiceUnitTests {
     user.setStudent(student);
     Department major = new Department("CSE", "컴퓨터학과");
     Department secondaryMajor = new Department("BUS", "경영학과");
-    final AdminTestDto.UpdateMajorRequest request =
-        new AdminTestDto.UpdateMajorRequest(1L, true, 2L);
+    final TestDataDto.UpdateMajorRequest request = new TestDataDto.UpdateMajorRequest(1L, true, 2L);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(departmentRepository.findById(1L)).thenReturn(Optional.of(major));
     when(departmentRepository.findById(2L)).thenReturn(Optional.of(secondaryMajor));
@@ -135,7 +134,7 @@ class AdminTestMutationServiceUnitTests {
     Student student = student(user);
     user.setStudent(student);
     Department department = new Department("CSE", "컴퓨터학과");
-    AdminTestDto.UpdateMajorRequest request = new AdminTestDto.UpdateMajorRequest(1L, true, 1L);
+    TestDataDto.UpdateMajorRequest request = new TestDataDto.UpdateMajorRequest(1L, true, 1L);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
 
@@ -173,8 +172,8 @@ class AdminTestMutationServiceUnitTests {
     Student student = student(user);
     user.setStudent(student);
     Department department = new Department("CSE", "컴퓨터학과");
-    AdminTestDto.CreateTestCourseRequest request =
-        new AdminTestDto.CreateTestCourseRequest(
+    TestDataDto.CreateTestCourseRequest request =
+        new TestDataDto.CreateTestCourseRequest(
             "CSE101", "프론트 테스트 강의", FacultyDivision.전선, 1L, null, 2026, 10, 3, "A+", false, 95);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
@@ -195,7 +194,7 @@ class AdminTestMutationServiceUnitTests {
               return studentCourse;
             });
 
-    AdminTestDto.TestCourseResponse response = mutationService.createTestCourse(userId, request);
+    TestDataDto.TestCourseResponse response = mutationService.createTestCourse(userId, request);
 
     ArgumentCaptor<Course> courseCaptor = ArgumentCaptor.forClass(Course.class);
     ArgumentCaptor<CourseOffering> offeringCaptor = ArgumentCaptor.forClass(CourseOffering.class);
@@ -226,8 +225,8 @@ class AdminTestMutationServiceUnitTests {
     User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
     Student student = student(user);
     user.setStudent(student);
-    final AdminTestDto.CreateTestCourseRequest request =
-        new AdminTestDto.CreateTestCourseRequest(
+    final TestDataDto.CreateTestCourseRequest request =
+        new TestDataDto.CreateTestCourseRequest(
             "CSE101", "프론트 테스트 강의", FacultyDivision.전선, null, "선교", 2026, 15, 3, "A+", false, 95);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(courseRepository.save(any(Course.class)))
@@ -251,8 +250,8 @@ class AdminTestMutationServiceUnitTests {
     User user = User.builder().id(userId).email("user@example.com").profileNickname("user").build();
     Student student = student(user);
     user.setStudent(student);
-    final AdminTestDto.CreateTestCourseRequest request =
-        new AdminTestDto.CreateTestCourseRequest(
+    final TestDataDto.CreateTestCourseRequest request =
+        new TestDataDto.CreateTestCourseRequest(
             "CSE101", "프론트 테스트 강의", FacultyDivision.전선, null, "선교", 2026, 10, 3, null, false, 95);
     when(userRepository.findById(userId)).thenReturn(Optional.of(user));
     when(courseRepository.save(any(Course.class)))

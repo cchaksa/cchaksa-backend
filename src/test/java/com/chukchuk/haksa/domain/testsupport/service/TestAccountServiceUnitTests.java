@@ -1,19 +1,19 @@
 // dev 테스트 계정 생성 서비스 동작을 검증하는 테스트
 
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.chukchuk.haksa.domain.admin.dto.AdminTestDto;
 import com.chukchuk.haksa.domain.auth.dto.AuthDto;
 import com.chukchuk.haksa.domain.auth.service.RefreshTokenService;
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.department.repository.DepartmentRepository;
 import com.chukchuk.haksa.domain.student.model.Student;
 import com.chukchuk.haksa.domain.student.repository.StudentRepository;
+import com.chukchuk.haksa.domain.testsupport.dto.TestDataDto;
 import com.chukchuk.haksa.domain.user.model.User;
 import com.chukchuk.haksa.domain.user.repository.UserRepository;
 import com.chukchuk.haksa.global.security.service.JwtProvider;
@@ -31,7 +31,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
-class AdminTestAccountServiceUnitTests {
+class TestAccountServiceUnitTests {
 
   @Mock private UserRepository userRepository;
 
@@ -43,14 +43,14 @@ class AdminTestAccountServiceUnitTests {
 
   @Mock private RefreshTokenService refreshTokenService;
 
-  @InjectMocks private AdminTestAccountService accountService;
+  @InjectMocks private TestAccountService accountService;
 
   @Test
   @DisplayName("테스트 계정 생성 시 test_ prefix 계정과 토큰을 만든다")
   void createTestUserCreatesPrefixedAccountAndTokens() {
     Department department = new Department("CSE", "컴퓨터학과");
-    AdminTestDto.CreateTestUserRequest request =
-        new AdminTestDto.CreateTestUserRequest("프론트테스트", 1L, 1L, null, 2024);
+    TestDataDto.CreateTestUserRequest request =
+        new TestDataDto.CreateTestUserRequest("프론트테스트", 1L, 1L, null, 2024);
     when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
     when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(studentRepository.save(any(Student.class)))
@@ -62,7 +62,7 @@ class AdminTestAccountServiceUnitTests {
             new AuthDto.RefreshTokenWithExpiry(
                 "refresh-token", refreshTokenExpiresAt, "session-1"));
 
-    AdminTestDto.TestUserResponse response = accountService.createTestUser(request);
+    TestDataDto.TestUserResponse response = accountService.createTestUser(request);
 
     assertThat(response.email()).startsWith("test_");
     assertThat(response.studentCode()).startsWith("test_");
@@ -90,8 +90,8 @@ class AdminTestAccountServiceUnitTests {
   @DisplayName("학과 ID가 없으면 기본 학과 조회를 1건으로 제한한다")
   void createTestUserWithoutDepartmentIdLimitsDefaultDepartmentLookup() {
     Department department = new Department("CSE", "컴퓨터학과");
-    final AdminTestDto.CreateTestUserRequest request =
-        new AdminTestDto.CreateTestUserRequest("프론트테스트", null, null, null, 2024, null);
+    final TestDataDto.CreateTestUserRequest request =
+        new TestDataDto.CreateTestUserRequest("프론트테스트", null, null, null, 2024, null);
     when(departmentRepository.findAll(any(Pageable.class)))
         .thenReturn(new PageImpl<>(List.of(department)));
     when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -116,8 +116,8 @@ class AdminTestAccountServiceUnitTests {
   @DisplayName("포털 미연동 옵션이면 테스트 계정을 포털 미연동 상태로 만든다")
   void createTestUserWithPortalLinkedFalseKeepsUserUnlinked() {
     Department department = new Department("CSE", "컴퓨터학과");
-    final AdminTestDto.CreateTestUserRequest request =
-        new AdminTestDto.CreateTestUserRequest("프론트테스트", 1L, 1L, null, 2024, false);
+    final TestDataDto.CreateTestUserRequest request =
+        new TestDataDto.CreateTestUserRequest("프론트테스트", 1L, 1L, null, 2024, false);
     when(departmentRepository.findById(1L)).thenReturn(Optional.of(department));
     when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
     when(studentRepository.save(any(Student.class)))

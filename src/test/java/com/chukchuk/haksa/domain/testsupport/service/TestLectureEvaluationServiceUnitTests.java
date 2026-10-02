@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,7 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
-class AdminTestLectureEvaluationServiceUnitTests {
+class TestLectureEvaluationServiceUnitTests {
 
   private static final UUID TARGET_USER_ID =
       UUID.fromString("41c256af-1848-4691-bae5-72d2265c17d9");
@@ -68,7 +68,7 @@ class AdminTestLectureEvaluationServiceUnitTests {
 
   @Mock private AcademicCache academicCache;
 
-  @InjectMocks private AdminTestLectureEvaluationService service;
+  @InjectMocks private TestLectureEvaluationService service;
 
   @Test
   @DisplayName("empty-semester는 대상 학기 데이터를 모두 삭제하고 추가 row를 만들지 않는다")

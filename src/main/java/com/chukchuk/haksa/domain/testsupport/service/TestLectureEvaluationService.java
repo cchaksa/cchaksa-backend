@@ -1,4 +1,4 @@
-package com.chukchuk.haksa.domain.admin.service;
+package com.chukchuk.haksa.domain.testsupport.service;
 
 import com.chukchuk.haksa.domain.academic.record.model.LectureEvaluationStatus;
 import com.chukchuk.haksa.domain.academic.record.model.SemesterAcademicRecord;
@@ -25,14 +25,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 개발 환경의 강의평가 테스트 학기를 시나리오별 상태로 재구성한다. */
 @Service
+@Profile({"dev", "test"})
 @RequiredArgsConstructor
 @Transactional
-public class AdminTestLectureEvaluationService {
+public class TestLectureEvaluationService {
 
   private static final UUID TARGET_USER_ID =
       UUID.fromString("41c256af-1848-4691-bae5-72d2265c17d9");
