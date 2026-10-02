@@ -14,8 +14,11 @@ export function AppRouter() {
     <BrowserRouter>
       <AdminSessionExpiryCoordinator />
       <Routes>
-        <Route index element={<Navigate to={routes.login} replace />} />
-        <Route path={routes.login} element={<LoginPage />} />
+        <Route index element={<LoginPage />} />
+        <Route
+          path={routes.legacyLogin}
+          element={<Navigate to={routes.login} replace />}
+        />
         <Route element={<RequireAdmin />}>
           <Route element={<AdminShell />}>
             <Route path={routes.inquiries} element={<InquiryListPage />} />

@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { configureCsrfTokenProvider } from '../../../shared/api/http'
+import { routes } from '../../../shared/config/routes'
 import { AdminSignInForm } from './AdminSignInForm'
 
 afterEach(() => {
@@ -17,10 +18,10 @@ afterEach(() => {
 function renderSignIn(queryClient: QueryClient) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/login']}>
+      <MemoryRouter initialEntries={[routes.login]}>
         <Routes>
-          <Route path="/login" element={<AdminSignInForm />} />
-          <Route path="/inquiries" element={<p>로그인 완료</p>} />
+          <Route path={routes.login} element={<AdminSignInForm />} />
+          <Route path={routes.home} element={<p>로그인 완료</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

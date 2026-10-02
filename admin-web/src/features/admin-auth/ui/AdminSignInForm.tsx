@@ -41,7 +41,7 @@ export function AdminSignInForm() {
       const session = await signIn.execute({ loginId, password })
       setLoginId('')
       setPassword('')
-      if (session) navigate(routes.inquiries, { replace: true })
+      if (session) navigate(routes.home, { replace: true })
     } catch {
       setLoginId('')
       setPassword('')

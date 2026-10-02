@@ -62,6 +62,18 @@ describe('AppRouter public auth routes', () => {
     ).toBeTruthy()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     expect(requestedPaths(fetchMock)).toEqual(['/api/admin/auth/csrf'])
+    expect(window.location.pathname).toBe('/')
+  })
+
+  it('replaces the legacy login deep link with the canonical root', async () => {
+    const fetchMock = createFetchMock()
+    renderRouter('/login', fetchMock)
+
+    expect(
+      await screen.findByRole('heading', { name: '관리자 로그인' }),
+    ).toBeTruthy()
+    await waitFor(() => expect(window.location.pathname).toBe('/'))
+    expect(requestedPaths(fetchMock)).toEqual(['/api/admin/auth/csrf'])
   })
 
   it('sends an unknown route to login without checking the admin session', async () => {
@@ -73,6 +85,7 @@ describe('AppRouter public auth routes', () => {
     ).toBeTruthy()
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     expect(requestedPaths(fetchMock)).toEqual(['/api/admin/auth/csrf'])
+    expect(window.location.pathname).toBe('/')
   })
 
   it('checks the admin session only for a protected route', async () => {
@@ -85,6 +98,7 @@ describe('AppRouter public auth routes', () => {
     await waitFor(() => {
       expect(requestedPaths(fetchMock)).toContain('/api/admin/auth/me')
       expect(requestedPaths(fetchMock)).toContain('/api/admin/auth/csrf')
+      expect(window.location.pathname).toBe('/')
     })
   })
 })

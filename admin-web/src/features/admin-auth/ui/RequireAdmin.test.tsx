@@ -11,6 +11,7 @@ import {
   useLocation,
 } from 'react-router'
 import { RequireAdmin } from './RequireAdmin'
+import { routes } from '../../../shared/config/routes'
 
 afterEach(() => {
   cleanup()
@@ -44,7 +45,7 @@ describe('RequireAdmin', () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/inquiries']}>
           <Routes>
-            <Route path="/login" element={<LoginProbe />} />
+            <Route path={routes.login} element={<LoginProbe />} />
             <Route element={<RequireAdmin />}>
               <Route element={<Outlet />}>
                 <Route path="/inquiries" element={<p>문의</p>} />
@@ -73,7 +74,7 @@ describe('RequireAdmin', () => {
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/inquiries']}>
           <Routes>
-            <Route path="/login" element={<LoginProbe />} />
+            <Route path={routes.login} element={<LoginProbe />} />
             <Route element={<RequireAdmin />}>
               <Route path="/inquiries" element={<p>문의</p>} />
             </Route>

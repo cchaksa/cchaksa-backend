@@ -12,15 +12,17 @@
 
 | 경로 | 화면 | 역할 |
 | --- | --- | --- |
-| `/login` | 관리자 로그인 | 발급된 `loginId`와 비밀번호를 사용한 관리자 로그인 |
+| `/` | 관리자 로그인 | 발급된 `loginId`와 비밀번호를 사용한 canonical 관리자 로그인 |
+| `/login` | 호환 redirect | 기존 deep link를 `/`로 replace 이동 |
 | `/inquiries` | 문의 목록 | 상태 필터, 정확 일치 검색, 최신 문의 조회 |
 | `/inquiries/:reportId` | 문의 상세 | 문의 확인, 미답변 문의 답변, 완료 답변 조회 |
 
 로그인 뒤 기본 진입점은 `/inquiries`이며, 초기 사이드바에는 `문의`만 노출한다.
 
-- `/`과 `/login`은 관리자 session 조회 없이 로그인 화면에 접근하는 public route다.
-- 알 수 없는 경로는 보호 경로 여부를 추측하거나 session 조회를 시작하지 않고 `/login`으로 복구한다.
+- `/`은 redirect 없이 `LoginPage`를 렌더링하고 관리자 session을 조회하지 않는 canonical public route다.
+- `/login` deep link와 알 수 없는 경로는 session 조회 없이 `/`로 replace 이동한다.
 - `/inquiries`와 `/inquiries/:reportId`에서만 보호 route가 관리자 session을 조회한다.
+- 로그인 성공은 인증 home인 `/inquiries`로 이동하고 session expiry와 로그아웃은 canonical 로그인 `/`로 이동한다.
 
 ## 프론트엔드 구조
 
