@@ -10,14 +10,14 @@
 - [x] H2 migration 및 실제 PostgreSQL V19→V20 schema validation 테스트를 갱신한다.
 - [x] 관리자 로그인·세션 회귀와 `./gradlew check --stacktrace --no-daemon`을 실행한다.
 - [x] 커밋·push 후 `feat/355` 대상 Draft PR #362를 만들고 검증과 Wiki 후속을 기록한다.
-- [ ] 오케스트레이터에 Phase A SHA를 보고하고 dev 배포를 기다린다.
+- [x] 오케스트레이터에 Phase A SHA를 보고하고 dev 배포를 기다린다.
 
 ## Phase B
 
-- [ ] Phase A Lambda의 dev `Active/Successful`, `live` alias 전환과 smoke 완료를 확인한다.
-- [ ] dev PostgreSQL에서 관리자 제약 이름과 컬럼을 읽기 전용으로 재확인한다.
-- [ ] V21에서 provider/social 제약을 먼저 제거하고 두 컬럼을 삭제한다.
-- [ ] 최종 PostgreSQL schema validation, migration, 로그인·세션 회귀와 전체 `check`를 실행한다.
+- [x] Phase A Lambda의 dev `Active/Successful`, `live` alias 전환과 smoke 완료를 확인한다.
+- [x] dev PostgreSQL에서 관리자 제약 이름과 컬럼을 읽기 전용으로 재확인한다.
+- [x] V21에서 provider/social 제약을 먼저 제거하고 두 컬럼을 삭제한다.
+- [x] 최종 PostgreSQL schema validation, migration, 로그인·세션 회귀와 전체 `check`를 실행한다.
 - [ ] 같은 브랜치와 PR에 논리 커밋을 누적하고 새 target SHA를 보고한다.
 - [ ] 별도 승인 전 배포하지 않는다.
 
@@ -46,3 +46,11 @@ recommended_changes:
 - H2 전체 migration, PostgreSQL V19→V20 schema validation, 관리자 인증·세션 회귀와 전체 `check`가 통과했다.
 - Draft PR은 #362이며 #360의 `feat/355`를 base로 한다.
 - Phase A가 dev `live`로 전환되기 전에는 Phase B V21을 추가하지 않는다.
+
+## Phase B PR-ready 요약
+
+- Phase A run `36974687945`에서 V20과 Lambda version 100, `live` alias 전환 및 인증 경계 smoke를 확인했다.
+- dev DB read-back으로 두 컬럼과 `uq_admin_accounts_provider_social_id`, `chk_admin_accounts_provider`의 정확한 이름을 확인했다.
+- V21은 두 제약을 먼저 삭제한 뒤 `provider`, `social_id` 컬럼을 삭제한다. drift를 숨기지 않도록 `IF EXISTS`는 사용하지 않는다.
+- PostgreSQL V20→V21 전체 schema validation, H2 전체 migration, 관리자 인증·세션 회귀와 전체 `check`가 통과했다.
+- Phase B target은 배포하지 않고 오케스트레이터 승인과 1회 dispatch를 기다린다.

@@ -50,6 +50,10 @@ Phase A 실패 시 적용된 V20을 rollback하거나 수정하지 않는다. La
 
 Phase B에서는 dev PostgreSQL `pg_constraint`와 `information_schema.columns`를 읽어 실제 이름을 재확인한다. V16에 선언된 이름과 일치하면 제약을 먼저 삭제한 뒤 컬럼을 삭제한다. 예상 이름이 명시적이고 drift를 숨기면 안 되므로 기본안은 `IF EXISTS` 없이 실패를 드러내는 것이다. 실제 read-back에서 환경별 drift가 확인될 때만 근거를 문서화하고 조정한다.
 
+Phase A는 run `36974687945`에서 V20 적용 후 Lambda version 100이 `Active/Successful`, `live` alias가 100으로 전환됐다. DB read-back에서 challenge 테이블 제거와 `provider/social_id`, `uq_admin_accounts_provider_social_id`, `chk_admin_accounts_provider` 유지가 확인됐다. CSRF, 비인증 `/me`, CSRF를 포함한 미등록 관리자 로그인 실패 경계도 정상이다.
+
+따라서 Phase B V21은 read-back으로 확인한 두 명시적 제약을 `IF EXISTS` 없이 먼저 삭제하고 두 컬럼을 삭제한다. 이름이나 선행 상태가 예상과 다르면 migration을 실패시켜 drift를 드러낸다. PostgreSQL V20 fixture에서 V21 적용, 기존 로컬 관리자와 세션 보존, 대상 컬럼·제약 제거 및 전체 Hibernate schema validation을 검증한다.
+
 ## Wiki
 
 관리자 인증, DB 스키마, 순차 배포와 장애 복구 이력에 영향을 주므로 별도 Wiki 저장소의 관련 문서를 후속 갱신해야 한다. 이 PR에는 Wiki 미갱신과 후속 항목을 명시한다.

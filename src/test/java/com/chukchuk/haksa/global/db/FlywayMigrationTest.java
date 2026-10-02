@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV20() throws Exception {
+  void freshDatabaseMigratesFromV1ToV21() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -76,7 +76,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("17"),
             MigrationVersion.fromVersion("18"),
             MigrationVersion.fromVersion("19"),
-            MigrationVersion.fromVersion("20"));
+            MigrationVersion.fromVersion("20"),
+            MigrationVersion.fromVersion("21"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -118,8 +119,8 @@ class FlywayMigrationTest {
       assertThat(hasTable(connection, "admin_accounts")).isTrue();
       assertThat(hasColumn(connection, "admin_accounts", "login_id")).isTrue();
       assertThat(hasColumn(connection, "admin_accounts", "password_hash")).isTrue();
-      assertThat(isNullable(connection, "admin_accounts", "provider")).isTrue();
-      assertThat(isNullable(connection, "admin_accounts", "social_id")).isTrue();
+      assertThat(hasColumn(connection, "admin_accounts", "provider")).isFalse();
+      assertThat(hasColumn(connection, "admin_accounts", "social_id")).isFalse();
       assertThat(hasTable(connection, "admin_login_challenges")).isFalse();
       assertThat(hasTable(connection, "admin_sessions")).isTrue();
       assertThat(columnSize(connection, "admin_sessions", "token_hash")).isEqualTo(64);
@@ -205,7 +206,8 @@ class FlywayMigrationTest {
     try (var connection = DriverManager.getConnection(url, "sa", "");
         var statement = connection.createStatement()) {
       assertThat(hasColumn(connection, "admin_accounts", "login_id")).isTrue();
-      assertThat(isNullable(connection, "admin_accounts", "provider")).isTrue();
+      assertThat(hasColumn(connection, "admin_accounts", "provider")).isFalse();
+      assertThat(hasColumn(connection, "admin_accounts", "social_id")).isFalse();
       try (var legacy =
           statement.executeQuery(
               "SELECT login_id, password_hash FROM public.admin_accounts WHERE id = '"

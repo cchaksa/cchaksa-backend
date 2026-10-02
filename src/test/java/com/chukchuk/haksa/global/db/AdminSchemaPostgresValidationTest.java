@@ -27,7 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @ActiveProfiles("test")
 class AdminSchemaPostgresValidationTest {
   private static final String TOKEN_HASH = "a".repeat(64);
-  private static final EmbeddedPostgres POSTGRES = startPostgresAtV19();
+  private static final EmbeddedPostgres POSTGRES = startPostgresAtV20();
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -45,7 +45,7 @@ class AdminSchemaPostgresValidationTest {
   }
 
   @Test
-  void v20DropsChallengesAndHibernateValidatesPostgresSchema() {
+  void v21DropsAdminSocialCredentialsAndHibernateValidatesPostgresSchema() {
     var column =
         jdbcTemplate.queryForMap(
             """
@@ -82,10 +82,23 @@ class AdminSchemaPostgresValidationTest {
                   AND column_name IN ('provider', 'social_id')
                 """,
                 Integer.class))
-        .isEqualTo(2);
+        .isZero();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM pg_constraint
+                WHERE conrelid = 'public.admin_accounts'::regclass
+                  AND conname IN (
+                      'uq_admin_accounts_provider_social_id',
+                      'chk_admin_accounts_provider'
+                  )
+                """,
+                Integer.class))
+        .isZero();
   }
 
-  private static EmbeddedPostgres startPostgresAtV19() {
+  private static EmbeddedPostgres startPostgresAtV20() {
     try {
       EmbeddedPostgres postgres = EmbeddedPostgres.start();
       String url = postgres.getJdbcUrl("postgres", "postgres");
@@ -93,7 +106,7 @@ class AdminSchemaPostgresValidationTest {
           .dataSource(url, "postgres", "")
           .schemas("public")
           .locations("classpath:db/migration")
-          .target(MigrationVersion.fromVersion("19"))
+          .target(MigrationVersion.fromVersion("20"))
           .load()
           .migrate();
 
