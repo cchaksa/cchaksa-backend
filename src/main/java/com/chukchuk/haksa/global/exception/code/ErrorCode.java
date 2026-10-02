@@ -71,6 +71,9 @@ public enum ErrorCode {
   LECTURE_EVALUATION_NOT_REQUIRED("A07", "강의평가 대상 학기가 아닙니다.", HttpStatus.BAD_REQUEST),
   LECTURE_EVALUATION_COURSE_MISMATCH(
       "A08", "강의평가 제출 과목이 평가 대상과 일치하지 않습니다.", HttpStatus.BAD_REQUEST),
+  ADMIN_CREDENTIALS_INVALID("A13", "관리자 로그인 정보가 올바르지 않습니다.", HttpStatus.UNAUTHORIZED),
+  ADMIN_CURRENT_PASSWORD_MISMATCH("A14", "현재 비밀번호가 올바르지 않습니다.", HttpStatus.BAD_REQUEST),
+  ADMIN_PASSWORD_UNCHANGED("A15", "현재 비밀번호와 다른 비밀번호를 입력해주세요.", HttpStatus.BAD_REQUEST),
 
   // 졸업 요건 관련
   GRADUATION_REQUIREMENTS_DATA_NOT_FOUND(

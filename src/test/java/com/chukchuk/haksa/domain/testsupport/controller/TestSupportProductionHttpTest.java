@@ -5,8 +5,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.chukchuk.haksa.domain.admin.auth.security.AdminSessionAuthenticationFilter;
 import com.chukchuk.haksa.domain.testsupport.config.TestSupportProductionNotFoundConfig;
 import com.chukchuk.haksa.global.security.filter.JwtAuthenticationFilter;
+import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
@@ -33,18 +35,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Import(TestSupportProductionNotFoundConfig.class)
 class TestSupportProductionHttpTest {
   @Autowired private MockMvc mockMvc;
+  @MockBean private AdminSessionAuthenticationFilter adminSessionAuthenticationFilter;
   @MockBean private JwtAuthenticationFilter jwtAuthenticationFilter;
   @MockBean private JpaMetamodelMappingContext jpaMetamodelMappingContext;
 
   @BeforeEach
-  void letMockedJwtFilterContinue() throws Exception {
+  void letMockedAuthenticationFiltersContinue() throws Exception {
+    letFilterContinue(adminSessionAuthenticationFilter);
+    letFilterContinue(jwtAuthenticationFilter);
+  }
+
+  private void letFilterContinue(Filter filter) throws Exception {
     doAnswer(
             invocation -> {
               FilterChain chain = invocation.getArgument(2);
               chain.doFilter(invocation.getArgument(0), invocation.getArgument(1));
               return null;
             })
-        .when(jwtAuthenticationFilter)
+        .when(filter)
         .doFilter(any(ServletRequest.class), any(ServletResponse.class), any(FilterChain.class));
   }
 

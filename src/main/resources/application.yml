@@ -52,6 +52,10 @@ security:
     allowed-client-ids: ${APPLE_ALLOWED_CLIENT_IDS:}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
     keys-url: ${APPLE_KEYS_URL:https://appleid.apple.com/auth/keys}
+  admin:
+    idle-timeout: ${ADMIN_AUTH_IDLE_TIMEOUT:30m}
+    absolute-timeout: ${ADMIN_AUTH_ABSOLUTE_TIMEOUT:8h}
+    cookie-secure: ${ADMIN_AUTH_COOKIE_SECURE:true}
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}

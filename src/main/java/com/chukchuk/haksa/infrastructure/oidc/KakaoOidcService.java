@@ -3,10 +3,10 @@ package com.chukchuk.haksa.infrastructure.oidc;
 import com.chukchuk.haksa.domain.user.service.OidcService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.TokenException;
+import com.chukchuk.haksa.infrastructure.oidc.kakao.KakaoIdTokenVerifier;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
@@ -51,31 +51,8 @@ public class KakaoOidcService implements OidcService {
    * @throws TokenException token 형식, 서명, claim 또는 공개키를 검증할 수 없는 경우
    */
   public Claims verifyIdToken(String idToken, String expectedNonce) {
-    try {
-      JsonNode jwks = oidcJwksClient.fetchKeys(KAKAO_CACHE_KEY, KAKAO_JWKS_URL);
-
-      String[] parts = idToken.split("\\.");
-      if (parts.length != 3) {
-        throw new TokenException(ErrorCode.TOKEN_INVALID_FORMAT);
-      }
-
-      String headerJson = new String(Base64.getDecoder().decode(parts[0]));
-      String kid = new ObjectMapper().readTree(headerJson).get("kid").asText();
-
-      JsonNode keyNode = resolveKeyWithFallback(jwks, kid);
-
-      PublicKey publicKey = createPublicKey(keyNode);
-
-      Claims claims =
-          Jwts.parserBuilder().setSigningKey(publicKey).build().parseClaimsJws(idToken).getBody();
-
-      validateClaims(expectedNonce, claims);
-
-      return claims;
-
-    } catch (Exception e) {
-      throw new TokenException(ErrorCode.TOKEN_PARSE_ERROR);
-    }
+    return new KakaoIdTokenVerifier(oidcJwksClient, new ObjectMapper())
+        .verify(idToken, expectedNonce, resolveAllowedAudiences());
   }
 
   private PublicKey createPublicKey(JsonNode keyNode) throws Exception {

@@ -15,6 +15,8 @@ security:
     refresh-expiration: 86400
   appKey: test-app-key
   nativeAppKey: test-native-key
+  admin:
+    cookie-secure: false
 
 crawler:
   base-url: https://example.com

@@ -14,6 +14,7 @@ jobs:
   deploy:
     needs: migrate
     runs-on: ubuntu-latest
+    environment: dev
     env:
       AWS_REGION: ${{ vars.DEV_AWS_REGION }}
       LAMBDA_FUNCTION_NAME: ${{ vars.DEV_LAMBDA_FUNCTION_NAME }}
