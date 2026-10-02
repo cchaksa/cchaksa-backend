@@ -107,7 +107,7 @@ public class SecurityConfig {
             "http://localhost:3000",
             "https://dv.cchaksa.com",
             "https://admin.cchaksa.com",
-            "https://*.cchaksa.com",
+            "https://dev.admin.cchaksa.com",
             "https://dev.api.cchaksa.com"));
     c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     c.setAllowedHeaders(List.of("*"));
