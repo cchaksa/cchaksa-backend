@@ -27,7 +27,7 @@ import org.springframework.test.context.DynamicPropertySource;
 @ActiveProfiles("test")
 class AdminSchemaPostgresValidationTest {
   private static final String TOKEN_HASH = "a".repeat(64);
-  private static final EmbeddedPostgres POSTGRES = startPostgresAtV18();
+  private static final EmbeddedPostgres POSTGRES = startPostgresAtV20();
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -45,7 +45,7 @@ class AdminSchemaPostgresValidationTest {
   }
 
   @Test
-  void v19PreservesExistingHashAndHibernateValidatesPostgresSchema() {
+  void v21DropsAdminSocialCredentialsAndHibernateValidatesPostgresSchema() {
     var column =
         jdbcTemplate.queryForMap(
             """
@@ -62,9 +62,43 @@ class AdminSchemaPostgresValidationTest {
             jdbcTemplate.queryForObject(
                 "SELECT token_hash FROM public.admin_sessions", String.class))
         .isEqualTo(TOKEN_HASH);
+    assertThat(
+            jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = 'admin_login_challenges'
+                """,
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'admin_accounts'
+                  AND column_name IN ('provider', 'social_id')
+                """,
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM pg_constraint
+                WHERE conrelid = 'public.admin_accounts'::regclass
+                  AND conname IN (
+                      'uq_admin_accounts_provider_social_id',
+                      'chk_admin_accounts_provider'
+                  )
+                """,
+                Integer.class))
+        .isZero();
   }
 
-  private static EmbeddedPostgres startPostgresAtV18() {
+  private static EmbeddedPostgres startPostgresAtV20() {
     try {
       EmbeddedPostgres postgres = EmbeddedPostgres.start();
       String url = postgres.getJdbcUrl("postgres", "postgres");
@@ -72,7 +106,7 @@ class AdminSchemaPostgresValidationTest {
           .dataSource(url, "postgres", "")
           .schemas("public")
           .locations("classpath:db/migration")
-          .target(MigrationVersion.fromVersion("18"))
+          .target(MigrationVersion.fromVersion("20"))
           .load()
           .migrate();
 

@@ -21,11 +21,6 @@ import lombok.NoArgsConstructor;
 public class AdminAccount extends BaseEntity {
   @Id private UUID id;
 
-  @Column private String provider;
-
-  @Column(name = "social_id")
-  private String socialId;
-
   @Column(name = "login_id", unique = true)
   private String loginId;
 
