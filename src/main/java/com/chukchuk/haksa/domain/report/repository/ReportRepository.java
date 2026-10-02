@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Repository;
 
 /** 사용자별 문의를 최신순으로 조회하고 소유권·스냅샷을 갱신하는 저장소다. */
 @Repository
-public interface ReportRepository extends JpaRepository<Report, UUID> {
+public interface ReportRepository
+    extends JpaRepository<Report, UUID>, JpaSpecificationExecutor<Report> {
 
   /**
    * 사용자의 문의를 생성 시각과 식별자 역순으로 조회한다.
@@ -78,4 +80,32 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
           """,
       nativeQuery = true)
   int anonymizeSubmitterSnapshot(@Param("userId") UUID userId);
+
+  /**
+   * 답변 대기 문의에 최초 관리자 답변을 원자적으로 기록한다.
+   *
+   * @param reportId 문의 식별자
+   * @param answer 정규화된 답변
+   * @param answeredAt 답변 시각
+   * @param adminAccountId 인증 관리자 식별자
+   * @return 갱신된 문의 수
+   */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query(
+      value =
+          """
+          UPDATE reports
+          SET answer = :answer,
+              answered_at = :answeredAt,
+              answered_by_admin_id = :adminAccountId,
+              status = 'ANSWERED',
+              updated_at = :answeredAt
+          WHERE id = :reportId AND status = 'PENDING'
+          """,
+      nativeQuery = true)
+  int answerIfPending(
+      @Param("reportId") UUID reportId,
+      @Param("answer") String answer,
+      @Param("answeredAt") java.time.Instant answeredAt,
+      @Param("adminAccountId") UUID adminAccountId);
 }

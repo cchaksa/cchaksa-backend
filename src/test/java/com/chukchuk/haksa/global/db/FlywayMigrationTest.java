@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV17() throws Exception {
+  void freshDatabaseMigratesFromV1ToV18() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -73,7 +73,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("14"),
             MigrationVersion.fromVersion("15"),
             MigrationVersion.fromVersion("16"),
-            MigrationVersion.fromVersion("17"));
+            MigrationVersion.fromVersion("17"),
+            MigrationVersion.fromVersion("18"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -123,6 +124,14 @@ class FlywayMigrationTest {
       assertThat(hasTable(connection, "admin_sessions")).isTrue();
       assertThat(hasIndex(connection, "admin_sessions", "idx_admin_sessions_account_active"))
           .isTrue();
+      assertThat(hasColumn(connection, "reports", "answered_by_admin_id")).isTrue();
+      assertThat(hasIndex(connection, "reports", "idx_reports_admin_created_id_desc")).isTrue();
+      assertThat(hasIndex(connection, "reports", "idx_reports_admin_status_created_id_desc"))
+          .isTrue();
+      assertThat(hasIndex(connection, "reports", "idx_reports_admin_student_code_created_id_desc"))
+          .isTrue();
+      assertThat(indexColumns(connection, "idx_reports_admin_status_created_id_desc"))
+          .containsExactly("status:ASC", "created_at:DESC", "id:DESC");
       assertThat(indexColumns(connection, "idx_reports_user_created_id_desc"))
           .containsExactly("user_id:ASC", "created_at:DESC", "id:DESC");
       assertThat((int) foreignKeyDeleteRule(connection, "reports", "fk_reports_user_id"))

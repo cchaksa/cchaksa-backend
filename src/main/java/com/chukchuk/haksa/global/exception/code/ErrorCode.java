@@ -56,6 +56,7 @@ public enum ErrorCode {
 
   // 문의 관련
   REPORT_NOT_FOUND("R01", "해당 문의를 찾을 수 없습니다.", HttpStatus.NOT_FOUND),
+  REPORT_ALREADY_ANSWERED("R02", "이미 답변이 등록된 문의입니다.", HttpStatus.CONFLICT),
 
   // Student 관련
   STUDENT_NOT_FOUND("S01", "해당 학생이 존재하지 않습니다.", HttpStatus.NOT_FOUND),
