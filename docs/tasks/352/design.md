@@ -33,6 +33,8 @@
 
 `origin/dev`의 최신은 V15이고 #352가 관리자 기본 테이블 V16을 추가하므로 이 변경은 순차적인 V17을 사용한다. 후속 #354에 아직 미병합·미적용 상태로 예약된 문의 migration은 V18로 이동해야 한다. #352가 V18을 먼저 사용하면 dev에 선행 배포된 뒤 V17이 추가될 때 Flyway out-of-order가 발생하므로 사용할 수 없다. V17은 `login_id/password_hash`를 nullable로 추가하고 legacy `provider/social_id`의 NOT NULL만 완화한다. 기존 컬럼, unique/check 제약과 `admin_login_challenges` 테이블은 삭제하지 않는다. 따라서 migration이 먼저 적용되고 이전 Lambda Alias가 계속 요청을 처리해도 기존 Kakao 관리자 행과 challenge 흐름은 동작한다. 새 코드는 local credential 행만 로그인에 사용한다.
 
+첫 dev 배포에서 V16의 `admin_sessions.token_hash CHAR(64)`와 Hibernate 기본 String 매핑 `VARCHAR(255)`이 달라 version 98 초기화가 실패했고, alias는 이전 version 97을 유지했다. 적용된 V16~V18은 수정하지 않는다. V19는 SHA-256 hex 64자 불변식에 맞춰 이 컬럼만 `VARCHAR(64)`로 forward 변환하고 기존 값의 오른쪽 padding을 제거해 보존한다. 엔티티도 길이 64를 명시한다. PostgreSQL JDBC가 `TIMESTAMP WITH TIME ZONE`을 legacy `TIMESTAMP` JDBC type으로 보고하는 기존 schema와 `Instant` 매핑이 일치하도록 Hibernate 선호 타입도 명시한다. 실제 PostgreSQL에서 V18 기존 행 보존, V19 적용과 전체 Hibernate schema validation을 함께 검증한다.
+
 ## 계정 초기 발급
 
 자동 가입 API와 관리자 계정 CRUD API는 제공하지 않는다. 운영자는 승인된 password manager로 초기 비밀번호를 생성하고 다음 절차를 따른다.

@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class FlywayMigrationTest {
 
   @Test
-  void freshDatabaseMigratesFromV1ToV18() throws Exception {
+  void freshDatabaseMigratesFromV1ToV19() throws Exception {
     String dbName = "flyway-migration-" + UUID.randomUUID();
     String url =
         "jdbc:h2:mem:"
@@ -74,7 +74,8 @@ class FlywayMigrationTest {
             MigrationVersion.fromVersion("15"),
             MigrationVersion.fromVersion("16"),
             MigrationVersion.fromVersion("17"),
-            MigrationVersion.fromVersion("18"));
+            MigrationVersion.fromVersion("18"),
+            MigrationVersion.fromVersion("19"));
 
     try (var connection = DriverManager.getConnection(url, "sa", "")) {
       assertThat(hasColumn(connection, "raw_faculty_division_name")).isTrue();
@@ -122,6 +123,7 @@ class FlywayMigrationTest {
       assertThat(hasColumn(connection, "admin_login_challenges", "state")).isTrue();
       assertThat(hasColumn(connection, "admin_login_challenges", "browser_token_hash")).isTrue();
       assertThat(hasTable(connection, "admin_sessions")).isTrue();
+      assertThat(columnSize(connection, "admin_sessions", "token_hash")).isEqualTo(64);
       assertThat(hasIndex(connection, "admin_sessions", "idx_admin_sessions_account_active"))
           .isTrue();
       assertThat(hasColumn(connection, "reports", "answered_by_admin_id")).isTrue();
@@ -572,6 +574,14 @@ class FlywayMigrationTest {
         connection
             .getMetaData()
             .getColumns(null, "public", "course_offerings", "raw_faculty_division_name")) {
+      assertThat(columns.next()).isTrue();
+      return columns.getInt("COLUMN_SIZE");
+    }
+  }
+
+  private int columnSize(Connection connection, String tableName, String columnName)
+      throws Exception {
+    try (var columns = connection.getMetaData().getColumns(null, "public", tableName, columnName)) {
       assertThat(columns.next()).isTrue();
       return columns.getInt("COLUMN_SIZE");
     }
