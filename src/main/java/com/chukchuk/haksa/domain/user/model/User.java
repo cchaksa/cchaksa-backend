@@ -121,10 +121,8 @@ public class User extends BaseEntity {
     this.email = origin.email;
     this.profileNickname = origin.profileNickname;
     this.profileImage = origin.profileImage;
-    this.isDeleted = origin.isDeleted;
     this.portalConnected = origin.portalConnected;
     this.connectedAt = origin.connectedAt;
-    this.deletedAt = origin.deletedAt;
     this.lastSyncedAt = origin.lastSyncedAt;
     this.student = origin.student;
   }

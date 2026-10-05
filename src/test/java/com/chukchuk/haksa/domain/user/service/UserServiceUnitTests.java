@@ -243,6 +243,45 @@ class UserServiceUnitTests {
   }
 
   @Test
+  @DisplayName("탈퇴한 기존 사용자는 병합하지 않고 레거시 데이터를 정리한다")
+  void tryMergeWithExistingUserWhenExistingUserIsDeletedCleansUpLegacyUser() {
+    UUID currentUserId = UUID.randomUUID();
+    UUID withdrawnUserId = UUID.randomUUID();
+    User currentUser =
+        User.builder()
+            .id(currentUserId)
+            .email("current@example.com")
+            .profileNickname("current")
+            .build();
+    User withdrawnUser =
+        User.builder()
+            .id(withdrawnUserId)
+            .email("withdrawn@example.com")
+            .profileNickname("withdrawn")
+            .build();
+    withdrawnUser.withdraw(Instant.now());
+    Student withdrawnStudent = org.mockito.Mockito.mock(Student.class);
+    withdrawnUser.setStudent(withdrawnStudent);
+
+    UserService userService = createService();
+    when(userRepository.findById(currentUserId)).thenReturn(Optional.of(currentUser));
+    when(userRepository.findByStudentStudentCode("20201234"))
+        .thenReturn(Optional.of(withdrawnUser));
+
+    User result = userService.tryMergeWithExistingUser(currentUserId, "20201234");
+
+    assertThat(result).isSameAs(currentUser);
+    assertThat(currentUser.getIsDeleted()).isFalse();
+    verify(studentDeletionService).anonymizeByStudent(withdrawnStudent);
+    verify(socialAccountRepository).deleteByUser(withdrawnUser);
+    verify(refreshTokenService).deleteAllByUserId(withdrawnUserId.toString());
+    verify(authTokenCache).evictByUserId(withdrawnUserId.toString());
+    verify(userRepository).flush();
+    verify(userRepository, never()).delete(withdrawnUser);
+    verify(socialAccountRepository, never()).findAllByUserId(withdrawnUserId);
+  }
+
+  @Test
   @DisplayName("병합 대상 current user가 없으면 USER_NOT_FOUND 예외를 던진다")
   void tryMergeWithExistingUserWhenCurrentMissingThrows() {
     UUID currentUserId = UUID.randomUUID();
@@ -343,6 +382,64 @@ class UserServiceUnitTests {
             any(Date.class));
     verify(userRepository, never()).save(any(User.class));
     verify(socialAccountRepository, never()).save(any(SocialAccount.class));
+  }
+
+  @Test
+  @DisplayName("탈퇴 사용자에 연결된 소셜 계정으로 로그인하면 신규 활성 사용자를 생성한다")
+  void signInWhenSocialAccountBelongsToDeletedUserCreatesNewActiveUser() {
+    UUID withdrawnUserId = UUID.randomUUID();
+    UUID newUserId = UUID.randomUUID();
+    User withdrawnUser =
+        User.builder()
+            .id(withdrawnUserId)
+            .email("withdrawn@example.com")
+            .profileNickname("withdrawn")
+            .build();
+    withdrawnUser.withdraw(Instant.now());
+    Student withdrawnStudent = org.mockito.Mockito.mock(Student.class);
+    withdrawnUser.setStudent(withdrawnStudent);
+    SocialAccount existingAccount =
+        SocialAccount.builder()
+            .provider(OidcProvider.KAKAO)
+            .socialId("deleted-social-sub")
+            .email(null)
+            .user(withdrawnUser)
+            .build();
+    final User newUser =
+        User.builder()
+            .id(newUserId)
+            .email("new@example.com")
+            .profileNickname("Unknown User")
+            .build();
+    Claims claims = Jwts.claims().setSubject("deleted-social-sub");
+    claims.put("email", "new@example.com");
+
+    UserService userService = createService();
+    when(oidcService.verifyIdToken("id-token", "nonce")).thenReturn(claims);
+    when(socialAccountRepository.findByProviderAndSocialId(
+            OidcProvider.KAKAO, "deleted-social-sub"))
+        .thenReturn(Optional.of(existingAccount));
+    when(userRepository.save(any(User.class))).thenReturn(newUser);
+    when(jwtProvider.createAccessToken(newUserId.toString(), "new@example.com", "USER"))
+        .thenReturn("new-access-token");
+    when(jwtProvider.createRefreshToken(newUserId.toString()))
+        .thenReturn(
+            new AuthDto.RefreshTokenWithExpiry("new-refresh-token", new Date(), "new-session"));
+
+    AuthDto.SignInTokenResponse response =
+        userService.signIn(new UserDto.SignInRequest(OidcProvider.KAKAO, "id-token", "nonce"));
+
+    assertThat(response.accessToken()).isEqualTo("new-access-token");
+    assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+    verify(studentDeletionService).anonymizeByStudent(withdrawnStudent);
+    verify(socialAccountRepository).deleteByUser(withdrawnUser);
+    verify(refreshTokenService).deleteAllByUserId(withdrawnUserId.toString());
+    verify(authTokenCache).evictByUserId(withdrawnUserId.toString());
+    verify(userRepository).flush();
+
+    ArgumentCaptor<SocialAccount> socialCaptor = ArgumentCaptor.forClass(SocialAccount.class);
+    verify(socialAccountRepository).save(socialCaptor.capture());
+    assertThat(socialCaptor.getValue().getUser()).isSameAs(newUser);
   }
 
   @Test
