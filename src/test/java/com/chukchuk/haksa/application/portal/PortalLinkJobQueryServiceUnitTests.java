@@ -1,5 +1,11 @@
 package com.chukchuk.haksa.application.portal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.chukchuk.haksa.domain.department.model.Department;
 import com.chukchuk.haksa.domain.portal.dto.PortalLinkDto;
 import com.chukchuk.haksa.domain.scrapejob.model.ScrapeJob;
@@ -11,267 +17,277 @@ import com.chukchuk.haksa.domain.student.model.embeddable.AcademicInfo;
 import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.chukchuk.haksa.global.exception.type.CommonException;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.Instant;
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class PortalLinkJobQueryServiceUnitTests {
 
-    @Mock
-    private ScrapeJobRepository scrapeJobRepository;
+  @Mock private ScrapeJobRepository scrapeJobRepository;
 
-    @Mock
-    private StudentService studentService;
+  @Mock private StudentService studentService;
 
-    @Test
-    @DisplayName("성공한 job은 학생 요약 정보를 반환한다")
-    void getJobSummary_returnsStudentInfo() {
-        UUID userId = UUID.randomUUID();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}"
-        );
-        Instant finishedAt = Instant.parse("2026-03-22T09:00:00Z");
-        job.markSucceeded("{}", finishedAt);
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("성공한 job은 학생 요약 정보를 반환한다")
+  void getJobSummaryReturnsStudentInfo() {
+    UUID userId = UUID.randomUUID();
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}");
+    Instant finishedAt = Instant.parse("2026-03-22T09:00:00Z");
+    job.markSucceeded("{}", finishedAt);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        Student student = mockStudent();
-        when(studentService.getStudentByUserId(userId)).thenReturn(student);
+    Student student = mockStudent();
+    when(studentService.getStudentByUserId(userId)).thenReturn(student);
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobSummaryResponse response = service.getJobSummary(userId, job.getJobId());
+    PortalLinkDto.JobSummaryResponse response = service.getJobSummary(userId, job.getJobId());
 
-        assertThat(response.job_id()).isEqualTo(job.getJobId());
-        assertThat(response.studentInfo().majorName()).isEqualTo("소프트웨어학과");
-        assertThat(response.studentInfo().completedSemesterType()).isEqualTo(2);
-        assertThat(response.status()).isEqualTo("succeeded");
-        assertThat(response.finished_at()).isEqualTo(finishedAt);
-    }
+    assertThat(response.jobId()).isEqualTo(job.getJobId());
+    assertThat(response.studentInfo().majorName()).isEqualTo("소프트웨어학과");
+    assertThat(response.studentInfo().completedSemesterType()).isEqualTo(2);
+    assertThat(response.status()).isEqualTo("succeeded");
+    assertThat(response.finishedAt()).isEqualTo(finishedAt);
+  }
 
-    @Test
-    @DisplayName("미완료 job 요약 요청 시 예외를 던진다")
-    void getJobSummary_throwsWhenJobNotCompleted() {
-        UUID userId = UUID.randomUUID();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}"
-        );
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("미완료 job 요약 요청 시 예외를 던진다")
+  void getJobSummaryThrowsWhenJobNotCompleted() {
+    UUID userId = UUID.randomUUID();
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}");
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        assertThatThrownBy(() -> service.getJobSummary(userId, job.getJobId()))
-                .isInstanceOf(CommonException.class)
-                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_JOB_NOT_COMPLETED.code()));
-    }
+    assertThatThrownBy(() -> service.getJobSummary(userId, job.getJobId()))
+        .isInstanceOf(CommonException.class)
+        .satisfies(
+            ex ->
+                assertThat(((CommonException) ex).getCode())
+                    .isEqualTo(ErrorCode.SCRAPE_JOB_NOT_COMPLETED.code()));
+  }
 
-    @Test
-    @DisplayName("미완료 job duration은 pending 상태와 null 소요 시간을 반환한다")
-    void getJobDuration_returnsPendingWhenJobIsNotTerminal() {
-        UUID userId = UUID.randomUUID();
-        Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}",
-                startedAt
-        );
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("미완료 job duration은 pending 상태와 null 소요 시간을 반환한다")
+  void getJobDurationReturnsPendingWhenJobIsNotTerminal() {
+    UUID userId = UUID.randomUUID();
+    Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}",
+            startedAt);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+    PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
 
-        assertThat(response.job_id()).isEqualTo(job.getJobId());
-        assertThat(response.status()).isEqualTo("pending");
-        assertThat(response.success()).isNull();
-        assertThat(response.started_at()).isEqualTo(startedAt);
-        assertThat(response.ended_at()).isNull();
-        assertThat(response.elapsed_millis()).isNull();
-        assertThat(response.elapsed_time()).isNull();
-    }
+    assertThat(response.jobId()).isEqualTo(job.getJobId());
+    assertThat(response.status()).isEqualTo("pending");
+    assertThat(response.success()).isNull();
+    assertThat(response.startedAt()).isEqualTo(startedAt);
+    assertThat(response.endedAt()).isNull();
+    assertThat(response.elapsedMillis()).isNull();
+    assertThat(response.elapsedTime()).isNull();
+  }
 
-    @Test
-    @DisplayName("성공 job duration은 서버 종료 시각 기준 소요 시간을 반환한다")
-    void getJobDuration_returnsSucceededElapsedTime() {
-        UUID userId = UUID.randomUUID();
-        Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
-        Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
-        Instant serverEndedAt = Instant.parse("2026-06-04T10:00:12.345Z");
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}",
-                startedAt
-        );
-        job.markSucceeded("{}", workerFinishedAt, serverEndedAt);
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("성공 job duration은 서버 종료 시각 기준 소요 시간을 반환한다")
+  void getJobDurationReturnsSucceededElapsedTime() {
+    UUID userId = UUID.randomUUID();
+    Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
+    Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
+    Instant serverEndedAt = Instant.parse("2026-06-04T10:00:12.345Z");
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}",
+            startedAt);
+    job.markSucceeded("{}", workerFinishedAt, serverEndedAt);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+    PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
 
-        assertThat(response.status()).isEqualTo("succeeded");
-        assertThat(response.success()).isTrue();
-        assertThat(response.started_at()).isEqualTo(startedAt);
-        assertThat(response.ended_at()).isEqualTo(serverEndedAt);
-        assertThat(response.elapsed_millis()).isEqualTo(12_345L);
-        assertThat(response.elapsed_time()).isEqualTo("12s 345ms");
-    }
+    assertThat(response.status()).isEqualTo("succeeded");
+    assertThat(response.success()).isTrue();
+    assertThat(response.startedAt()).isEqualTo(startedAt);
+    assertThat(response.endedAt()).isEqualTo(serverEndedAt);
+    assertThat(response.elapsedMillis()).isEqualTo(12_345L);
+    assertThat(response.elapsedTime()).isEqualTo("12s 345ms");
+  }
 
-    @Test
-    @DisplayName("실패 job duration은 failed 상태와 실패 소요 시간을 반환한다")
-    void getJobDuration_returnsFailedElapsedTime() {
-        UUID userId = UUID.randomUUID();
-        Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
-        Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
-        Instant serverEndedAt = Instant.parse("2026-06-04T10:00:03.120Z");
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}",
-                startedAt
-        );
-        job.markFailed("INVALID_PAYLOAD", "missing", false, workerFinishedAt, serverEndedAt);
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("실패 job duration은 failed 상태와 실패 소요 시간을 반환한다")
+  void getJobDurationReturnsFailedElapsedTime() {
+    UUID userId = UUID.randomUUID();
+    Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
+    Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
+    Instant serverEndedAt = Instant.parse("2026-06-04T10:00:03.120Z");
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}",
+            startedAt);
+    job.markFailed("INVALID_PAYLOAD", "missing", false, workerFinishedAt, serverEndedAt);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+    PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
 
-        assertThat(response.status()).isEqualTo("failed");
-        assertThat(response.success()).isFalse();
-        assertThat(response.ended_at()).isEqualTo(serverEndedAt);
-        assertThat(response.elapsed_millis()).isEqualTo(3_120L);
-        assertThat(response.elapsed_time()).isEqualTo("3s 120ms");
-    }
+    assertThat(response.status()).isEqualTo("failed");
+    assertThat(response.success()).isFalse();
+    assertThat(response.endedAt()).isEqualTo(serverEndedAt);
+    assertThat(response.elapsedMillis()).isEqualTo(3_120L);
+    assertThat(response.elapsedTime()).isEqualTo("3s 120ms");
+  }
 
-    @Test
-    @DisplayName("완료 job duration timestamp가 일부 없으면 소요 시간은 null로 반환한다")
-    void getJobDuration_returnsNullElapsedTimeWhenTerminalTimestampMissing() {
-        UUID userId = UUID.randomUUID();
-        Instant workerFinishedAt = Instant.parse("2026-06-04T10:00:03.120Z");
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}",
-                null
-        );
-        job.markFailed("INVALID_PAYLOAD", "missing", false, workerFinishedAt, null);
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("완료 job duration timestamp가 일부 없으면 소요 시간은 null로 반환한다")
+  void getJobDurationReturnsNullElapsedTimeWhenTerminalTimestampMissing() {
+    UUID userId = UUID.randomUUID();
+    Instant workerFinishedAt = Instant.parse("2026-06-04T10:00:03.120Z");
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}",
+            null);
+    job.markFailed("INVALID_PAYLOAD", "missing", false, workerFinishedAt, null);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+    PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
 
-        assertThat(response.status()).isEqualTo("failed");
-        assertThat(response.success()).isFalse();
-        assertThat(response.started_at()).isNull();
-        assertThat(response.ended_at()).isNull();
-        assertThat(response.elapsed_millis()).isNull();
-        assertThat(response.elapsed_time()).isNull();
-    }
+    assertThat(response.status()).isEqualTo("failed");
+    assertThat(response.success()).isFalse();
+    assertThat(response.startedAt()).isNull();
+    assertThat(response.endedAt()).isNull();
+    assertThat(response.elapsedMillis()).isNull();
+    assertThat(response.elapsedTime()).isNull();
+  }
 
-    @Test
-    @DisplayName("종료 시각이 시작 시각보다 빠르면 duration은 0ms로 보정한다")
-    void getJobDuration_clampsNegativeElapsedTimeToZero() {
-        UUID userId = UUID.randomUUID();
-        Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
-        Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
-        Instant serverEndedAt = Instant.parse("2026-06-04T09:59:59.500Z");
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}",
-                startedAt
-        );
-        job.markSucceeded("{}", workerFinishedAt, serverEndedAt);
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("종료 시각이 시작 시각보다 빠르면 duration은 0ms로 보정한다")
+  void getJobDurationClampsNegativeElapsedTimeToZero() {
+    UUID userId = UUID.randomUUID();
+    Instant startedAt = Instant.parse("2026-06-04T10:00:00Z");
+    Instant workerFinishedAt = Instant.parse("2026-06-04T09:59:30Z");
+    Instant serverEndedAt = Instant.parse("2026-06-04T09:59:59.500Z");
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}",
+            startedAt);
+    job.markSucceeded("{}", workerFinishedAt, serverEndedAt);
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
+    PortalLinkDto.JobDurationResponse response = service.getJobDuration(userId, job.getJobId());
 
-        assertThat(response.status()).isEqualTo("succeeded");
-        assertThat(response.success()).isTrue();
-        assertThat(response.elapsed_millis()).isZero();
-        assertThat(response.elapsed_time()).isEqualTo("0s 0ms");
-    }
+    assertThat(response.status()).isEqualTo("succeeded");
+    assertThat(response.success()).isTrue();
+    assertThat(response.elapsedMillis()).isZero();
+    assertThat(response.elapsedTime()).isEqualTo("0s 0ms");
+  }
 
-    @Test
-    @DisplayName("실패 job 요약 요청 시 실패 상태 예외를 던진다")
-    void getJobSummary_throwsWhenJobFailed() {
-        UUID userId = UUID.randomUUID();
-        ScrapeJob job = ScrapeJob.createQueued(
-                userId,
-                "suwon",
-                ScrapeJobOperationType.LINK,
-                "idem-1",
-                "finger",
-                "{\"username\":\"17019013\"}"
-        );
-        job.markFailed("INVALID_PAYLOAD", "missing", false, Instant.now());
-        when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId))).thenReturn(Optional.of(job));
+  @Test
+  @DisplayName("실패 job 요약 요청 시 실패 상태 예외를 던진다")
+  void getJobSummaryThrowsWhenJobFailed() {
+    UUID userId = UUID.randomUUID();
+    ScrapeJob job =
+        ScrapeJob.createQueued(
+            userId,
+            "suwon",
+            ScrapeJobOperationType.LINK,
+            "idem-1",
+            "finger",
+            "{\"username\":\"17019013\"}");
+    job.markFailed("INVALID_PAYLOAD", "missing", false, Instant.now());
+    when(scrapeJobRepository.findByJobIdAndUserId(eq(job.getJobId()), eq(userId)))
+        .thenReturn(Optional.of(job));
 
-        PortalLinkJobQueryService service = new PortalLinkJobQueryService(scrapeJobRepository, studentService);
+    PortalLinkJobQueryService service =
+        new PortalLinkJobQueryService(scrapeJobRepository, studentService);
 
-        assertThatThrownBy(() -> service.getJobSummary(userId, job.getJobId()))
-                .isInstanceOf(CommonException.class)
-                .satisfies(ex -> assertThat(((CommonException) ex).getCode()).isEqualTo(ErrorCode.SCRAPE_JOB_FAILED_RESULT.code()));
-    }
+    assertThatThrownBy(() -> service.getJobSummary(userId, job.getJobId()))
+        .isInstanceOf(CommonException.class)
+        .satisfies(
+            ex ->
+                assertThat(((CommonException) ex).getCode())
+                    .isEqualTo(ErrorCode.SCRAPE_JOB_FAILED_RESULT.code()));
+  }
 
-    private static Student mockStudent() {
-        Student student = mock(Student.class);
-        when(student.getName()).thenReturn("홍길동");
-        when(student.getStudentCode()).thenReturn("17019013");
+  private static Student mockStudent() {
+    Student student = mock(Student.class);
+    when(student.getName()).thenReturn("홍길동");
+    when(student.getStudentCode()).thenReturn("17019013");
 
-        Department major = new Department("M01", "소프트웨어학과");
-        when(student.getMajor()).thenReturn(major);
+    Department major = new Department("M01", "소프트웨어학과");
+    when(student.getMajor()).thenReturn(major);
 
-        AcademicInfo academicInfo = AcademicInfo.builder()
-                .gradeLevel(2)
-                .status(StudentStatus.재학)
-                .completedSemesters(3)
-                .build();
-        when(student.getAcademicInfo()).thenReturn(academicInfo);
+    AcademicInfo academicInfo =
+        AcademicInfo.builder().gradeLevel(2).status(StudentStatus.재학).completedSemesters(3).build();
+    when(student.getAcademicInfo()).thenReturn(academicInfo);
 
-        return student;
-    }
+    return student;
+  }
 }

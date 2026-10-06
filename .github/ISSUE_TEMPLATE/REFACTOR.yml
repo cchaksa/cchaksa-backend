@@ -1,0 +1,30 @@
+name: 🔨 Refactor
+description: 기능 변경 없이 코드 구조를 개선합니다.
+title: "[REFACTOR] "
+labels: ["refactor"]
+assignees: []
+
+body:
+  - type: textarea
+    attributes:
+      label: Describe
+      description: 리팩토링이 필요한 이유와 대상 코드를 설명해 주세요.
+      placeholder: 예) 컴포넌트 책임이 과도하게 커져 구조 개선 필요
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Refactor Plan
+      description: 어떤 방향으로 리팩토링할 예정인지 작성해 주세요.
+      placeholder:
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Appendix
+      description: 리팩토링을 하면서 참고한 자료나 리뷰어가 참고해야 할 자료를 작성해 주세요.
+      placeholder:
+    validations:
+      required: false

@@ -20,6 +20,7 @@ spring:
     hibernate:
       ddl-auto: validate
     properties:
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
       hibernate:
         jdbc:
           use_get_generated_keys: true

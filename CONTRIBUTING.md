@@ -33,6 +33,7 @@
 ## 코드와 데이터베이스
 
 - Java 17과 Spring Boot 3.2.5를 사용하며 기본 패키지는 `com.chukchuk.haksa`입니다.
+- Java 포맷, 명명, import와 Javadoc 기준은 [`docs/development/java-style.md`](docs/development/java-style.md)를 따릅니다.
 - 설정은 `application-local.yml`, `application-dev.yml`, `application-prod.yml`로 관리하고 Redis 자동 구성은 제외하며 local cache를 기본으로 사용합니다.
 - 공개 API 변경은 Springdoc annotation·configuration과 계약 테스트를 함께 갱신하고 실행 중인 애플리케이션의 `/v3/api-docs`를 검증합니다.
 - DB DDL 변경은 새 Flyway migration으로 남기고 적용된 migration은 수정하지 않습니다.
@@ -43,13 +44,16 @@
 
 ## 테스트와 검증
 
-- 최소 애플리케이션 검증은 `./gradlew test --stacktrace --no-daemon`입니다.
+- 자동 포맷은 `./gradlew spotlessApply --no-daemon`으로 적용하고 `./gradlew spotlessCheck --no-daemon`으로 확인합니다.
+- 스타일은 `./gradlew checkstyleMain checkstyleTest --no-daemon`, 테스트는 `./gradlew test --stacktrace --no-daemon`으로 개별 진단합니다.
+- 코드·설정 변경의 최종 통합 검증은 `./gradlew check --stacktrace --no-daemon`입니다.
 - 문서만 변경하면 링크, `git diff --check`, 변경 범위를 검토합니다.
 - 검증에 실패하거나 실행하지 못했으면 이유와 영향을 명확히 기록합니다.
 
 ## 커밋 컨벤션
 
 - 커밋 형식은 `{이슈 번호} {type}: {한국어 메시지}`입니다.
+- type은 `feat`, `fix`, `refactor`, `docs`, `comment`, `chore`, `deploy`, `test`, `rename`, `remove` 중 변경 목적에 맞는 값을 사용합니다.
 - 하나의 커밋은 하나의 논리적 변경만 포함하고, 사용자 변경은 보존합니다.
 
 ## PR 규칙

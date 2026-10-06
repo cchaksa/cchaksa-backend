@@ -14,6 +14,7 @@ jobs:
   deploy:
     needs: migrate
     runs-on: ubuntu-latest
+    environment: dev
     env:
       AWS_REGION: ${{ vars.DEV_AWS_REGION }}
       LAMBDA_FUNCTION_NAME: ${{ vars.DEV_LAMBDA_FUNCTION_NAME }}
@@ -87,13 +88,23 @@ jobs:
               --qualifier "${NEW_VERSION}" \
               --query 'LastUpdateStatus' \
               --output text)
+            STATE_REASON=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'StateReason' \
+              --output text)
+            STATE_REASON_CODE=$(aws lambda get-function-configuration \
+              --function-name "${LAMBDA_FUNCTION_NAME}" \
+              --qualifier "${NEW_VERSION}" \
+              --query 'StateReasonCode' \
+              --output text)
 
             if [ "${STATE}" = "Active" ] && [ "${LAST_UPDATE_STATUS}" = "Successful" ]; then
               break
             fi
 
             if [ "${STATE}" = "Failed" ] || [ "${LAST_UPDATE_STATUS}" = "Failed" ]; then
-              echo "Published version ${NEW_VERSION} failed to become active." >&2
+              echo "Published version ${NEW_VERSION} failed to become active: ${STATE_REASON_CODE} - ${STATE_REASON}" >&2
               exit 1
             fi
 

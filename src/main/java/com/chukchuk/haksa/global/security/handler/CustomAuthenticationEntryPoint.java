@@ -5,48 +5,53 @@ import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-
 // 인증 실패 (401 Unauthorized)
+/** 인증되지 않은 요청의 공통 오류 응답을 작성한다. */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
-    private static final String EXCEPTION_ATTR = "exception";
-    private static final String EXPIRED = "expired";
-    private static final String INVALID = "invalid";
+  private static final String EXCEPTION_ATTR = "exception";
+  private static final String EXPIRED = "expired";
+  private static final String INVALID = "invalid";
 
-    private final ObjectMapper objectMapper;
+  private final ObjectMapper objectMapper;
 
-    @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
+  @Override
+  public void commence(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      AuthenticationException authException)
+      throws IOException {
 
-        String exceptionType = (String) request.getAttribute(EXCEPTION_ATTR);
-        ErrorCode errorCode;
-        if (EXPIRED.equals(exceptionType)) {
-            errorCode = ErrorCode.TOKEN_EXPIRED;
-        } else if (INVALID.equals(exceptionType)) {
-            errorCode = ErrorCode.TOKEN_INVALID;
-        } else {
-            errorCode = ErrorCode.AUTHENTICATION_REQUIRED; // 토큰 없음 등 일반적인 인증 실패 응답
-        }
-
-        log.info("Authentication failed: {}, path: {}", errorCode.name(), request.getRequestURI());
-
-        response.setStatus(errorCode.status().value());
-        response.setContentType("application/json;charset=UTF-8");
-
-        ErrorResponse error = ErrorResponse.of(errorCode.code(), errorCode.message());
-        response.getWriter().write(objectMapper.writeValueAsString(error));
-        response.setHeader("WWW-Authenticate",
-                "Bearer error=\"invalid_token\", error_description=\"" + errorCode.name() + "\"");
-        response.getWriter().flush();
+    String exceptionType = (String) request.getAttribute(EXCEPTION_ATTR);
+    ErrorCode errorCode;
+    if (EXPIRED.equals(exceptionType)) {
+      errorCode = ErrorCode.TOKEN_EXPIRED;
+    } else if (INVALID.equals(exceptionType)) {
+      errorCode = ErrorCode.TOKEN_INVALID;
+    } else {
+      errorCode = ErrorCode.AUTHENTICATION_REQUIRED; // 토큰 없음 등 일반적인 인증 실패 응답
     }
+
+    log.info("Authentication failed: {}, path: {}", errorCode.name(), request.getRequestURI());
+
+    response.setStatus(errorCode.status().value());
+    response.setContentType("application/json;charset=UTF-8");
+
+    ErrorResponse error = ErrorResponse.of(errorCode.code(), errorCode.message());
+    response.getWriter().write(objectMapper.writeValueAsString(error));
+    response.setHeader(
+        "WWW-Authenticate",
+        "Bearer error=\"invalid_token\", error_description=\"" + errorCode.name() + "\"");
+    response.getWriter().flush();
+  }
 }

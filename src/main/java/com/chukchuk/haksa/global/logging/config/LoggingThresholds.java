@@ -1,14 +1,15 @@
 package com.chukchuk.haksa.global.logging.config;
 
+/** HTTP 요약 로그의 지연 시간 기준값을 제공한다. */
 public final class LoggingThresholds {
-    private LoggingThresholds() {}
+  private LoggingThresholds() {}
 
-    /** API 응답 지연 기준 (ms) */
-    public static final long SLOW_MS = 500;
+  /** API 응답 지연 기준 (ms). */
+  public static final long SLOW_MS = 500;
 
-    /** 외부 연동 지연 기준 (ms) */
-    public static final long EXT_SLOW_MS = 1000;
+  /** 외부 연동 지연 기준 (ms). */
+  public static final long EXT_SLOW_MS = 1000;
 
-    /** DB 쿼리 지연 기준 (ms) */
-    public static final long DB_SLOW_MS = 200;
+  /** DB 쿼리 지연 기준 (ms). */
+  public static final long DB_SLOW_MS = 200;
 }

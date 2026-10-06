@@ -16,36 +16,68 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
+/** 스크래핑 워커가 전달한 서명된 결과 콜백 처리 API를 정의한다. */
 @Tag(name = "Portal Link", description = "비동기 포털 연동 job 생성 및 폴링 안내 | [Internal] Callback")
 public interface PortalLinkCallbackControllerDocs {
 
-    @Operation(
-            summary = "[Internal] 스크래핑 결과 콜백 수신",
-            description = "스크래핑 워커가 API Gateway를 통해 전달하는 job 상태와 result_s3_key를 검증하고 DB에 반영합니다.\n"
-                    + "실제 결과 payload는 result_s3_key 기반으로 백엔드가 S3에서 조회합니다.\n"
-                    + "HMAC 서명 규칙: signature = HMAC_SHA256(\"{timestamp}.{rawBody}\").",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "콜백 처리 완료",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = PortalLinkCallbackApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "서명 검증 실패 (INVALID_CALLBACK_SIGNATURE)",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "400", description = "잘못된 콜백 요청 (SCRAPE_INVALID_CALLBACK_REQUEST)",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "404", description = "job 미존재 (PORTAL_JOB_NOT_FOUND)",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> handleCallback(
-            @RequestBody String rawBody,
-            @RequestHeader("X-Timestamp")
-            @Parameter(name = "X-Timestamp", description = "epoch millis (UTC)", in = ParameterIn.HEADER, required = true)
-            String timestamp,
-            @RequestHeader("X-Signature")
-            @Parameter(name = "X-Signature", description = "HMAC-SHA256 서명 값", in = ParameterIn.HEADER, required = true)
-            String signature
-    );
+  /**
+   * 서명을 검증한 스크래핑 결과 콜백을 수신해 연결 작업 상태에 반영한다.
+   *
+   * @param rawBody 서명 검증 대상 요청 본문
+   * @param timestamp 요청 타임스탬프
+   * @param signature 요청 서명
+   * @return 스크래핑 결과 반영 완료 메시지를 담은 성공 응답
+   */
+  @Operation(
+      summary = "[Internal] 스크래핑 결과 콜백 수신",
+      description =
+          "스크래핑 워커가 API Gateway를 통해 전달하는 job 상태와 result_s3_key를 검증하고 DB에 반영합니다.\n"
+              + "실제 결과 payload는 result_s3_key 기반으로 백엔드가 S3에서 조회합니다.\n"
+              + "HMAC 서명 규칙: signature = HMAC_SHA256(\"{timestamp}.{rawBody}\").",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "콜백 처리 완료",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = PortalLinkCallbackApiResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "서명 검증 실패 (INVALID_CALLBACK_SIGNATURE)",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "잘못된 콜백 요청 (SCRAPE_INVALID_CALLBACK_REQUEST)",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "job 미존재 (PORTAL_JOB_NOT_FOUND)",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> handleCallback(
+      @RequestBody String rawBody,
+      @RequestHeader("X-Timestamp")
+          @Parameter(
+              name = "X-Timestamp",
+              description = "epoch millis (UTC)",
+              in = ParameterIn.HEADER,
+              required = true)
+          String timestamp,
+      @RequestHeader("X-Signature")
+          @Parameter(
+              name = "X-Signature",
+              description = "HMAC-SHA256 서명 값",
+              in = ParameterIn.HEADER,
+              required = true)
+          String signature);
 }

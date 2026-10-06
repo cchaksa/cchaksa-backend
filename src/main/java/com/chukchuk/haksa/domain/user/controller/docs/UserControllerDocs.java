@@ -19,71 +19,110 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
 
+/** 인증 사용자의 분석 식별자·포털 연동 상태 조회와 로그인·탈퇴 API를 정의한다. */
 @Tag(name = "User", description = "사용자 관련 API")
 public interface UserControllerDocs {
 
-    @Operation(
-            summary = "사용자 분석 식별자 조회",
-            description = "로그인된 사용자의 Amplitude 사용자 식별자를 조회합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "사용자 분석 식별자 조회 성공",
-                            content = @Content(schema = @Schema(implementation = AnalyticsIdApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "인증 실패",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<UserDto.AnalyticsIdResponse>> getAnalyticsId(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 로그인 사용자의 분석 식별자를 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @return 처리 결과를 담은 성공 응답
+   */
+  @Operation(
+      summary = "사용자 분석 식별자 조회",
+      description = "로그인된 사용자의 Amplitude 사용자 식별자를 조회합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "사용자 분석 식별자 조회 성공",
+            content = @Content(schema = @Schema(implementation = AnalyticsIdApiResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<UserDto.AnalyticsIdResponse>> getAnalyticsId(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 
-    @Operation(
-            summary = "내 사용자 정보 조회",
-            description = "로그인된 사용자의 포털 연동 여부를 조회합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "내 사용자 정보 조회 성공",
-                            content = @Content(schema = @Schema(implementation = MeApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "인증 실패",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "404", description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<UserDto.MeResponse>> getMe(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 로그인 사용자의 포털 연동 상태를 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @return 로그인 사용자의 포털 연동 상태 성공 응답
+   */
+  @Operation(
+      summary = "내 사용자 정보 조회",
+      description = "로그인된 사용자의 포털 연동 여부를 조회합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "내 사용자 정보 조회 성공",
+            content = @Content(schema = @Schema(implementation = MeApiResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<UserDto.MeResponse>> getMe(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 
-    @Operation(
-            summary = "회원 탈퇴",
-            description = "로그인된 사용자의 계정을 삭제합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "회원 탈퇴 성공",
-                            content = @Content(schema = @Schema(implementation = DeleteUserApiResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 지정된 데이터를 삭제한다.
+   *
+   * @param userDetails 사용자 상세 정보
+   * @return 회원 탈퇴 완료 메시지를 담은 성공 응답
+   */
+  @Operation(
+      summary = "회원 탈퇴",
+      description = "로그인된 사용자의 계정을 삭제합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "회원 탈퇴 성공",
+            content = @Content(schema = @Schema(implementation = DeleteUserApiResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> deleteUser(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 
-    @Operation(
-            summary = "회원 가입 및 로그인",
-            description = "사용자가 OIDC 소셜 로그인으로 회원가입 및 로그인을 진행합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "회원가입/로그인 성공",
-                            content = @Content(schema = @Schema(implementation = SignInApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "토큰 유효성 오류 (ErrorCode: T10, TOKEN_INVALID)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "401", description = "만료된 토큰 오류 (ErrorCode: T04, TOKEN_EXPIRED)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "500", description = "서버 내부 오류 (ErrorCode: INTERNAL_ERROR)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    ResponseEntity<SuccessResponse<UserDto.SignInResponse>> signInUser(
-            @RequestBody UserDto.SignInRequest signInRequest
-    );
+  /**
+   * OIDC 토큰으로 회원가입 또는 로그인을 처리한다.
+   *
+   * @param signInRequest sign in 요청 정보
+   * @return 액세스·리프레시 토큰과 신규 가입 여부를 담은 로그인 응답
+   */
+  @Operation(
+      summary = "회원 가입 및 로그인",
+      description = "사용자가 OIDC 소셜 로그인으로 회원가입 및 로그인을 진행합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "회원가입/로그인 성공",
+            content = @Content(schema = @Schema(implementation = SignInApiResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "토큰 유효성 오류 (ErrorCode: T10, TOKEN_INVALID)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "만료된 토큰 오류 (ErrorCode: T04, TOKEN_EXPIRED)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "서버 내부 오류 (ErrorCode: INTERNAL_ERROR)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  ResponseEntity<SuccessResponse<UserDto.SignInResponse>> signInUser(
+      @RequestBody UserDto.SignInRequest signInRequest);
 }

@@ -7,20 +7,25 @@
 - 기본 패키지는 `com.chukchuk.haksa`이며 `domain`, `application`, `infrastructure`, `global` 구조를 사용합니다.
 
 ## Agent Instruction Policy
-- `AGENTS.md`만 프로젝트 에이전트 규칙으로 사용합니다.
+- `AGENTS.md`는 에이전트 전용 실행 규칙을 담당합니다.
+- 모든 개발 작업에서 `CONTRIBUTING.md`를 공통 개발 규칙으로 읽고 준수합니다.
 - 작업별 결정은 이슈, PR 또는 `docs/tasks/{이슈 번호}/`에 둡니다.
 - 사용자가 한국어로 작성하면 한국어로 응답하고, 한국어 문장은 `.`, `?`, `!`로 끝냅니다.
 
 ## Documentation Rules
-- `README.md`는 프로젝트 진입점, `CONTRIBUTING.md`는 사람용 협업 규칙, Wiki는 개발·운영 상세 가이드와 ADR을 담당합니다.
+- `README.md`는 프로젝트 진입점, `CONTRIBUTING.md`는 사람과 에이전트가 함께 따르는 개발 규칙, Wiki는 개발·운영 상세 가이드와 ADR을 담당합니다.
 - Wiki는 별도 `https://github.com/cchaksa/cchaksa-backend.wiki.git` 저장소의 `master` 브랜치에서 관리합니다.
-- 공개 API, 인증, DB 스키마, 도메인 규칙, 아키텍처, 배포, 운영, 장애 대응 변경은 Wiki 갱신 여부를 확인합니다.
+- 공개 API, 인증, DB 스키마, 도메인 규칙, 아키텍처, 배포, 운영, 장애 대응 작업은 관련 Wiki 문서를 확인하고 갱신 여부를 최종 결과에 기록합니다.
 
 ## Workflow
 - 작업 전에 GitHub 이슈 번호를 확인합니다.
+- 작업 시작 전에 `CONTRIBUTING.md`를 읽고, 해당 이슈의 `docs/tasks/{이슈 번호}/` 문서가 있으면 함께 확인합니다.
 - 설계 판단이 필요하면 `docs/tasks/{이슈 번호}/design.md`, 여러 단계 계획이 필요하면 `docs/tasks/{이슈 번호}/plan.md`를 사용합니다.
 - 기존 `docs/specs`, `docs/context`, `checklist.md`, `context-notes.md`는 과거 기록으로만 유지합니다.
 - 새 작업에는 기존 Spec Kit 파일인 `spec-lite.md`, `spec.md`, `clarify.md`, `tasks.md`, `checklist.md`, `context-notes.md`를 만들지 않습니다.
+- 커밋과 PR 작업 전 `CONTRIBUTING.md`의 커밋·PR 규칙을 확인합니다.
+- PR 생성 시 `.github/PULL_REQUEST_TEMPLATE.md`를 기반으로 본문을 작성하고, 연결 이슈, 변경 범위, 검증 결과, Wiki 갱신 여부와 남은 위험을 포함합니다.
+- PR 생성 시 PR 작성자를 Assignee로 지정하고, 변경 유형에 맞는 릴리즈 노트 분류 라벨을 하나 이상 붙입니다. 릴리즈 노트에서 제외할 변경에는 `skip-release-notes` 라벨을 붙입니다.
 
 ## Branch Rules
 - `feat/{이슈 번호}`는 `dev`에서 생성해 `dev`로 병합합니다.
@@ -35,6 +40,7 @@
 
 ## Development Rules
 - 실제 파일과 호출부를 확인하고 요청 범위만 변경합니다.
+- Java 작성과 Javadoc 기준은 `docs/development/java-style.md`를 따릅니다.
 - 설정은 `application-local.yml`, `application-dev.yml`, `application-prod.yml`로 환경별 관리합니다.
 - Redis 자동 구성은 `application.yml`에서 제외하며 local cache를 기본으로 사용합니다.
 - 공개 API 변경은 Springdoc annotation·configuration과 계약 테스트를 함께 갱신하고 실행 중인 애플리케이션의 `/v3/api-docs`를 검증합니다.
@@ -45,7 +51,8 @@
 - 적용된 migration은 수정하거나 자동 rollback하지 않으며, 보정은 다음 version의 forward migration으로 수행합니다.
 
 ## Testing And Verification
-- 코드·설정·배포 변경 후 `./gradlew test --stacktrace --no-daemon`을 실행합니다.
+- Java 자동 포맷은 `./gradlew spotlessApply --no-daemon`, 개별 진단은 `spotlessCheck`, `checkstyleMain checkstyleTest`, `test` task를 사용합니다.
+- 코드·설정·배포 변경의 최종 검증은 `./gradlew check --stacktrace --no-daemon`을 실행합니다.
 - 문서만 변경하면 링크, `git diff --check`, 변경 범위를 검토합니다.
 - 최종 응답에는 실제로 실행한 정확한 검사와 결과, 남은 위험을 포함합니다.
 

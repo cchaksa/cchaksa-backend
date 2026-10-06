@@ -1,0 +1,31 @@
+name: ✨ Feat
+description: 새로운 기능 또는 작업 단위를 정의합니다.
+title: "[FEAT] "
+labels: ["feature"]
+assignees: []
+
+body:
+  - type: textarea
+    attributes:
+      label: Describe
+      description: 어떤 기능/작업인지 한 줄로 설명해 주세요.
+      placeholder: 예) 버튼 공통 컴포넌트 추가
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Tasks
+      description: 구현해야 할 작업을 체크리스트 형태로 작성해 주세요.
+      placeholder: |
+        - [ ]
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Appendix
+      description: 구현하면서 참고한 자료나 리뷰어가 참고해야 할 자료를 작성해 주세요.
+      placeholder:
+    validations:
+      required: false

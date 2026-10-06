@@ -1,0 +1,51 @@
+{
+  "studentInfo": {
+    "sno": "17019013",
+    "studNm": "홍길동",
+    "univCd": "01",
+    "univNm": "수원대학교",
+    "dpmjCd": "D1",
+    "dpmjNm": "컴퓨터학부",
+    "mjorCd": "M1",
+    "mjorNm": "컴퓨터학과",
+    "scrgStatNm": "재학",
+    "enscYear": "2021",
+    "enscSmrCd": "10",
+    "enscDvcd": "2",
+    "studGrde": 4,
+    "facSmrCnt": 8,
+    "flangPassGb": "통과"
+  },
+  "semesters": [],
+  "academicRecords": {
+    "listSmrCretSumTabYearSmr": [],
+    "selectSmrCretSumTabSjTotal": {
+      "gainPoint": "120",
+      "applPoint": "130",
+      "gainAvmk": "3.8",
+      "gainTavgPont": "90"
+    }
+  },
+  "designatedCourses": [
+    {
+      "orgClsCd": "01",
+      "subjtCd": "C101",
+      "subjtNm": "자료구조",
+      "point": 3,
+      "precpResnCd": "TRANSFER",
+      "cretGainYear": "2024",
+      "cretSmrNm": "1학기",
+      "sno": "17019013"
+    },
+    {
+      "orgClsCd": "01",
+      "subjtCd": "C101",
+      "subjtNm": "자료구조",
+      "point": "",
+      "precpResnCd": "TRANSFER",
+      "cretGainYear": null,
+      "cretSmrNm": "1학기",
+      "sno": "17019013"
+    }
+  ]
+}

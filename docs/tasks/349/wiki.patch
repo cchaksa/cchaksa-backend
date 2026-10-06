@@ -1,0 +1,32 @@
+diff --git a/API-and-Authentication.md b/API-and-Authentication.md
+index 8c28281..3b33127 100644
+--- a/API-and-Authentication.md
++++ b/API-and-Authentication.md
+@@ -68,0 +69,14 @@ Controller와 `controller/docs` 아래의 Swagger 인터페이스가 함께 API
++### 편입 테스트 데이터 — 이슈 #349.
++
++[이슈 #349](https://github.com/cchaksa/cchaksa-backend/issues/349)의 `feat/349` 구현 계약입니다. 배포된 환경의 지원 여부는 해당 브랜치의 병합·배포 이력을 확인합니다.
++
++`PATCH /api/admin/me/transfer-data`는 `dev/test` 프로필에서 Bearer JWT로 인증된 본인 테스트 계정만 수정합니다. 생성 API가 부여한 `studentCode=test_{suffix}`와 `email=test_{suffix}@cchaksa.dev`가 일치해야 하며 일반 계정은 403입니다.
++
++- 설정 항목은 `isTransferStudent`, `totalEarnedCredits`, `cumulativeGpa`, `completedSemesters`, `languageCertFulfilled`, `designatedCourses`입니다.
++- 생략한 값은 유지하고 명시적 `null`은 400입니다. `false`, `0`, `[]`는 실제로 반영합니다. GPA는 0~4.5, 소수 둘째 자리까지 허용하며 학점과 이수 학기는 0 이상의 정수입니다.
++- 지정과목 배열은 전체 교체합니다. `orgClsCd`, `subjtCd`는 필수이며 나머지 항목은 실행 중인 OpenAPI를 확인합니다. 학생 학번과 목록 순서는 서버에서 부여합니다. 빈 배열도 정상 수신 상태입니다.
++- 결과는 기존 `GET /api/graduation/progress`에서 확인합니다. 이 API는 계산 결과를 직접 덮어쓰지 않습니다.
++- 학과·입학연도·전공은 기존 계정 생성/전공 API, 이수 내역은 강의 API를 사용합니다. 편입 인정학점은 `07045`, `07046`, `00111`, `07050`의 기존 개설강의 ID를 `/api/admin/me/graduation-courses`로 추가해 구성합니다. `/me/test-courses`는 코드에 `test_`를 붙이므로 인정학점 코드 생성 용도로 사용하지 않습니다.
++
++`POST /api/admin/me/reset`은 기존 수강 내역 삭제·전공 복원을 유지합니다. 위 테스트 계정은 추가로 편입 여부를 false, 입학 구분을 신입, 이수 학기를 0으로 복원하고 누적 성적·외국어 인증·지정과목 및 수신 상태를 초기화합니다. 일반 계정은 기존 reset 범위를 유지합니다.
++
+diff --git a/Core-Domain-Flows.md b/Core-Domain-Flows.md
+index 359b44b..25cfe61 100644
+--- a/Core-Domain-Flows.md
++++ b/Core-Domain-Flows.md
+@@ -150,0 +151,8 @@ flowchart LR
++### 편입 테스트 계정 데이터 — 이슈 #349.
++
++`feat/349`의 테스트 어드민 PATCH는 학생·누적 성적·외국어 인증·지정과목 원천 데이터를 수정하고 기존 졸업진단 서비스를 그대로 사용합니다. 운영 졸업정책과 DB schema는 변경하지 않습니다. API 사용 범위는 [API and Authentication](API-and-Authentication)을 확인합니다.
++
++학생 행의 쓰기 잠금을 획득한 뒤 생략한 필드는 보존하며, 누적 성적 행이 없으면 전달된 값만 채워 생성합니다. 지정과목은 기존 동기화 서비스의 목록 교체·스냅샷 규칙을 사용합니다. 모든 저장은 한 트랜잭션으로 처리하고 학생별 학사 캐시를 무효화합니다.
++
++테스트 계정 reset은 누적 성적을 삭제하고 외국어 인증을 미확인 상태로 되돌립니다. 다른 졸업 진행 상태는 보존합니다. 지정과목 목록과 수신 버전을 지우되 reset 시각은 남겨 과거 포털 스냅샷이 데이터를 복구하지 못하도록 합니다. reset 뒤 다시 PATCH한 지정과목은 정상 수신 상태가 됩니다.
++

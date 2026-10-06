@@ -18,60 +18,97 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 
+/** 포털 연동 작업의 상태·요약·처리 시간을 조회하는 API를 정의한다. */
 @Tag(name = "Portal Link", description = "비동기 포털 연동 job 생성 및 폴링 안내")
 public interface PortalLinkQueryControllerDocs {
 
-    @Operation(
-            summary = "비동기 job 상태 조회",
-            description = "요청된 job_id의 진행 상태, 오류 코드, 완료 시점 등을 제공합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "상태 조회 성공",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = PortalLinkJobStatusApiResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<PortalLinkDto.JobStatusResponse>> getJobStatus(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    );
+  /**
+   * 포털 연동 작업의 진행 상태를 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @param jobId 작업 식별자
+   * @return 처리 결과를 담은 성공 응답
+   */
+  @Operation(
+      summary = "비동기 job 상태 조회",
+      description = "요청된 job_id의 진행 상태, 오류 코드, 완료 시점 등을 제공합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "상태 조회 성공",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = PortalLinkJobStatusApiResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "job 미존재 또는 권한 없음",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<PortalLinkDto.JobStatusResponse>> getJobStatus(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId);
 
-    @Operation(
-            summary = "비동기 job 요약 조회",
-            description = "job이 성공적으로 완료된 경우 최신 학생 요약 데이터를 반환합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "요약 조회 성공",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = PortalLinkJobSummaryApiResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    );
+  /**
+   * 완료된 포털 연동 작업의 학생 요약을 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @param jobId 작업 식별자
+   * @return 처리 결과를 담은 성공 응답
+   */
+  @Operation(
+      summary = "비동기 job 요약 조회",
+      description = "job이 성공적으로 완료된 경우 최신 학생 요약 데이터를 반환합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "요약 조회 성공",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = PortalLinkJobSummaryApiResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "job 미존재 또는 권한 없음",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId);
 
-    @Operation(
-            summary = "비동기 job 소요 시간 조회",
-            description = "요청된 job_id의 서버 기준 연동 시작/종료 시각과 소요 시간을 제공합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "소요 시간 조회 성공",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = PortalLinkJobDurationApiResponse.class))),
-                    @ApiResponse(responseCode = "404", description = "job 미존재 또는 권한 없음",
-                            content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
-                                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    );
+  /**
+   * 포털 연동 작업의 시작·종료 시각과 소요 시간을 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @param jobId 작업 식별자
+   * @return 처리 결과를 담은 성공 응답
+   */
+  @Operation(
+      summary = "비동기 job 소요 시간 조회",
+      description = "요청된 job_id의 서버 기준 연동 시작/종료 시각과 소요 시간을 제공합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "소요 시간 조회 성공",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = PortalLinkJobDurationApiResponse.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "job 미존재 또는 권한 없음",
+            content =
+                @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId);
 }

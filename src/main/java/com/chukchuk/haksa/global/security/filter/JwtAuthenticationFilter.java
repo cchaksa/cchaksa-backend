@@ -11,6 +11,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.InsufficientAuthenticationException;
@@ -22,100 +24,103 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import java.io.IOException;
-import java.util.List;
-
+/** Bearer access token을 검증해 Spring Security 인증 문맥을 설정한다. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private final JwtProvider jwtProvider;
-    private final CustomUserDetailsService userDetailsService;
-    private final AuthTokenCache authTokenCache;
-    private final AuthenticationEntryPoint authenticationEntryPoint;
+  private final JwtProvider jwtProvider;
+  private final CustomUserDetailsService userDetailsService;
+  private final AuthTokenCache authTokenCache;
+  private final AuthenticationEntryPoint authenticationEntryPoint;
 
-    private static final List<String> WHITELIST_PATHS = List.of(
-            "/", "/v3/api-docs", "/swagger", "/webjars", "/swagger-config", "/error"
-    );
+  private static final List<String> WHITELIST_PATHS =
+      List.of("/", "/v3/api-docs", "/swagger", "/webjars", "/swagger-config", "/error");
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        String path = request.getRequestURI();
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+    String path = request.getRequestURI();
 
-        if (WHITELIST_PATHS.stream().anyMatch(p ->
-                p.equals("/") ? path.equals("/") : path.startsWith(p)
-        )) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = extractTokenFromHeader(request);
-        if (token == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        try {
-            Claims claims = jwtProvider.parseToken(token);
-            String userId = claims.getSubject();
-            if (userId == null || userId.isBlank()) {
-                throw new JwtException("Missing token subject");
-            }
-
-            UserDetails userDetails = authTokenCache.getOrLoad(
-                    userId,
-                    token,
-                    () -> userDetailsService.loadUserByUsername(userId)
-            );
-            if (!userDetails.isEnabled()) {
-                throw new JwtException("Disabled user");
-            }
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authToken);
-
-        } catch (ExpiredJwtException e) {
-            handleAuthenticationFailure(request, response, "expired",
-                    new InsufficientAuthenticationException("Access token expired", e));
-            return;
-        } catch (TokenException | IllegalArgumentException | IllegalStateException | JwtException e) {
-            handleAuthenticationFailure(request, response, "invalid",
-                    new InsufficientAuthenticationException("Invalid token", e));
-            return;
-        }
-
-        filterChain.doFilter(request, response);
+    if (WHITELIST_PATHS.stream()
+        .anyMatch(p -> p.equals("/") ? path.equals("/") : path.startsWith(p))) {
+      filterChain.doFilter(request, response);
+      return;
     }
 
-    private void handleAuthenticationFailure(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            String exceptionType,
-            InsufficientAuthenticationException exception
-    ) throws IOException, ServletException {
-        SecurityContextHolder.clearContext();
-        request.setAttribute("exception", exceptionType);
-        authenticationEntryPoint.commence(request, response, exception);
+    String token = extractTokenFromHeader(request);
+    if (token == null) {
+      filterChain.doFilter(request, response);
+      return;
     }
 
-    private String extractTokenFromHeader(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        return null;
+    try {
+      Claims claims = jwtProvider.parseToken(token);
+      String userId = claims.getSubject();
+      if (userId == null || userId.isBlank()) {
+        throw new JwtException("Missing token subject");
+      }
+
+      UserDetails userDetails =
+          authTokenCache.getOrLoad(
+              userId, token, () -> userDetailsService.loadUserByUsername(userId));
+      if (!userDetails.isEnabled()) {
+        throw new JwtException("Disabled user");
+      }
+      UsernamePasswordAuthenticationToken authToken =
+          new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+      authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+      SecurityContextHolder.getContext().setAuthentication(authToken);
+
+    } catch (ExpiredJwtException e) {
+      handleAuthenticationFailure(
+          request,
+          response,
+          "expired",
+          new InsufficientAuthenticationException("Access token expired", e));
+      return;
+    } catch (TokenException | IllegalArgumentException | IllegalStateException | JwtException e) {
+      handleAuthenticationFailure(
+          request,
+          response,
+          "invalid",
+          new InsufficientAuthenticationException("Invalid token", e));
+      return;
     }
 
-//    private String extractTokenFromCookie(HttpServletRequest request) {
-//        if (request.getCookies() == null) return null;
-//
-//        for (Cookie cookie : request.getCookies()) {
-//            if ("accessToken".equals(cookie.getName())) {
-//                return cookie.getValue();
-//            }
-//        }
-//        return null;
-//    }
+    filterChain.doFilter(request, response);
+  }
+
+  private void handleAuthenticationFailure(
+      HttpServletRequest request,
+      HttpServletResponse response,
+      String exceptionType,
+      InsufficientAuthenticationException exception)
+      throws IOException, ServletException {
+    SecurityContextHolder.clearContext();
+    request.setAttribute("exception", exceptionType);
+    authenticationEntryPoint.commence(request, response, exception);
+  }
+
+  private String extractTokenFromHeader(HttpServletRequest request) {
+    String header = request.getHeader("Authorization");
+    if (header != null && header.startsWith("Bearer ")) {
+      return header.substring(7);
+    }
+    return null;
+  }
+
+  //    private String extractTokenFromCookie(HttpServletRequest request) {
+  //        if (request.getCookies() == null) return null;
+  //
+  //        for (Cookie cookie : request.getCookies()) {
+  //            if ("accessToken".equals(cookie.getName())) {
+  //                return cookie.getValue();
+  //            }
+  //        }
+  //        return null;
+  //    }
 }

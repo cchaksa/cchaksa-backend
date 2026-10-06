@@ -1,0 +1,30 @@
+name: 🚨 Fix
+description: 버그 및 오류를 해결합니다.
+title: "[FIX] "
+labels: ["bug"]
+assignees: []
+
+body:
+  - type: textarea
+    attributes:
+      label: Describe
+      description: 어떤 문제가 발생했는지 간략하게 설명해 주세요.
+      placeholder: 예) 로그인 시 토큰이 저장되지 않는 문제
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Fix Plan
+      description: 어떤 방식으로 수정할 예정인지 작성해 주세요.
+      placeholder:
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Appendix
+      description: 수정하면서 참고한 자료나 리뷰어가 참고해야 할 자료를 작성해 주세요.
+      placeholder:
+    validations:
+      required: false

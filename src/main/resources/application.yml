@@ -21,6 +21,7 @@ spring:
       add-mappings: false
   jpa:
     properties:
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
       hibernate:
         jdbc:
           batch_size: 100
@@ -52,6 +53,10 @@ security:
     allowed-client-ids: ${APPLE_ALLOWED_CLIENT_IDS:}
     issuer: ${APPLE_ISSUER:https://appleid.apple.com}
     keys-url: ${APPLE_KEYS_URL:https://appleid.apple.com/auth/keys}
+  admin:
+    idle-timeout: ${ADMIN_AUTH_IDLE_TIMEOUT:30m}
+    absolute-timeout: ${ADMIN_AUTH_ABSOLUTE_TIMEOUT:8h}
+    cookie-secure: ${ADMIN_AUTH_COOKIE_SECURE:true}
 
 crawler:
   base-url: ${CRAWLER_BASE_URL}
@@ -143,4 +148,4 @@ logging:
 
 lecture-evaluation:
   target-year: ${LECTURE_EVALUATION_TARGET_YEAR:2026}
-  target-semester: ${LECTURE_EVALUATION_TARGET_SEMESTER:10}
+  target-semester: ${LECTURE_EVALUATION_TARGET_SEMESTER:20}

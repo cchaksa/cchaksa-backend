@@ -8,6 +8,11 @@ import com.chukchuk.haksa.domain.scrapejob.repository.ScrapeJobRepository;
 import com.chukchuk.haksa.global.config.ScrapingProperties;
 import com.chukchuk.haksa.global.exception.code.ErrorCode;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -15,165 +20,221 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-
+/** 스크래핑 아웃박스 발행 대상을 잠그고 발행 결과를 독립 트랜잭션으로 기록한다. */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class ScrapeJobOutboxDispatchTxService {
 
-    private static final long PUBLISH_LEASE_SECONDS = 30;
+  private static final long PUBLISH_LEASE_SECONDS = 30;
 
-    private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
-    private final ScrapeJobRepository scrapeJobRepository;
-    private final ScrapingProperties scrapingProperties;
-    private final MeterRegistry meterRegistry;
+  private final ScrapeJobOutboxRepository scrapeJobOutboxRepository;
+  private final ScrapeJobRepository scrapeJobRepository;
+  private final ScrapingProperties scrapingProperties;
+  private final MeterRegistry meterRegistry;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ScrapeJobOutboxDispatchPlan reservePreferred(
-            String preferredOutboxId,
-            Collection<ScrapeJobOutboxStatus> publishableStatuses,
-            Instant now
-    ) {
-        Optional<ScrapeJobOutbox> preferred = scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
-                preferredOutboxId,
-                publishableStatuses,
-                now
-        );
-        if (preferred.isEmpty()) {
-            return ScrapeJobOutboxDispatchPlan.empty();
-        }
-        return buildPlan(List.of(preferred.get()), now, "sync_request");
+  /**
+   * 지정한 아웃박스를 우선 발행 대상으로 예약한다.
+   *
+   * @param preferredOutboxId 즉시 발행하려는 아웃박스 식별자
+   * @param publishableStatuses 발행 대상으로 허용할 상태 목록
+   * @param now 예약 가능 시각과 lease 만료를 판단할 기준 시각
+   * @return 발행 대상으로 예약한 아웃박스가 없으면 빈 계획, 있으면 한 건의 발행 계획
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public ScrapeJobOutboxDispatchPlan reservePreferred(
+      String preferredOutboxId,
+      Collection<ScrapeJobOutboxStatus> publishableStatuses,
+      Instant now) {
+    Optional<ScrapeJobOutbox> preferred =
+        scrapeJobOutboxRepository.findPublishTargetForUpdateByOutboxId(
+            preferredOutboxId, publishableStatuses, now);
+    if (preferred.isEmpty()) {
+      return ScrapeJobOutboxDispatchPlan.empty();
+    }
+    return buildPlan(List.of(preferred.get()), now, "sync_request");
+  }
+
+  /**
+   * 발행 가능한 아웃박스를 배치 단위로 예약한다.
+   *
+   * @param publishableStatuses 발행 대상으로 허용할 상태 목록
+   * @param now 예약 가능 시각과 lease 만료를 판단할 기준 시각
+   * @param batchSize 한 번에 예약할 최대 아웃박스 수
+   * @return 잠금 후 발행 시도 상태로 전환한 아웃박스 계획
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public ScrapeJobOutboxDispatchPlan reserveBatch(
+      Collection<ScrapeJobOutboxStatus> publishableStatuses, Instant now, int batchSize) {
+    List<ScrapeJobOutbox> outboxes =
+        scrapeJobOutboxRepository.findPublishTargetsForUpdate(
+            publishableStatuses, now, PageRequest.of(0, batchSize));
+    return buildPlan(outboxes, now, "scheduled");
+  }
+
+  /**
+   * 아웃박스 발행 성공과 연결된 작업 상태를 기록한다.
+   *
+   * @param outboxId 아웃박스 식별자
+   * @param queueMessageId 큐 메시지 식별자
+   * @param attemptedAt 발행 시도 시각
+   * @param trigger 예약 실행 또는 동기 요청 등 발행을 시작한 경로
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void markSent(
+      String outboxId, String queueMessageId, Instant attemptedAt, String trigger) {
+    ScrapeJobOutbox outbox =
+        scrapeJobOutboxRepository.findForUpdateByOutboxId(outboxId).orElse(null);
+    if (outbox == null || outbox.getStatus() == ScrapeJobOutboxStatus.SENT) {
+      return;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ScrapeJobOutboxDispatchPlan reserveBatch(
-            Collection<ScrapeJobOutboxStatus> publishableStatuses,
-            Instant now,
-            int batchSize
-    ) {
-        List<ScrapeJobOutbox> outboxes = scrapeJobOutboxRepository.findPublishTargetsForUpdate(
-                publishableStatuses,
-                now,
-                PageRequest.of(0, batchSize)
-        );
-        return buildPlan(outboxes, now, "scheduled");
+    ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
+    if (job == null) {
+      markMissingJob(outbox, attemptedAt, trigger);
+      return;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markSent(String outboxId, String queueMessageId, Instant attemptedAt, String trigger) {
-        ScrapeJobOutbox outbox = scrapeJobOutboxRepository.findForUpdateByOutboxId(outboxId).orElse(null);
-        if (outbox == null || outbox.getStatus() == ScrapeJobOutboxStatus.SENT) {
-            return;
-        }
+    outbox.markSent(queueMessageId, attemptedAt);
+    job.markRunning();
+    meterRegistry.counter("scrape.outbox.publish.success").increment();
+    log.info(
+        "[BIZ] scrape.outbox.sent trigger={} outboxId={} jobId={} attempt={} "
+            + "outboxStatus={} queueMessageId={}",
+        trigger,
+        outbox.getOutboxId(),
+        outbox.getJobId(),
+        outbox.getAttemptCount(),
+        outbox.getStatus(),
+        queueMessageId);
+  }
 
-        ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
-        if (job == null) {
-            markMissingJob(outbox, attemptedAt, trigger);
-            return;
-        }
-
-        outbox.markSent(queueMessageId, attemptedAt);
-        job.markRunning();
-        meterRegistry.counter("scrape.outbox.publish.success").increment();
-        log.info("[BIZ] scrape.outbox.sent trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={}",
-                trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), queueMessageId);
+  /**
+   * 아웃박스 발행 실패를 재시도 가능 상태 또는 영구 실패 상태로 기록한다.
+   *
+   * @param outboxId 아웃박스 식별자
+   * @param attemptedAt 발행 시도 시각
+   * @param trigger 예약 실행 또는 동기 요청 등 발행을 시작한 경로
+   * @param exception 발행 실패 원인
+   */
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void markFailed(
+      String outboxId, Instant attemptedAt, String trigger, RuntimeException exception) {
+    ScrapeJobOutbox outbox =
+        scrapeJobOutboxRepository.findForUpdateByOutboxId(outboxId).orElse(null);
+    if (outbox == null || outbox.getStatus() == ScrapeJobOutboxStatus.SENT) {
+      return;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markFailed(String outboxId, Instant attemptedAt, String trigger, RuntimeException exception) {
-        ScrapeJobOutbox outbox = scrapeJobOutboxRepository.findForUpdateByOutboxId(outboxId).orElse(null);
-        if (outbox == null || outbox.getStatus() == ScrapeJobOutboxStatus.SENT) {
-            return;
-        }
-
-        ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
-        if (job == null) {
-            markMissingJob(outbox, attemptedAt, trigger);
-            return;
-        }
-
-        meterRegistry.counter("scrape.outbox.publish.fail").increment();
-        boolean permanentFailure = isPermanentFailure(exception);
-        boolean maxAttemptsReached = outbox.getAttemptCount() + 1 >= scrapingProperties.getPublisher().getMaxAttempts();
-        String summary = summarizeException(exception);
-
-        if (permanentFailure || maxAttemptsReached) {
-            outbox.markDead(summary, attemptedAt);
-            if (!job.isCompleted()) {
-                job.markFailed(
-                        ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED.name(),
-                        ErrorCode.SCRAPE_JOB_OUTBOX_DEAD.message(),
-                        true,
-                        attemptedAt,
-                        attemptedAt
-                );
-            }
-            meterRegistry.counter("scrape.outbox.dead").increment();
-            log.error("[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} reason={}",
-                    trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId(), summary);
-            return;
-        }
-
-        Instant nextAttemptAt = attemptedAt.plusSeconds(calculateBackoffSeconds(outbox.getAttemptCount() + 1));
-        outbox.markRetryableFailure(summary, attemptedAt, nextAttemptAt);
-        meterRegistry.counter("scrape.outbox.retry").increment();
-        log.warn("[BIZ] scrape.outbox.retry trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} nextAttemptAt={} reason={}",
-                trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId(), nextAttemptAt, summary);
+    ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
+    if (job == null) {
+      markMissingJob(outbox, attemptedAt, trigger);
+      return;
     }
 
-    private ScrapeJobOutboxDispatchPlan buildPlan(List<ScrapeJobOutbox> outboxes, Instant now, String trigger) {
-        List<ScrapeJobOutboxPublishCandidate> candidates = new ArrayList<>();
-        for (ScrapeJobOutbox outbox : outboxes) {
-            ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
-            if (job == null) {
-                markMissingJob(outbox, now, trigger);
-                continue;
-            }
+    meterRegistry.counter("scrape.outbox.publish.fail").increment();
+    boolean permanentFailure = isPermanentFailure(exception);
+    boolean maxAttemptsReached =
+        outbox.getAttemptCount() + 1 >= scrapingProperties.getPublisher().getMaxAttempts();
+    String summary = summarizeException(exception);
 
-            outbox.reserveForPublish(now.plusSeconds(PUBLISH_LEASE_SECONDS), now);
-            candidates.add(new ScrapeJobOutboxPublishCandidate(
-                    outbox.getOutboxId(),
-                    outbox.getJobId(),
-                    job.getUserId(),
-                    job.getOperationType(),
-                    outbox.getPayloadJson(),
-                    outbox.getAttemptCount(),
-                    outbox.getStatus(),
-                    outbox.getQueueMessageId()
-            ));
-        }
-        return new ScrapeJobOutboxDispatchPlan(candidates, outboxes.size());
+    if (permanentFailure || maxAttemptsReached) {
+      outbox.markDead(summary, attemptedAt);
+      if (!job.isCompleted()) {
+        job.markFailed(
+            ErrorCode.SCRAPE_JOB_ENQUEUE_FAILED.name(),
+            ErrorCode.SCRAPE_JOB_OUTBOX_DEAD.message(),
+            true,
+            attemptedAt,
+            attemptedAt);
+      }
+      meterRegistry.counter("scrape.outbox.dead").increment();
+      log.error(
+          "[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} "
+              + "outboxStatus={} queueMessageId={} reason={}",
+          trigger,
+          outbox.getOutboxId(),
+          outbox.getJobId(),
+          outbox.getAttemptCount(),
+          outbox.getStatus(),
+          outbox.getQueueMessageId(),
+          summary);
+      return;
     }
 
-    private void markMissingJob(ScrapeJobOutbox outbox, Instant attemptedAt, String trigger) {
-        outbox.markDead("missing scrape job", attemptedAt);
-        meterRegistry.counter("scrape.outbox.publish.fail").increment();
-        meterRegistry.counter("scrape.outbox.dead").increment();
-        log.error("[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} outboxStatus={} queueMessageId={} reason=missing_job",
-                trigger, outbox.getOutboxId(), outbox.getJobId(), outbox.getAttemptCount(), outbox.getStatus(), outbox.getQueueMessageId());
-    }
+    Instant nextAttemptAt =
+        attemptedAt.plusSeconds(calculateBackoffSeconds(outbox.getAttemptCount() + 1));
+    outbox.markRetryableFailure(summary, attemptedAt, nextAttemptAt);
+    meterRegistry.counter("scrape.outbox.retry").increment();
+    log.warn(
+        "[BIZ] scrape.outbox.retry trigger={} outboxId={} jobId={} attempt={} "
+            + "outboxStatus={} queueMessageId={} nextAttemptAt={} reason={}",
+        trigger,
+        outbox.getOutboxId(),
+        outbox.getJobId(),
+        outbox.getAttemptCount(),
+        outbox.getStatus(),
+        outbox.getQueueMessageId(),
+        nextAttemptAt,
+        summary);
+  }
 
-    private long calculateBackoffSeconds(int attemptCount) {
-        long initial = scrapingProperties.getPublisher().getInitialBackoffSeconds();
-        long max = scrapingProperties.getPublisher().getMaxBackoffSeconds();
-        long calculated = initial * (1L << Math.max(0, attemptCount - 1));
-        return Math.min(calculated, max);
-    }
+  private ScrapeJobOutboxDispatchPlan buildPlan(
+      List<ScrapeJobOutbox> outboxes, Instant now, String trigger) {
+    List<ScrapeJobOutboxPublishCandidate> candidates = new ArrayList<>();
+    for (ScrapeJobOutbox outbox : outboxes) {
+      ScrapeJob job = scrapeJobRepository.findForUpdateByJobId(outbox.getJobId()).orElse(null);
+      if (job == null) {
+        markMissingJob(outbox, now, trigger);
+        continue;
+      }
 
-    private boolean isPermanentFailure(RuntimeException exception) {
-        return ScrapeJobOutboxPublisherFailures.isPermanentFailure(exception);
+      outbox.reserveForPublish(now.plusSeconds(PUBLISH_LEASE_SECONDS), now);
+      candidates.add(
+          new ScrapeJobOutboxPublishCandidate(
+              outbox.getOutboxId(),
+              outbox.getJobId(),
+              job.getUserId(),
+              job.getOperationType(),
+              outbox.getPayloadJson(),
+              outbox.getAttemptCount(),
+              outbox.getStatus(),
+              outbox.getQueueMessageId()));
     }
+    return new ScrapeJobOutboxDispatchPlan(candidates, outboxes.size());
+  }
 
-    private String summarizeException(RuntimeException exception) {
-        String message = exception.getMessage();
-        if (message == null || message.isBlank()) {
-            return exception.getClass().getSimpleName();
-        }
-        return exception.getClass().getSimpleName() + ": " + message;
+  private void markMissingJob(ScrapeJobOutbox outbox, Instant attemptedAt, String trigger) {
+    outbox.markDead("missing scrape job", attemptedAt);
+    meterRegistry.counter("scrape.outbox.publish.fail").increment();
+    meterRegistry.counter("scrape.outbox.dead").increment();
+    log.error(
+        "[BIZ] scrape.outbox.dead trigger={} outboxId={} jobId={} attempt={} "
+            + "outboxStatus={} queueMessageId={} reason=missing_job",
+        trigger,
+        outbox.getOutboxId(),
+        outbox.getJobId(),
+        outbox.getAttemptCount(),
+        outbox.getStatus(),
+        outbox.getQueueMessageId());
+  }
+
+  private long calculateBackoffSeconds(int attemptCount) {
+    long initial = scrapingProperties.getPublisher().getInitialBackoffSeconds();
+    long max = scrapingProperties.getPublisher().getMaxBackoffSeconds();
+    long calculated = initial * (1L << Math.max(0, attemptCount - 1));
+    return Math.min(calculated, max);
+  }
+
+  private boolean isPermanentFailure(RuntimeException exception) {
+    return ScrapeJobOutboxPublisherFailures.isPermanentFailure(exception);
+  }
+
+  private String summarizeException(RuntimeException exception) {
+    String message = exception.getMessage();
+    if (message == null || message.isBlank()) {
+      return exception.getClass().getSimpleName();
     }
+    return exception.getClass().getSimpleName() + ": " + message;
+  }
 }

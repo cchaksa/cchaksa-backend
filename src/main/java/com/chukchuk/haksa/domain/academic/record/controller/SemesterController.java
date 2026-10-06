@@ -1,5 +1,8 @@
 package com.chukchuk.haksa.domain.academic.record.controller;
 
+import static com.chukchuk.haksa.domain.student.dto.StudentSemesterDto.StudentSemesterInfoResponse;
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
+
 import com.chukchuk.haksa.domain.academic.record.controller.docs.SemesterControllerDocs;
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterSummaryResponse;
 import com.chukchuk.haksa.domain.academic.record.service.SemesterAcademicRecordService;
@@ -7,6 +10,8 @@ import com.chukchuk.haksa.domain.student.service.StudentService;
 import com.chukchuk.haksa.global.common.response.SuccessResponse;
 import com.chukchuk.haksa.global.logging.annotation.LogTime;
 import com.chukchuk.haksa.global.security.CustomUserDetails;
+import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -15,54 +20,60 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-import java.util.UUID;
-
-import static com.chukchuk.haksa.domain.student.dto.StudentSemesterDto.StudentSemesterInfoResponse;
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
-
+/** 학기 HTTP 요청을 처리한다. */
 @Slf4j
 @RestController
 @RequestMapping("/api/semester")
 @RequiredArgsConstructor
 public class SemesterController implements SemesterControllerDocs {
 
-    private final SemesterAcademicRecordService semesterAcademicRecordService;
-    private final StudentService studentService;
+  private final SemesterAcademicRecordService semesterAcademicRecordService;
+  private final StudentService studentService;
 
-    @GetMapping
-    public ResponseEntity<SuccessResponse<List<StudentSemesterInfoResponse>>> getSemesterRecord(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        long t0 = LogTime.start();
+  @Override
+  @GetMapping
+  public ResponseEntity<SuccessResponse<List<StudentSemesterInfoResponse>>> getSemesterRecord(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    long t0 = LogTime.start();
 
-        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
+    UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
-        List<StudentSemesterInfoResponse> response = semesterAcademicRecordService.getSemestersByStudentId(studentId);
+    List<StudentSemesterInfoResponse> response =
+        semesterAcademicRecordService.getSemestersByStudentId(studentId);
 
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            int count = (response != null) ? response.size() : 0;
-            log.info("[BIZ] academic.semester.list.done studentId={} count={} took_ms={}", studentId, count, tookMs);
-        }
-
-        return ResponseEntity.ok(SuccessResponse.of(response));
+    long tookMs = LogTime.elapsedMs(t0);
+    if (tookMs >= SLOW_MS) {
+      int count = (response != null) ? response.size() : 0;
+      log.info(
+          "[BIZ] academic.semester.list.done studentId={} count={} took_ms={}",
+          studentId,
+          count,
+          tookMs);
     }
 
-    @GetMapping("/grades")
-    public ResponseEntity<SuccessResponse<List<SemesterSummaryResponse>>> getSemesterGrades(
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        long t0 = LogTime.start();
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 
-        UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
+  @Override
+  @GetMapping("/grades")
+  public ResponseEntity<SuccessResponse<List<SemesterSummaryResponse>>> getSemesterGrades(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    long t0 = LogTime.start();
 
-        List<SemesterSummaryResponse> response = semesterAcademicRecordService.getAllSemesterGrades(studentId);
+    UUID studentId = studentService.getRequiredStudentIdByUserId(userDetails.getId());
 
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            int count = (response != null) ? response.size() : 0;
-            log.info("[BIZ] academic.semester.grades.done studentId={} count={} took_ms={}",
-                    studentId, count, tookMs);
-        }
-        return ResponseEntity.ok(SuccessResponse.of(response));
+    List<SemesterSummaryResponse> response =
+        semesterAcademicRecordService.getAllSemesterGrades(studentId);
+
+    long tookMs = LogTime.elapsedMs(t0);
+    if (tookMs >= SLOW_MS) {
+      int count = (response != null) ? response.size() : 0;
+      log.info(
+          "[BIZ] academic.semester.grades.done studentId={} count={} took_ms={}",
+          studentId,
+          count,
+          tookMs);
     }
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 }

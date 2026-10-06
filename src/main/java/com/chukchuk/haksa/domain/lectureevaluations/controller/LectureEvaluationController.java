@@ -1,5 +1,7 @@
 package com.chukchuk.haksa.domain.lectureevaluations.controller;
 
+import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
+
 import com.chukchuk.haksa.domain.lectureevaluations.controller.docs.LectureEvaluationControllerDocs;
 import com.chukchuk.haksa.domain.lectureevaluations.dto.LectureEvaluationDto;
 import com.chukchuk.haksa.domain.lectureevaluations.service.LectureEvaluationService;
@@ -18,57 +20,68 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import static com.chukchuk.haksa.global.logging.config.LoggingThresholds.SLOW_MS;
-
+/** 강의평가 필요 여부 조회와 평가 제출·건너뛰기 요청을 서비스에 위임한다. */
 @Slf4j
 @RestController
 @RequestMapping("/api/lecture-evaluations")
 @RequiredArgsConstructor
 public class LectureEvaluationController implements LectureEvaluationControllerDocs {
 
-    private final LectureEvaluationService lectureEvaluationService;
+  private final LectureEvaluationService lectureEvaluationService;
 
-    @GetMapping("/required")
-    public ResponseEntity<SuccessResponse<LectureEvaluationDto.RequiredResponse>> getRequired(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    ) {
-        long t0 = LogTime.start();
-        LectureEvaluationDto.RequiredResponse response = lectureEvaluationService.getRequired(userDetails.getId());
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] lecture_evaluation.required.get.done userId={} took_ms={}",
-                    userDetails.getId(), tookMs);
-        }
-        return ResponseEntity.ok(SuccessResponse.of(response));
+  @Override
+  @GetMapping("/required")
+  public ResponseEntity<SuccessResponse<LectureEvaluationDto.RequiredResponse>> getRequired(
+      @AuthenticationPrincipal CustomUserDetails userDetails) {
+    long t0 = LogTime.start();
+    LectureEvaluationDto.RequiredResponse response =
+        lectureEvaluationService.getRequired(userDetails.getId());
+    long tookMs = LogTime.elapsedMs(t0);
+    if (tookMs >= SLOW_MS) {
+      log.info(
+          "[BIZ] lecture_evaluation.required.get.done userId={} took_ms={}",
+          userDetails.getId(),
+          tookMs);
     }
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 
-    @PostMapping
-    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> submit(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody LectureEvaluationDto.SubmitRequest request
-    ) {
-        long t0 = LogTime.start();
-        lectureEvaluationService.submit(userDetails.getId(), request);
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] lecture_evaluation.submit.done userId={} year={} semester={} count={} took_ms={}",
-                    userDetails.getId(), request.year(), request.semester(), request.evaluations().size(), tookMs);
-        }
-        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 저장 완료")));
+  @Override
+  @PostMapping
+  public ResponseEntity<SuccessResponse<MessageOnlyResponse>> submit(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody LectureEvaluationDto.SubmitRequest request) {
+    long t0 = LogTime.start();
+    lectureEvaluationService.submit(userDetails.getId(), request);
+    long tookMs = LogTime.elapsedMs(t0);
+    if (tookMs >= SLOW_MS) {
+      log.info(
+          "[BIZ] lecture_evaluation.submit.done userId={} year={} semester={} count={} took_ms={}",
+          userDetails.getId(),
+          request.year(),
+          request.semester(),
+          request.evaluations().size(),
+          tookMs);
     }
+    return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 저장 완료")));
+  }
 
-    @PostMapping("/skip")
-    public ResponseEntity<SuccessResponse<MessageOnlyResponse>> skip(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody LectureEvaluationDto.SkipRequest request
-    ) {
-        long t0 = LogTime.start();
-        lectureEvaluationService.skip(userDetails.getId(), request);
-        long tookMs = LogTime.elapsedMs(t0);
-        if (tookMs >= SLOW_MS) {
-            log.info("[BIZ] lecture_evaluation.skip.done userId={} year={} semester={} took_ms={}",
-                    userDetails.getId(), request.year(), request.semester(), tookMs);
-        }
-        return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 건너뛰기 완료")));
+  @Override
+  @PostMapping("/skip")
+  public ResponseEntity<SuccessResponse<MessageOnlyResponse>> skip(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody LectureEvaluationDto.SkipRequest request) {
+    long t0 = LogTime.start();
+    lectureEvaluationService.skip(userDetails.getId(), request);
+    long tookMs = LogTime.elapsedMs(t0);
+    if (tookMs >= SLOW_MS) {
+      log.info(
+          "[BIZ] lecture_evaluation.skip.done userId={} year={} semester={} took_ms={}",
+          userDetails.getId(),
+          request.year(),
+          request.semester(),
+          tookMs);
     }
+    return ResponseEntity.ok(SuccessResponse.of(new MessageOnlyResponse("강의평가 건너뛰기 완료")));
+  }
 }

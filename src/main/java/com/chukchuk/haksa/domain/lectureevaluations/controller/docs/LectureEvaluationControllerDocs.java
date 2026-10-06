@@ -19,63 +19,106 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestBody;
 
+/** 강의평가 필요 여부 조회와 평가 제출·건너뛰기 API 계약을 정의한다. */
 @Tag(name = "Lecture Evaluations", description = "강의평가 API")
 public interface LectureEvaluationControllerDocs {
 
-    @Operation(
-            summary = "강의평가 상태 조회",
-            description = "설정된 대상 학기의 강의평가 상태와 성적 카드 목록을 조회합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "강의평가 상태 조회 성공",
-                            content = @Content(schema = @Schema(implementation = LectureEvaluationRequiredApiResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "인증 실패",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "500", description = "서버 내부 오류",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<LectureEvaluationDto.RequiredResponse>> getRequired(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 현재 학생이 제출해야 하는 강의평가 과목을 반환한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @return 처리 결과를 담은 성공 응답
+   */
+  @Operation(
+      summary = "강의평가 상태 조회",
+      description = "설정된 대상 학기의 강의평가 상태와 성적 카드 목록을 조회합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "강의평가 상태 조회 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = LectureEvaluationRequiredApiResponse.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "서버 내부 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<LectureEvaluationDto.RequiredResponse>> getRequired(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 
-    @Operation(
-            summary = "강의평가 제출",
-            description = "설정된 대상 학기의 강의평가 데이터를 일괄 제출합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "강의평가 저장 성공",
-                            content = @Content(schema = @Schema(implementation = LectureEvaluationSubmitApiResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "강의평가 대상 학기가 아니거나 제출 과목이 일치하지 않음",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "401", description = "인증 실패",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "500", description = "서버 내부 오류",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> submit(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody LectureEvaluationDto.SubmitRequest request
-    );
+  /**
+   * 로그인 사용자의 강의평가를 제출한다.
+   *
+   * @param userDetails 사용자 상세 정보
+   * @param request 대상 학기와 과목·교수별 평가 내용
+   * @return 강의평가 저장 완료 메시지를 담은 성공 응답
+   */
+  @Operation(
+      summary = "강의평가 제출",
+      description = "설정된 대상 학기의 강의평가 데이터를 일괄 제출합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "강의평가 저장 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = LectureEvaluationSubmitApiResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "강의평가 대상 학기가 아니거나 제출 과목이 일치하지 않음",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "서버 내부 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> submit(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody LectureEvaluationDto.SubmitRequest request);
 
-    @Operation(
-            summary = "강의평가 건너뛰기",
-            description = "설정된 대상 학기의 강의평가 상태를 SKIPPED로 변경합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "강의평가 건너뛰기 성공",
-                            content = @Content(schema = @Schema(implementation = LectureEvaluationSkipApiResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "강의평가 대상 학기가 아니거나 pending 상태가 아님",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "401", description = "인증 실패",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "500", description = "서버 내부 오류",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> skip(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody LectureEvaluationDto.SkipRequest request
-    );
+  /**
+   * 로그인 사용자의 대상 학기 강의평가를 건너뛴다.
+   *
+   * @param userDetails 사용자 상세 정보
+   * @param request 강의평가를 건너뛸 대상 학기
+   * @return 강의평가 건너뛰기 완료 메시지를 담은 성공 응답
+   */
+  @Operation(
+      summary = "강의평가 건너뛰기",
+      description = "설정된 대상 학기의 강의평가 상태를 SKIPPED로 변경합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "강의평가 건너뛰기 성공",
+            content =
+                @Content(
+                    schema = @Schema(implementation = LectureEvaluationSkipApiResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "강의평가 대상 학기가 아니거나 pending 상태가 아님",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "401",
+            description = "인증 실패",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "500",
+            description = "서버 내부 오류",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> skip(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @Valid @RequestBody LectureEvaluationDto.SkipRequest request);
 }

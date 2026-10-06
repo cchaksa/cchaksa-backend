@@ -1,9 +1,15 @@
 package com.chukchuk.haksa.domain.academic.record.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
+
 import com.chukchuk.haksa.domain.academic.record.dto.AcademicRecordResponse;
 import com.chukchuk.haksa.domain.academic.record.dto.SemesterAcademicRecordDto;
 import com.chukchuk.haksa.domain.academic.record.dto.StudentCourseDto;
 import com.chukchuk.haksa.domain.course.model.FacultyDivision;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,114 +17,190 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class AcademicRecordServiceUnitTests {
 
-    @Mock
-    private SemesterAcademicRecordService semesterAcademicRecordService;
+  @Mock private SemesterAcademicRecordService semesterAcademicRecordService;
 
-    @Mock
-    private StudentCourseService studentCourseService;
+  @Mock private StudentCourseService studentCourseService;
 
-    @InjectMocks
-    private AcademicRecordService academicRecordService;
+  @InjectMocks private AcademicRecordService academicRecordService;
 
-    @Test
-    @DisplayName("전공/교양 과목을 분류해 학업 기록 응답을 반환한다")
-    void getAcademicRecord_categorizesCourses() {
-        UUID studentId = UUID.randomUUID();
-        SemesterAcademicRecordDto.SemesterGradeResponse grade =
-                new SemesterAcademicRecordDto.SemesterGradeResponse(
-                        2024, 1, 15, 18, new BigDecimal("3.80"), 5, 120, new BigDecimal("92.4")
-                );
+  @Test
+  @DisplayName("전공/교양 과목을 분류해 학업 기록 응답을 반환한다")
+  void getAcademicRecordCategorizesCourses() {
+    UUID studentId = UUID.randomUUID();
+    SemesterAcademicRecordDto.SemesterGradeResponse grade =
+        new SemesterAcademicRecordDto.SemesterGradeResponse(
+            2024, 1, 15, 18, new BigDecimal("3.80"), 5, 120, new BigDecimal("92.4"));
 
-        StudentCourseDto.CourseDetailDto major = new StudentCourseDto.CourseDetailDto(
-                "1", "자료구조", "CSE101", FacultyDivision.전핵, null, 3, "홍길동", "A+", 3,
-                false, false, 2024, 1, 95, null, false
-        );
-        StudentCourseDto.CourseDetailDto liberal = new StudentCourseDto.CourseDetailDto(
-                "2", "글쓰기", "LBA101", FacultyDivision.중핵, null, 2, "김교수", "B+", 2,
-                false, false, 2024, 1, 88, null, false
-        );
-        StudentCourseDto.CourseDetailDto etc = new StudentCourseDto.CourseDetailDto(
-                "3", "특별과정", "ETC101", FacultyDivision.기타, "교직", 1, "최교수", "P", 1,
-                false, false, 2024, 1, 80, null, false
-        );
-        StudentCourseDto.CourseDetailDto etcUnknown = new StudentCourseDto.CourseDetailDto(
-                "4", "미지정과정", "UNK001", null, null, 1, "미지정", "P", 1,
-                false, false, 2024, 1, 70, null, false
-        );
+    StudentCourseDto.CourseDetailDto major =
+        new StudentCourseDto.CourseDetailDto(
+            "1",
+            "자료구조",
+            "CSE101",
+            FacultyDivision.전핵,
+            null,
+            3,
+            "홍길동",
+            "A+",
+            3,
+            false,
+            false,
+            2024,
+            1,
+            95,
+            null,
+            false);
+    StudentCourseDto.CourseDetailDto liberal =
+        new StudentCourseDto.CourseDetailDto(
+            "2",
+            "글쓰기",
+            "LBA101",
+            FacultyDivision.중핵,
+            null,
+            2,
+            "김교수",
+            "B+",
+            2,
+            false,
+            false,
+            2024,
+            1,
+            88,
+            null,
+            false);
+    StudentCourseDto.CourseDetailDto etc =
+        new StudentCourseDto.CourseDetailDto(
+            "3",
+            "특별과정",
+            "ETC101",
+            FacultyDivision.기타,
+            "교직",
+            1,
+            "최교수",
+            "P",
+            1,
+            false,
+            false,
+            2024,
+            1,
+            80,
+            null,
+            false);
+    StudentCourseDto.CourseDetailDto etcUnknown =
+        new StudentCourseDto.CourseDetailDto(
+            "4", "미지정과정", "UNK001", null, null, 1, "미지정", "P", 1, false, false, 2024, 1, 70, null,
+            false);
 
-        when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
-        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(major, liberal, etc, etcUnknown));
+    when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1))
+        .thenReturn(grade);
+    when(studentCourseService.getStudentCourses(studentId, 2024, 1))
+        .thenReturn(List.of(major, liberal, etc, etcUnknown));
 
-        AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
+    AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
 
-        assertThat(result.semesterGrade()).isEqualTo(grade);
-        assertThat(result.courses().major()).containsExactly(major);
-        assertThat(result.courses().liberal()).containsExactly(liberal);
-        assertThat(result.courses().etc()).containsExactly(etc, etcUnknown);
-        assertThat(result.courses().etc())
-                .extracting(StudentCourseDto.CourseDetailDto::rawAreaType)
-                .containsExactly("교직", null);
-    }
+    assertThat(result.semesterGrade()).isEqualTo(grade);
+    assertThat(result.courses().major()).containsExactly(major);
+    assertThat(result.courses().liberal()).containsExactly(liberal);
+    assertThat(result.courses().etc()).containsExactly(etc, etcUnknown);
+    assertThat(result.courses().etc())
+        .extracting(StudentCourseDto.CourseDetailDto::rawAreaType)
+        .containsExactly("교직", null);
+  }
 
-    @Test
-    @DisplayName("전공 과목이 없으면 전공 목록을 빈 리스트로 반환한다")
-    void getAcademicRecord_withoutMajorCourses_returnsEmptyMajorList() {
-        UUID studentId = UUID.randomUUID();
-        SemesterAcademicRecordDto.SemesterGradeResponse grade =
-                new SemesterAcademicRecordDto.SemesterGradeResponse(
-                        2023, 2, 12, 15, new BigDecimal("3.40"), 10, 150, new BigDecimal("80.1")
-                );
+  @Test
+  @DisplayName("전공 과목이 없으면 전공 목록을 빈 리스트로 반환한다")
+  void getAcademicRecordWithoutMajorCoursesReturnsEmptyMajorList() {
+    UUID studentId = UUID.randomUUID();
+    SemesterAcademicRecordDto.SemesterGradeResponse grade =
+        new SemesterAcademicRecordDto.SemesterGradeResponse(
+            2023, 2, 12, 15, new BigDecimal("3.40"), 10, 150, new BigDecimal("80.1"));
 
-        StudentCourseDto.CourseDetailDto liberal = new StudentCourseDto.CourseDetailDto(
-                "10", "영어회화", "ENG201", FacultyDivision.중핵, null, 2, "박교수", "A0", 2,
-                false, false, 2023, 2, 90, null, false
-        );
+    StudentCourseDto.CourseDetailDto liberal =
+        new StudentCourseDto.CourseDetailDto(
+            "10",
+            "영어회화",
+            "ENG201",
+            FacultyDivision.중핵,
+            null,
+            2,
+            "박교수",
+            "A0",
+            2,
+            false,
+            false,
+            2023,
+            2,
+            90,
+            null,
+            false);
 
-        when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2023, 2)).thenReturn(grade);
-        when(studentCourseService.getStudentCourses(studentId, 2023, 2)).thenReturn(List.of(liberal));
+    when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2023, 2))
+        .thenReturn(grade);
+    when(studentCourseService.getStudentCourses(studentId, 2023, 2)).thenReturn(List.of(liberal));
 
-        AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2023, 2);
+    AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2023, 2);
 
-        assertThat(result.courses().major()).isEmpty();
-        assertThat(result.courses().liberal()).containsExactly(liberal);
-        assertThat(result.courses().etc()).isEmpty();
-    }
+    assertThat(result.courses().major()).isEmpty();
+    assertThat(result.courses().liberal()).containsExactly(liberal);
+    assertThat(result.courses().etc()).isEmpty();
+  }
 
-    @Test
-    @DisplayName("복핵은 전공으로, 복교는 교양으로 분류한다")
-    void getAcademicRecord_categorizesDualCoreAsMajorAndDualLiberalAsLiberal() {
-        UUID studentId = UUID.randomUUID();
-        SemesterAcademicRecordDto.SemesterGradeResponse grade =
-                new SemesterAcademicRecordDto.SemesterGradeResponse(
-                        2024, 1, 6, 6, new BigDecimal("4.00"), 1, 100, new BigDecimal("95.0")
-                );
+  @Test
+  @DisplayName("복핵은 전공으로, 복교는 교양으로 분류한다")
+  void getAcademicRecordCategorizesDualCoreAsMajorAndDualLiberalAsLiberal() {
+    UUID studentId = UUID.randomUUID();
+    SemesterAcademicRecordDto.SemesterGradeResponse grade =
+        new SemesterAcademicRecordDto.SemesterGradeResponse(
+            2024, 1, 6, 6, new BigDecimal("4.00"), 1, 100, new BigDecimal("95.0"));
 
-        StudentCourseDto.CourseDetailDto dualCore = new StudentCourseDto.CourseDetailDto(
-                "20", "복수전공핵심", "DMJ101", FacultyDivision.복핵, null, 3, "이교수", "A+", 3,
-                false, false, 2024, 1, 96, null, false
-        );
-        StudentCourseDto.CourseDetailDto dualLiberal = new StudentCourseDto.CourseDetailDto(
-                "21", "복수전공교양", "DMJ102", FacultyDivision.복교, null, 3, "김교수", "A0", 3,
-                false, false, 2024, 1, 92, null, false
-        );
+    StudentCourseDto.CourseDetailDto dualCore =
+        new StudentCourseDto.CourseDetailDto(
+            "20",
+            "복수전공핵심",
+            "DMJ101",
+            FacultyDivision.복핵,
+            null,
+            3,
+            "이교수",
+            "A+",
+            3,
+            false,
+            false,
+            2024,
+            1,
+            96,
+            null,
+            false);
+    StudentCourseDto.CourseDetailDto dualLiberal =
+        new StudentCourseDto.CourseDetailDto(
+            "21",
+            "복수전공교양",
+            "DMJ102",
+            FacultyDivision.복교,
+            null,
+            3,
+            "김교수",
+            "A0",
+            3,
+            false,
+            false,
+            2024,
+            1,
+            92,
+            null,
+            false);
 
-        when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1)).thenReturn(grade);
-        when(studentCourseService.getStudentCourses(studentId, 2024, 1)).thenReturn(List.of(dualCore, dualLiberal));
+    when(semesterAcademicRecordService.getSemesterGradesByYearAndSemester(studentId, 2024, 1))
+        .thenReturn(grade);
+    when(studentCourseService.getStudentCourses(studentId, 2024, 1))
+        .thenReturn(List.of(dualCore, dualLiberal));
 
-        AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
+    AcademicRecordResponse result = academicRecordService.getAcademicRecord(studentId, 2024, 1);
 
-        assertThat(result.courses().major()).containsExactly(dualCore);
-        assertThat(result.courses().liberal()).containsExactly(dualLiberal);
-        assertThat(result.courses().etc()).isEmpty();
-    }
+    assertThat(result.courses().major()).containsExactly(dualCore);
+    assertThat(result.courses().liberal()).containsExactly(dualLiberal);
+    assertThat(result.courses().etc()).isEmpty();
+  }
 }

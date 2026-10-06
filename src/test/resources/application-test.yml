@@ -7,6 +7,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate.type.preferred_instant_jdbc_type: TIMESTAMP
 
 security:
   jwt:
@@ -15,6 +17,8 @@ security:
     refresh-expiration: 86400
   appKey: test-app-key
   nativeAppKey: test-native-key
+  admin:
+    cookie-secure: false
 
 crawler:
   base-url: https://example.com

@@ -1,0 +1,58 @@
+name: Database Backup
+
+on:
+  schedule:
+    # GitHub Actions cron은 UTC 기준이다. KST 05:00에 실행한다.
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: database-backup-prod
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Back up production database
+    runs-on: ubuntu-latest
+    environment: prod
+    timeout-minutes: 60
+    env:
+      AWS_REGION: ${{ vars.PROD_AWS_REGION }}
+      BACKUP_S3_BUCKET: ${{ vars.PROD_BACKUP_S3_BUCKET }}
+      BACKUP_S3_PREFIX: supabase-db
+      SUPABASE_DB_URL: ${{ secrets.PROD_SUPABASE_DB_URL }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+
+    steps:
+      - name: Checkout backup scripts
+        uses: actions/checkout@v4
+
+      - name: Validate required configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variable_name in AWS_REGION BACKUP_S3_BUCKET SUPABASE_DB_URL BACKUP_ENCRYPTION_PASSPHRASE; do
+            if [ -z "${!variable_name}" ]; then
+              echo "Missing required GitHub Environment secret or variable: ${variable_name}." >&2
+              exit 1
+            fi
+          done
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.PROD_DB_BACKUP_ROLE_ARN }}
+          role-session-name: cchaksa-db-backup
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+
+      - name: Create and upload encrypted database backup
+        shell: bash
+        run: ./scripts/backup/supabase-dump.sh

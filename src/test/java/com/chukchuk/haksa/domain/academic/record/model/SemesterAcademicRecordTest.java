@@ -1,52 +1,41 @@
 package com.chukchuk.haksa.domain.academic.record.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
 
 class SemesterAcademicRecordTest {
 
-    @Test
-    void markLectureEvaluationNotReleased_changesNullStatusToNotReleased() {
-        SemesterAcademicRecord record = semesterRecord();
+  @Test
+  void markLectureEvaluationNotReleasedChangesNullStatusToNotReleased() {
+    SemesterAcademicRecord record = semesterRecord();
 
-        record.markLectureEvaluationNotReleased();
+    record.markLectureEvaluationNotReleased();
 
-        assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.NOT_RELEASED);
-    }
+    assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.NOT_RELEASED);
+  }
 
-    @Test
-    void markLectureEvaluationPending_changesNotReleasedStatusToPending() {
-        SemesterAcademicRecord record = semesterRecord();
-        record.markLectureEvaluationNotReleased();
+  @Test
+  void markLectureEvaluationPendingChangesNotReleasedStatusToPending() {
+    SemesterAcademicRecord record = semesterRecord();
+    record.markLectureEvaluationNotReleased();
 
-        record.markLectureEvaluationPending();
+    record.markLectureEvaluationPending();
 
-        assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.PENDING);
-    }
+    assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.PENDING);
+  }
 
-    @Test
-    void markLectureEvaluationNotReleased_doesNotOverwriteCompletedStatus() {
-        SemesterAcademicRecord record = semesterRecord();
-        record.markLectureEvaluationCompleted();
+  @Test
+  void markLectureEvaluationNotReleasedDoesNotOverwriteCompletedStatus() {
+    SemesterAcademicRecord record = semesterRecord();
+    record.markLectureEvaluationCompleted();
 
-        record.markLectureEvaluationNotReleased();
+    record.markLectureEvaluationNotReleased();
 
-        assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.COMPLETED);
-    }
+    assertThat(record.getLectureEvaluationStatus()).isEqualTo(LectureEvaluationStatus.COMPLETED);
+  }
 
-    private SemesterAcademicRecord semesterRecord() {
-        return new SemesterAcademicRecord(
-                null,
-                2026,
-                10,
-                3,
-                0,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
-    }
+  private SemesterAcademicRecord semesterRecord() {
+    return new SemesterAcademicRecord(null, 2026, 10, 3, 0, null, null, null, null, null);
+  }
 }

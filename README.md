@@ -154,6 +154,8 @@ flowchart LR
 ## 개발 문서
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): 사람용 이슈·브랜치·릴리즈·커밋·PR 규칙.
+- [`docs/development/java-style.md`](docs/development/java-style.md): Java 포맷, Checkstyle, Javadoc 기준과 검증 명령.
+- [`docs/tasks/README.md`](docs/tasks/README.md): 이슈별 설계·구현 계획 문서 작성 기준.
 - [Backend Wiki](https://github.com/cchaksa/cchaksa-backend/wiki): 로컬 실행, 아키텍처, API·인증, 배포, 운영, 트러블슈팅.
 - [Development Guide](https://github.com/cchaksa/cchaksa-backend/wiki/Development-Guide): 브랜치, 커밋, 테스트, PR, Wiki 갱신 절차.
 - [Architecture Decision Records](https://github.com/cchaksa/cchaksa-backend/wiki/Architecture-Decision-Records): 주요 기술 결정과 재검토 조건.

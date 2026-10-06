@@ -1,0 +1,83 @@
+{
+  "studentInfo": {
+    "sno": "17019013",
+    "studNm": "홍길동",
+    "univCd": "01",
+    "univNm": "수원대학교",
+    "dpmjCd": "D1",
+    "dpmjNm": "컴퓨터학부",
+    "mjorCd": "M1",
+    "mjorNm": "컴퓨터학과",
+    "scrgStatNm": "재학",
+    "enscYear": "2024",
+    "enscSmrCd": "10",
+    "enscDvcd": "2",
+    "studGrde": 3,
+    "facSmrCnt": 3,
+    "flangPassGb": "통과"
+  },
+  "semesters": [
+    {
+      "semester": "2024-1",
+      "courses": [
+        {
+          "subjtCd": "07045",
+          "subjtNm": "편입인정학점",
+          "point": null,
+          "gainPoint": 65,
+          "cretGrdCd": "P",
+          "refacYearSmr": "-",
+          "facDvnm": "일선",
+          "subjtEstbSmrCd": "1",
+          "subjtEstbYearSmr": "2024-1",
+          "cretDelCd": null,
+          "cretDelNm": null
+        },
+        {
+          "subjtCd": "C101",
+          "subjtNm": "자료구조",
+          "point": 3,
+          "gainPoint": 3,
+          "cretGrdCd": "A0",
+          "refacYearSmr": "-",
+          "facDvnm": "전선",
+          "subjtEstbSmrCd": "1",
+          "subjtEstbYearSmr": "2024-1",
+          "cretDelCd": null,
+          "cretDelNm": null
+        }
+      ]
+    }
+  ],
+  "academicRecords": {
+    "listSmrCretSumTabYearSmr": [],
+    "selectSmrCretSumTabSjTotal": {
+      "gainPoint": "112",
+      "applPoint": "112",
+      "gainAvmk": "3.2",
+      "gainTavgPont": "85"
+    }
+  },
+  "designatedCourses": [
+    {
+      "orgClsCd": "20",
+      "subjtCd": "C101",
+      "subjtNm": "자료구조",
+      "point": 3,
+      "precpResnCd": "TRANSFER",
+      "cretGainYear": "2024",
+      "cretSmrNm": "1학기",
+      "sno": "17019013"
+    },
+    {
+      "orgClsCd": "20",
+      "subjtCd": "C202",
+      "subjtNm": "운영체제",
+      "point": 3,
+      "precpResnCd": "TRANSFER",
+      "cretGainYear": "2024",
+      "cretSmrNm": "1학기",
+      "sno": "17019013"
+    }
+  ]
+}

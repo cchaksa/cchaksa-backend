@@ -13,37 +13,38 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 포털 작업 query HTTP 요청을 처리한다. */
 @RestController
 @RequestMapping("/portal/link/jobs")
 @RequiredArgsConstructor
 public class PortalJobQueryController implements PortalLinkQueryControllerDocs {
 
-    private final PortalLinkJobQueryService portalLinkJobQueryService;
+  private final PortalLinkJobQueryService portalLinkJobQueryService;
 
-    @GetMapping("/{jobId}")
-    public ResponseEntity<SuccessResponse<PortalLinkDto.JobStatusResponse>> getJobStatus(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    ) {
-        PortalLinkDto.JobStatusResponse response = portalLinkJobQueryService.getJobStatus(userDetails.getId(), jobId);
-        return ResponseEntity.ok(SuccessResponse.of(response));
-    }
+  @Override
+  @GetMapping("/{jobId}")
+  public ResponseEntity<SuccessResponse<PortalLinkDto.JobStatusResponse>> getJobStatus(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId) {
+    PortalLinkDto.JobStatusResponse response =
+        portalLinkJobQueryService.getJobStatus(userDetails.getId(), jobId);
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 
-    @GetMapping("/{jobId}/summary")
-    public ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    ) {
-        PortalLinkDto.JobSummaryResponse response = portalLinkJobQueryService.getJobSummary(userDetails.getId(), jobId);
-        return ResponseEntity.ok(SuccessResponse.of(response));
-    }
+  @Override
+  @GetMapping("/{jobId}/summary")
+  public ResponseEntity<SuccessResponse<PortalLinkDto.JobSummaryResponse>> getJobSummary(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId) {
+    PortalLinkDto.JobSummaryResponse response =
+        portalLinkJobQueryService.getJobSummary(userDetails.getId(), jobId);
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 
-    @GetMapping("/{jobId}/duration")
-    public ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable String jobId
-    ) {
-        PortalLinkDto.JobDurationResponse response = portalLinkJobQueryService.getJobDuration(userDetails.getId(), jobId);
-        return ResponseEntity.ok(SuccessResponse.of(response));
-    }
+  @Override
+  @GetMapping("/{jobId}/duration")
+  public ResponseEntity<SuccessResponse<PortalLinkDto.JobDurationResponse>> getJobDuration(
+      @AuthenticationPrincipal CustomUserDetails userDetails, @PathVariable String jobId) {
+    PortalLinkDto.JobDurationResponse response =
+        portalLinkJobQueryService.getJobDuration(userDetails.getId(), jobId);
+    return ResponseEntity.ok(SuccessResponse.of(response));
+  }
 }

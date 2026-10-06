@@ -1,5 +1,7 @@
 package com.chukchuk.haksa.domain.student.controller.docs;
 
+import static com.chukchuk.haksa.domain.student.dto.StudentDto.StudentProfileResponse;
+
 import com.chukchuk.haksa.domain.student.wrapper.StudentProfileApiResponse;
 import com.chukchuk.haksa.domain.student.wrapper.TargetGpaApiResponse;
 import com.chukchuk.haksa.global.common.response.MessageOnlyResponse;
@@ -19,56 +21,78 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import static com.chukchuk.haksa.domain.student.dto.StudentDto.StudentProfileResponse;
-
+/** 인증 학생의 목표 평점 설정·프로필 조회·학사 데이터 초기화 API를 정의한다. */
 @Tag(name = "Student", description = "학생 설정 관련 API")
 public interface StudentControllerDocs {
 
-    @Operation(
-            summary = "목표 GPA 설정",
-            description = "로그인된 사용자의 목표 GPA를 저장합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "목표 GPA 설정 성공",
-                            content = @Content(schema = @Schema(implementation = TargetGpaApiResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "잘못된 GPA 입력 (ErrorCode: C01, INVALID_ARGUMENT)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "404", description = "학생 정보 없음 (ErrorCode: S01, STUDENT_NOT_FOUND)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> setTargetGpa(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @RequestParam(required = false)
-            @Parameter(description = "목표 GPA", example = "3.8")
-            @DecimalMin(value = "0.0", inclusive = true)
-            @DecimalMax(value = "4.5", inclusive = true)
-            Double targetGpa
-    );
+  /**
+   * 전달된 값을 현재 객체에 설정한다.
+   *
+   * @param userDetails 사용자 상세 정보
+   * @param targetGpa 학생이 설정한 목표 평점
+   * @return 목표 평점 저장 완료 메시지를 담은 성공 응답
+   */
+  @Operation(
+      summary = "목표 GPA 설정",
+      description = "로그인된 사용자의 목표 GPA를 저장합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "목표 GPA 설정 성공",
+            content = @Content(schema = @Schema(implementation = TargetGpaApiResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "잘못된 GPA 입력 (ErrorCode: C01, INVALID_ARGUMENT)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "학생 정보 없음 (ErrorCode: S01, STUDENT_NOT_FOUND)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> setTargetGpa(
+      @AuthenticationPrincipal CustomUserDetails userDetails,
+      @RequestParam(required = false)
+          @Parameter(description = "목표 GPA", example = "3.8")
+          @DecimalMin(value = "0.0", inclusive = true)
+          @DecimalMax(value = "4.5", inclusive = true)
+          Double targetGpa);
 
-    @Operation(
-            summary = "사용자 프로필 조회",
-            description = "로그인된 사용자의 프로필 정보를 조회합니다.",
-            responses = {
-                    @ApiResponse(responseCode = "200", description = "사용자 프로필 정보 조회 성공",
-                            content = @Content(schema = @Schema(implementation = StudentProfileApiResponse.class))),
-                    @ApiResponse(responseCode = "400", description = "학생 미연결 사용자 (ErrorCode: U04, USER_NOT_CONNECTED)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
-                    @ApiResponse(responseCode = "404", description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
-                            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
-            }
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<StudentProfileResponse>> getProfile(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 로그인 학생의 프로필과 포털 동기화 상태를 조회한다.
+   *
+   * @param userDetails 인증된 사용자 정보
+   * @return 로그인 학생의 이름·학적·포털 동기화 상태 성공 응답
+   */
+  @Operation(
+      summary = "사용자 프로필 조회",
+      description = "로그인된 사용자의 프로필 정보를 조회합니다.",
+      responses = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "사용자 프로필 정보 조회 성공",
+            content = @Content(schema = @Schema(implementation = StudentProfileApiResponse.class))),
+        @ApiResponse(
+            responseCode = "400",
+            description = "학생 미연결 사용자 (ErrorCode: U04, USER_NOT_CONNECTED)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class))),
+        @ApiResponse(
+            responseCode = "404",
+            description = "사용자 정보 없음 (ErrorCode: U01, USER_NOT_FOUND)",
+            content = @Content(schema = @Schema(implementation = ErrorResponseWrapper.class)))
+      })
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<StudentProfileResponse>> getProfile(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 
-    @Operation(
-            summary = "사용자 정보 초기화",
-            description = "로그인된 사용자의 정보를 초기화합니다."
-    )
-    @SecurityRequirement(name = "bearerAuth")
-    ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetStudentData(
-            @AuthenticationPrincipal CustomUserDetails userDetails
-    );
+  /**
+   * 로그인 사용자의 학생 학사 데이터를 초기화한다.
+   *
+   * @param userDetails 사용자 상세 정보
+   * @return 학사 데이터 초기화 완료 메시지를 담은 성공 응답
+   */
+  @Operation(summary = "사용자 정보 초기화", description = "로그인된 사용자의 정보를 초기화합니다.")
+  @SecurityRequirement(name = "bearerAuth")
+  ResponseEntity<SuccessResponse<MessageOnlyResponse>> resetStudentData(
+      @AuthenticationPrincipal CustomUserDetails userDetails);
 }
