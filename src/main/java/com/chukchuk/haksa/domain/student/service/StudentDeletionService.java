@@ -56,6 +56,6 @@ public class StudentDeletionService {
       targetStudent.resetDesignatedCourseSnapshot(Instant.now());
     }
     targetStudent.anonymize();
-    studentRepository.save(targetStudent);
+    studentRepository.saveAndFlush(targetStudent);
   }
 }

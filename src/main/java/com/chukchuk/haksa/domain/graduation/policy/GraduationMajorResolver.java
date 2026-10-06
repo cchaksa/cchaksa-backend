@@ -73,6 +73,9 @@ public class GraduationMajorResolver {
       if (primaryId == null) {
         continue;
       }
+      if (!hasSingleMajorRequirement(primaryId, admissionYear)) {
+        continue;
+      }
 
       for (Long secondaryId : secondaryCandidates) {
         if (secondaryId == null) {

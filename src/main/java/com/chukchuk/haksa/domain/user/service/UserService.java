@@ -155,6 +155,11 @@ public class UserService {
       return currentUser;
     }
 
+    if (Boolean.TRUE.equals(existingUser.getIsDeleted())) {
+      cleanupLegacyWithdrawnUser(existingUser);
+      return currentUser;
+    }
+
     // 소셜 계정 모두 이전
     List<SocialAccount> accounts = socialAccountRepository.findAllByUserId(existingUser.getId());
     for (SocialAccount sa : accounts) {
@@ -178,6 +183,16 @@ public class UserService {
     return currentUser;
   }
 
+  private void cleanupLegacyWithdrawnUser(User withdrawnUser) {
+    UUID withdrawnUserId = withdrawnUser.getId();
+    studentDeletionService.anonymizeByStudent(withdrawnUser.getStudent());
+    authTokenCache.evictByUserId(withdrawnUserId.toString());
+    socialAccountRepository.deleteByUser(withdrawnUser);
+    refreshTokenService.deleteAllByUserId(withdrawnUserId.toString());
+    userRepository.flush();
+    log.info("[BIZ] user.withdrawn-legacy.cleaned userId={}", withdrawnUserId);
+  }
+
   /* private method */
   private Claims verifyToken(OidcProvider provider, UserDto.SignInRequest request) {
     return oidcServices.get(provider).verifyIdToken(request.idToken(), request.nonce());
@@ -189,40 +204,48 @@ public class UserService {
 
   private User findOrCreateUser(
       OidcProvider provider, String socialId, String email, String profileNickname) {
-    return socialAccountRepository
-        .findByProviderAndSocialId(provider, socialId)
-        .map(
-            socialAccount -> {
-              log.info(
-                  "[BIZ] users.signin.user.found provider={} socialId={} userId={}",
-                  provider,
-                  socialId,
-                  socialAccount.getUser().getId());
-              return socialAccount.getUser();
-            })
-        .orElseGet(
-            () -> {
-              User newUser =
-                  userRepository.save(
-                      User.builder().email(email).profileNickname(profileNickname).build());
+    Optional<SocialAccount> socialAccount =
+        socialAccountRepository.findByProviderAndSocialId(provider, socialId);
 
-              SocialAccount socialAccount =
-                  SocialAccount.builder()
-                      .user(newUser)
-                      .socialId(socialId)
-                      .provider(provider)
-                      .email(email)
-                      .build();
+    if (socialAccount.isPresent()) {
+      User existingUser = socialAccount.get().getUser();
+      if (Boolean.TRUE.equals(existingUser.getIsDeleted())) {
+        cleanupLegacyWithdrawnUser(existingUser);
+        return createUserWithSocialAccount(provider, socialId, email, profileNickname);
+      }
 
-              socialAccountRepository.save(socialAccount);
-              log.info(
-                  "[BIZ] users.signin.user.created provider={} socialId={} userId={}",
-                  provider,
-                  socialId,
-                  newUser.getId());
+      log.info(
+          "[BIZ] users.signin.user.found provider={} socialId={} userId={}",
+          provider,
+          socialId,
+          existingUser.getId());
+      return existingUser;
+    }
 
-              return newUser;
-            });
+    return createUserWithSocialAccount(provider, socialId, email, profileNickname);
+  }
+
+  private User createUserWithSocialAccount(
+      OidcProvider provider, String socialId, String email, String profileNickname) {
+    User newUser =
+        userRepository.save(User.builder().email(email).profileNickname(profileNickname).build());
+
+    SocialAccount socialAccount =
+        SocialAccount.builder()
+            .user(newUser)
+            .socialId(socialId)
+            .provider(provider)
+            .email(email)
+            .build();
+
+    socialAccountRepository.save(socialAccount);
+    log.info(
+        "[BIZ] users.signin.user.created provider={} socialId={} userId={}",
+        provider,
+        socialId,
+        newUser.getId());
+
+    return newUser;
   }
 
   private AuthDto.SignInTokenResponse generateSignInResponse(User user) {

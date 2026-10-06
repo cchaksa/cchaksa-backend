@@ -302,6 +302,72 @@ class UserServiceIntegrationTest {
   }
 
   @Test
+  @DisplayName("레거시 탈퇴 계정은 재가입 계정에 병합하지 않고 같은 학번 재사용을 허용한다")
+  void rejoinWithLegacyWithdrawnUserAnonymizesLegacyStudentBeforeCreatingNewStudent() {
+    String studentCode = "20260003";
+    User withdrawnUser =
+        userRepository.save(
+            User.builder()
+                .email("legacy-withdrawn@haksa.com")
+                .profileNickname("legacy-withdrawn")
+                .build());
+    final Student legacyStudent = createStudent(withdrawnUser, studentCode);
+    withdrawnUser.withdraw(java.time.Instant.now());
+    socialAccountRepository.save(
+        SocialAccount.builder()
+            .provider(OidcProvider.KAKAO)
+            .socialId("legacy-withdrawn-social-id")
+            .email(null)
+            .user(withdrawnUser)
+            .build());
+    refreshTokenRepository.save(
+        new RefreshToken(
+            "legacy-withdrawn-session",
+            withdrawnUser.getId().toString(),
+            "legacy-refresh-token",
+            new Date(System.currentTimeMillis() + 60_000)));
+    User rejoinedUser =
+        userRepository.save(
+            User.builder()
+                .email("rejoined-legacy@haksa.com")
+                .profileNickname("rejoined-legacy")
+                .build());
+
+    entityManager.flush();
+    entityManager.clear();
+
+    final User result = userService.tryMergeWithExistingUser(rejoinedUser.getId(), studentCode);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    final Student rejoinedStudent =
+        createStudent(userRepository.findById(rejoinedUser.getId()).orElseThrow(), studentCode);
+    entityManager.flush();
+    entityManager.clear();
+
+    User persistedWithdrawnUser = userRepository.findById(withdrawnUser.getId()).orElseThrow();
+    Student persistedLegacyStudent =
+        studentRepository.findById(legacyStudent.getId()).orElseThrow();
+    User persistedRejoinedUser = userRepository.findById(rejoinedUser.getId()).orElseThrow();
+
+    assertThat(result.getId()).isEqualTo(rejoinedUser.getId());
+    assertThat(persistedWithdrawnUser.getIsDeleted()).isTrue();
+    assertThat(persistedLegacyStudent.getStudentCode()).startsWith("deleted_");
+    assertThat(persistedRejoinedUser.getIsDeleted()).isFalse();
+    assertThat(userRepository.findByStudentStudentCode(studentCode))
+        .map(User::getId)
+        .contains(rejoinedUser.getId());
+    assertThat(rejoinedStudent.getId()).isNotEqualTo(legacyStudent.getId());
+    assertThat(
+            socialAccountRepository.findByProviderAndSocialId(
+                OidcProvider.KAKAO, "legacy-withdrawn-social-id"))
+        .isEmpty();
+    assertThat(refreshTokenRepository.findAll())
+        .noneMatch(token -> token.getUserId().equals(withdrawnUser.getId().toString()));
+  }
+
+  @Test
   @DisplayName("사용자와 소셜 계정은 이메일 없이 저장할 수 있다")
   void nullableSocialEmailIsPersistedAsNull() {
     User user =

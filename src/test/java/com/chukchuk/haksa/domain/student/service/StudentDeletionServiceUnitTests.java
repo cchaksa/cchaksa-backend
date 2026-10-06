@@ -54,6 +54,6 @@ class StudentDeletionServiceUnitTests {
     verify(studentDesignatedCourseRepository).deleteAllByStudentId(studentId);
     verify(student).resetDesignatedCourseSnapshot(any(Instant.class));
     verify(student).anonymize();
-    verify(studentRepository).save(student);
+    verify(studentRepository).saveAndFlush(student);
   }
 }
